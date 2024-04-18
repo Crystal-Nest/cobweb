@@ -73,6 +73,7 @@ dependencies {
   minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
   compileOnly project(":common")
   annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
+  compileOnly(fg.deobf("fuzs.forgeconfigapiport:forgeconfigapiport-forge:${fcap_version}"))
 }
 
 tasks.withType(JavaCompile).configureEach {
