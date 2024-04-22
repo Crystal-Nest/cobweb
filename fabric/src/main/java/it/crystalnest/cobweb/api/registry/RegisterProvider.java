@@ -10,13 +10,13 @@ public final class RegisterProvider {
   /**
    * Mod ID used to identify the mod registering objects via the Minecraft {@link Registry}s.
    */
-  private final String MOD_ID;
+  private final String modId;
 
   /**
-   * @param modId {@link #MOD_ID}.
+   * @param modId {@link #modId}.
    */
   public RegisterProvider(String modId) {
-    this.MOD_ID = modId;
+    this.modId = modId;
   }
 
   /**
@@ -27,6 +27,6 @@ public final class RegisterProvider {
    * @return {@link Register}.
    */
   public <R> Register<R> of(Registry<R> registry) {
-    return (key, value) -> Registry.register(registry, new ResourceLocation(MOD_ID, key), value);
+    return (key, value) -> Registry.register(registry, new ResourceLocation(modId, key), value);
   }
 }

@@ -47,6 +47,6 @@ public abstract class CobwebConfig {
   protected abstract void define(ModConfigSpec.Builder builder);
 
   protected boolean stringListValidator(Object element) {
-    return element instanceof String && !((String) element).isBlank();
+    return element instanceof String string && !string.isBlank();
   }
 }
