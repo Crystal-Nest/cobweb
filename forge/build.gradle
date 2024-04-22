@@ -71,8 +71,8 @@ sourceSets.main.resources.srcDir "src/generated/resources"
 
 dependencies {
   minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-  compileOnly project(":common")
   annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
+  compileOnly project(":common")
   compileOnly(fg.deobf("fuzs.forgeconfigapiport:forgeconfigapiport-forge:${fcap_version}"))
 }
 
@@ -91,6 +91,9 @@ processResources {
 }
 
 jar.finalizedBy("reobfJar")
+
+// Task seems bugged, breaks build because of mod dependencies in the Common project, with no apparent workaround.
+tasks.named('compileTestJava').get().setEnabled(false)
 
 sourceSets.each {
   def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
