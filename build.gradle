@@ -12,6 +12,7 @@ sonar {
     property "sonar.projectKey", "Crystal-Nest_${mod_id_kebab}"
     property "sonar.organization", "crystal-nest"
     property "sonar.host.url", "https://sonarcloud.io"
+    property "sonar.qualitygate.wait", "true"
   }
 }
 
