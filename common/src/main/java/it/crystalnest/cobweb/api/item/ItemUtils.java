@@ -4,13 +4,16 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
+/**
+ * Utility methods for {@link Item}s.
+ */
 public final class ItemUtils {
   private ItemUtils() {}
 
   /**
    * Returns the in-game {@link ResourceLocation} of the item passed as parameter.
    *
-   * @param item
+   * @param item item.
    * @return {@link ResourceLocation} of the given item.
    */
   public static ResourceLocation getKey(Item item) {
@@ -20,7 +23,7 @@ public final class ItemUtils {
   /**
    * Returns the in-game ID of the item passed as parameter.
    *
-   * @param item
+   * @param item item.
    * @return in-game ID of the given item.
    */
   public static String getStringKey(Item item) {

@@ -4,13 +4,16 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 
+/**
+ * Utility methods for {@link Block}s.
+ */
 public final class BlockUtils {
   private BlockUtils() {}
 
   /**
    * Returns the in-game {@link ResourceLocation} of the block passed as parameter.
    *
-   * @param block
+   * @param block block.
    * @return {@link ResourceLocation} of the given block.
    */
   public static ResourceLocation getKey(Block block) {
@@ -20,7 +23,7 @@ public final class BlockUtils {
   /**
    * Returns the in-game ID of the block passed as parameter.
    *
-   * @param block
+   * @param block block.
    * @return in-game ID of the given block.
    */
   public static String getStringKey(Block block) {
