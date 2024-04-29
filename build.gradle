@@ -38,7 +38,7 @@ subprojects { subproject ->
       attributes([
         'Specification-Title'     : mod_title,
         'Specification-Vendor'    : mod_authors,
-        'Specification-Version' : project.version,
+        'Specification-Version'   : project.version,
         'Implementation-Title'    : mod_title,
         'Implementation-Vendor'   : mod_authors,
         'Implementation-Version': project.version,
@@ -87,7 +87,7 @@ subprojects { subproject ->
       "mod_id"                       : mod_id,
       "mod_id_kebab"                 : mod_id_kebab,
       "license"                      : license,
-      "description": project.description,
+      "description"                  : project.description,
       "credits"                      : credits,
       "github_user"                  : github_user,
       "curseforge_id"                : curseforge_id,
