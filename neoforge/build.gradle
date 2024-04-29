@@ -3,9 +3,6 @@ plugins {
   id "java-library"
   id "net.neoforged.gradle.userdev" version "7.0.84"
 }
-base {
-  archivesName = "${mod_id_kebab}-neoforge-${minecraft_version}"
-}
 
 if (file("src/main/resources/META-INF/accesstransformer.cfg").exists()) {
   minecraft.accessTransformers.file file("src/main/resources/META-INF/accesstransformer.cfg")

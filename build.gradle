@@ -27,6 +27,9 @@ subprojects { subproject ->
   java.withSourcesJar()
   java.withJavadocJar()
 
+  archivesBaseName = "${mod_id_kebab}-${subproject.name}"
+  version = "${minecraft_version}-${mod_version}"
+
   jar {
     from(rootProject.file("LICENSE")) {
       rename { "${it}_${mod_title}" }
@@ -35,10 +38,10 @@ subprojects { subproject ->
       attributes([
         'Specification-Title'     : mod_title,
         'Specification-Vendor'    : mod_authors,
-        'Specification-Version'   : "${minecraft_version}-${mod_version}",
+        'Specification-Version' : project.version,
         'Implementation-Title'    : mod_title,
         'Implementation-Vendor'   : mod_authors,
-        'Implementation-Version'  : "${minecraft_version}-${mod_version}",
+        'Implementation-Version': project.version,
         "Implementation-URL"      : "https://github.com/${github_user}/${mod_id_kebab}/tree/${minecraft_version}",
         'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
         'Timestamp'               : System.currentTimeMillis(),
