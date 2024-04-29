@@ -203,10 +203,13 @@ subprojects { subproject ->
       switch (loader) {
         case "Fabric":
           required.project "fabric-api"
+          optional.project "forge-config-api-port"
           break
         case "Forge":
+          optional.project "forge-config-api-port"
           break
         case "NeoForge":
+          optional.project "forge-config-api-port"
           break
       }
     }
@@ -230,10 +233,13 @@ subprojects { subproject ->
       relations {
         switch (loader) {
           case "Fabric":
+            optionalDependency "forge-config-api-port-fabric"
             break
           case "Forge":
+            optionalDependency "forge-config-api-port-fabric"
             break
           case "NeoForge":
+            optionalDependency "forge-config-api-port-fabric"
             break
         }
       }
