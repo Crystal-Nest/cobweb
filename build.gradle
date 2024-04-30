@@ -5,6 +5,8 @@ plugins {
   id "com.modrinth.minotaur" version "2.+" apply false
   id "me.hypherionmc.cursegradle" version "2.0.1" apply false
   id "com.github.breadmoirai.github-release" version "2.5.+" apply false
+  // Required for Fabric
+  id "fabric-loom" version "1.5-SNAPSHOT" apply false
 }
 
 sonar {
@@ -17,11 +19,17 @@ sonar {
 }
 
 subprojects { subproject ->
+  def noPublish = subproject.name === "common"
+  def isFabric = subproject.name == "fabric"
+
   apply plugin: "java"
   apply plugin: "com.modrinth.minotaur"
   apply plugin: "me.hypherionmc.cursegradle"
   apply plugin: "com.github.breadmoirai.github-release"
   apply plugin: "maven-publish"
+  if (isFabric) {
+    apply plugin: "fabric-loom"
+  }
 
   java.toolchain.languageVersion = JavaLanguageVersion.of(17)
   java.withSourcesJar()
@@ -126,7 +134,6 @@ subprojects { subproject ->
       loader = "NeoForge"
       break
   }
-  def noPublish = loader === "Common"
 
   publishing {
     repositories {
@@ -183,7 +190,7 @@ subprojects { subproject ->
     body = changelog_body
     draft = false
     prerelease = version_type != "release"
-    releaseAssets = tasks.findByName("remapJar") ?: tasks.getByName("jar")
+    releaseAssets = isFabric ? remapJar : jar
     allowUploadToExisting = true
     overwrite = false
     dryRun = noPublish
@@ -195,7 +202,7 @@ subprojects { subproject ->
     versionNumber = mod_version
     versionName = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
     changelog = changelog_body
-    uploadFile = tasks.findByName("remapJar") ?: tasks.getByName("jar")
+    uploadFile = isFabric ? remapJar : jar
     versionType = version_type
     gameVersions = [minecraft_version]
     loaders = [loader.toLowerCase()]
@@ -227,7 +234,7 @@ subprojects { subproject ->
         addGameVersion loader
       }
       addGameVersion minecraft_version
-      mainArtifact(tasks.findByName("remapJar") ?: tasks.getByName("jar")) {
+      mainArtifact(isFabric ? remapJar : jar) {
         displayName = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
       }
       relations {
