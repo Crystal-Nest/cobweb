@@ -142,8 +142,8 @@ subprojects { subproject ->
     publications {
       gpr(MavenPublication) {
         groupId = project.group
-        artifactId = "${mod_id_kebab}-${loader.toLowerCase()}"
-        version = "${minecraft_version}-${mod_version}"
+        artifactId = "${mod_id_kebab}-${subproject.name}"
+        version = project.version
         from components.java
         pom {
           name = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
