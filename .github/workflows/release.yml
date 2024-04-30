@@ -24,5 +24,6 @@ jobs:
     needs: [call-analyze-workflow, call-version-update-workflow]
     permissions: 
       contents: write
+      packages: write
     uses: crystal-nest/.github/.github/workflows/release.yml@main
     secrets: inherit
