@@ -9,9 +9,13 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 
 - Nothing new.
 
-## 1.0.0.0
+## [1.20.4-0.0.1.0-alpha] - 2024/04/30
 
-- Release notes...
+- Added utility to retrieve in-game IDs.
+- Added first draft of a unified configuration system.
+- Added Fabric specific registering system.
 
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
+
+[0.0.1.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.0-alpha
