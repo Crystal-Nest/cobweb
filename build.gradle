@@ -127,6 +127,7 @@ subprojects { subproject ->
       break
   }
   def noPublish = loader == "Common"
+  def isFabric = loader == 'Fabric'
 
   publishing {
     repositories {
@@ -176,14 +177,14 @@ subprojects { subproject ->
     token = System.getenv("GITHUB_TOKEN") ?: ""
     owner = github_user
     repo = mod_id_kebab
-    tagName = "v${minecraft_version}-${mod_version}"
+    tagName = "v${project.version}"
     targetCommitish = minecraft_version
-    releaseName = "v${minecraft_version}-${mod_version}"
+    releaseName = "v${project.version}"
     generateReleaseNotes = false
     body = changelog_body
     draft = false
     prerelease = version_type != "release"
-    releaseAssets jar
+    releaseAssets isFabric ? remapJar : jar
     allowUploadToExisting = true
     overwrite = false
     dryRun = noPublish
@@ -195,7 +196,7 @@ subprojects { subproject ->
     versionNumber = mod_version
     versionName = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
     changelog = changelog_body
-    uploadFile = jar
+    uploadFile = isFabric ? remapJar : jar
     versionType = version_type
     gameVersions = [minecraft_version]
     loaders = [loader.toLowerCase()]
@@ -227,7 +228,7 @@ subprojects { subproject ->
         addGameVersion loader
       }
       addGameVersion minecraft_version
-      mainArtifact(jar) {
+      mainArtifact(isFabric ? remapJar : jar) {
         displayName = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
       }
       relations {
