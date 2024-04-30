@@ -126,8 +126,7 @@ subprojects { subproject ->
       loader = "NeoForge"
       break
   }
-  def noPublish = loader == "Common"
-  def isFabric = loader == 'Fabric'
+  def noPublish = loader === "Common"
 
   publishing {
     repositories {
@@ -184,7 +183,7 @@ subprojects { subproject ->
     body = changelog_body
     draft = false
     prerelease = version_type != "release"
-    releaseAssets isFabric ? remapJar : jar
+    releaseAssets = tasks.findByName("remapJar") ?: tasks.getByName("jar")
     allowUploadToExisting = true
     overwrite = false
     dryRun = noPublish
@@ -196,7 +195,7 @@ subprojects { subproject ->
     versionNumber = mod_version
     versionName = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
     changelog = changelog_body
-    uploadFile = isFabric ? remapJar : jar
+    uploadFile = tasks.findByName("remapJar") ?: tasks.getByName("jar")
     versionType = version_type
     gameVersions = [minecraft_version]
     loaders = [loader.toLowerCase()]
@@ -228,7 +227,7 @@ subprojects { subproject ->
         addGameVersion loader
       }
       addGameVersion minecraft_version
-      mainArtifact(isFabric ? remapJar : jar) {
+      mainArtifact(tasks.findByName("remapJar") ?: tasks.getByName("jar")) {
         displayName = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
       }
       relations {
