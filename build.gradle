@@ -44,17 +44,17 @@ subprojects { subproject ->
     }
     manifest {
       attributes([
-        'Specification-Title'     : mod_title,
-        'Specification-Vendor'    : mod_authors,
-        'Specification-Version'   : project.version,
-        'Implementation-Title'    : mod_title,
-        'Implementation-Vendor'   : mod_authors,
-        'Implementation-Version'  : project.version,
+        "Specification-Title"     : mod_title,
+        "Specification-Vendor"    : mod_authors,
+        "Specification-Version"   : project.version,
+        "Implementation-Title"    : mod_title,
+        "Implementation-Vendor"   : mod_authors,
+        "Implementation-Version"  : project.version,
         "Implementation-URL"      : "https://github.com/${github_user}/${mod_id_kebab}/tree/${minecraft_version}",
-        'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-        'Timestamp'               : System.currentTimeMillis(),
-        'Built-On-Java'           : "${System.getProperty('java.vm.version')} (${System.getProperty('java.vm.vendor')})",
-        'Built-On-Minecraft'      : minecraft_version
+        "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+        "Timestamp"               : System.currentTimeMillis(),
+        "Built-On-Java"           : "${System.getProperty('java.vm.version')} (${System.getProperty('java.vm.vendor')})",
+        "Built-On-Minecraft"      : minecraft_version
       ])
     }
   }
@@ -88,26 +88,26 @@ subprojects { subproject ->
 
   processResources {
     def expandProps = [
-      "mod_version"                  : mod_version,
-      "group"                        : project.group,
-      "mod_authors"                  : mod_authors,
-      "mod_title"                    : mod_title,
-      "mod_id"                       : mod_id,
-      "mod_id_kebab"                 : mod_id_kebab,
-      "license"                      : license,
-      "description"                  : project.description,
-      "credits"                      : credits,
-      "github_user"                  : github_user,
-      "curseforge_id"                : curseforge_id,
-      "minecraft_version"            : minecraft_version,
-      "minecraft_version_range"      : minecraft_version_range,
-      "fabric_version"               : fabric_version,
-      "fabric_loader_version"        : fabric_loader_version,
-      "forge_version"                : forge_version,
-      "forge_loader_version_range"   : forge_loader_version_range,
-      "neoforge_version"             : neoforge_version,
+      "mod_version"               : mod_version,
+      "group"                     : project.group,
+      "mod_authors"               : mod_authors,
+      "mod_title"                 : mod_title,
+      "mod_id"                    : mod_id,
+      "mod_id_kebab"              : mod_id_kebab,
+      "license"                   : license,
+      "description"               : project.description,
+      "credits"                   : credits,
+      "github_user"               : github_user,
+      "curseforge_id"             : curseforge_id,
+      "minecraft_version"         : minecraft_version,
+      "minecraft_version_range"   : minecraft_version_range,
+      "fabric_version"            : fabric_version,
+      "fabric_loader_version"     : fabric_loader_version,
+      "forge_version"             : forge_version,
+      "forge_loader_version_range": forge_loader_version_range,
+      "neoforge_version"          : neoforge_version,
       "neoforge_loader_version_range": neoforge_loader_version_range,
-      "fcap_version"                 : fcap_version,
+      "fcap_version"              : fcap_version,
     ]
 
     filesMatching(["pack.mcmeta", "fabric.mod.json", "META-INF/mods.toml", "*.mixins.json"]) {
@@ -263,8 +263,8 @@ subprojects { subproject ->
       debug = noPublish
       detectNewerJava = true
       forgeGradleIntegration = false
-      fabricIntegration = loader == "Fabric"
-      detectFabricApi = loader == "Fabric"
+      fabricIntegration = isFabric
+      detectFabricApi = isFabric
     }
   }
 
