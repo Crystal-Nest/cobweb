@@ -3,6 +3,7 @@ package it.crystalnest.cobweb;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.ConfigHelper;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +29,8 @@ public final class Constants {
   /**
    * Provides registration for configuration specs.
    */
-  public static final ConfigHelper CONFIG = Services.load(ConfigHelper.class);
+  @Nullable
+  public static final ConfigHelper CONFIG = PLATFORM.isModLoaded("forgeconfigapiport") ? Services.load(ConfigHelper.class) : null;
 
   private Constants() {}
 }

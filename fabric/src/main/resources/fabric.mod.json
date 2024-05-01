@@ -29,6 +29,11 @@
     "fabric-api": "*",
     "minecraft": "${minecraft_version}",
     "java": ">=17"
+  },
+  "suggests": {
+    "forgeconfigapiport": "~${fcap_version}",
+    "forgeconfigscreens": "*",
+    "modmenu": "^9.0.0"
   }
 }
   
