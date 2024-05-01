@@ -23,6 +23,7 @@ subprojects { subproject ->
   def isFabric = subproject.name == "fabric"
 
   apply plugin: "java"
+  apply plugin: "idea"
   apply plugin: "com.modrinth.minotaur"
   apply plugin: "me.hypherionmc.cursegradle"
   apply plugin: "com.github.breadmoirai.github-release"

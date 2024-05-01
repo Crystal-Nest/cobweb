@@ -1,5 +1,4 @@
 plugins {
-  id "idea"
   id "java-library"
   id "net.neoforged.gradle.userdev" version "7.0.84"
 }

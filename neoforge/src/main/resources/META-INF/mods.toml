@@ -24,19 +24,19 @@ issueTrackerURL="https://github.com/${github_user}/${mod_id_kebab}/issues" #opti
   side = "BOTH" # Side this dependency is applied on - 'BOTH', 'CLIENT' or 'SERVER'
 [[dependencies.${mod_id}]]
   modId = "minecraft"
-  type = "required" #mandatory (Can be one of "required", "optional", "incompatible" or "discouraged")
+  type = "required"
   versionRange = "${minecraft_version_range}"
   ordering = "NONE"
   side = "BOTH"
 [[dependencies.${ mod_id }]]
   modId = "forgeconfigapiport"
-  type = "optional" #mandatory (Can be one of "required", "optional", "incompatible" or "discouraged")
+  type = "optional"
   versionRange = "[${fcap_version},)"
   ordering = "NONE"
   side = "BOTH"
 [[dependencies.${ mod_id }]]
   modId = "forgeconfigscreens"
-  type = "optional" #mandatory (Can be one of "required", "optional", "incompatible" or "discouraged")
+  type = "optional"
   versionRange = ""
   ordering = "NONE"
   side = "CLIENT"

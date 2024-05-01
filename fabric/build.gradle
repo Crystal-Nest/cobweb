@@ -1,7 +1,4 @@
-plugins {
-  id "java"
-  id "idea"
-}
+plugins {}
 
 dependencies {
   minecraft "com.mojang:minecraft:${minecraft_version}"
