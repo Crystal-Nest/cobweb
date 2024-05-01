@@ -16,6 +16,10 @@
 
 Shared mod API across Crystal Nest projects.
 
+Fully compatible with a multiloader environment!
+
+Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
+
 ## **Features**
 
 ### Common features:
