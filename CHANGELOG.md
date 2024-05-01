@@ -18,4 +18,4 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
-[0.0.1.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.0-alpha
+[1.20.4-0.0.1.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.0-alpha
