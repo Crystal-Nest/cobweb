@@ -1,11 +1,9 @@
 plugins {
   id "org.sonarqube" version "4.4.1.3373"
-  // Required for NeoGradle
   id "org.jetbrains.gradle.plugin.idea-ext" version "1.1.7"
   id "com.modrinth.minotaur" version "2.+" apply false
   id "me.hypherionmc.cursegradle" version "2.0.1" apply false
   id "com.github.breadmoirai.github-release" version "2.5.+" apply false
-  // Required for Fabric
   id "fabric-loom" version "1.5-SNAPSHOT" apply false
 }
 
@@ -261,11 +259,11 @@ subprojects { subproject ->
       }
     }
     options {
-      debug = noPublish
       detectNewerJava = true
       forgeGradleIntegration = false
       fabricIntegration = isFabric
       detectFabricApi = isFabric
+      debug = noPublish
     }
   }
 
