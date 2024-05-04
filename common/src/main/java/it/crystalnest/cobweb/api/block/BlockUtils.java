@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 
 /**
- * Utility methods for {@link Block}s.
+ * Utility methods for {@link Block Blocks}.
  */
 public final class BlockUtils {
   private BlockUtils() {}

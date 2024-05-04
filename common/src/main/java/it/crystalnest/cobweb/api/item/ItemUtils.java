@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
 /**
- * Utility methods for {@link Item}s.
+ * Utility methods for {@link Item Items}.
  */
 public final class ItemUtils {
   private ItemUtils() {}
