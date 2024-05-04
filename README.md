@@ -26,6 +26,7 @@ Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 
 - Easier way to retrieve in-game IDs.
 - Unified configuration system.
+- Tool tiers shared API.
 
 ### Fabric only features:
 
