@@ -19,7 +19,13 @@ public final class ForgeToolTiersHelper implements ToolTiersHelper {
 
   @Override
   public int getLevel(Tier tier) {
-    return tier == NO_TIER ? -1 : TierSortingRegistry.getTiersLowerThan(tier).size() + 1;
+    if (tier == null) {
+      return 0;
+    }
+    if (tier == NO_TIER) {
+      return -1;
+    }
+    return TierSortingRegistry.getTiersLowerThan(tier).size() + 1;
   }
 
   @Override
@@ -33,7 +39,7 @@ public final class ForgeToolTiersHelper implements ToolTiersHelper {
   }
 
   @Override
-  public int compare(Tier tier1, Tier tier2) {
+  public int compare(@Nullable Tier tier1, @Nullable Tier tier2) {
     return getLevel(tier1) - getLevel(tier2);
   }
 

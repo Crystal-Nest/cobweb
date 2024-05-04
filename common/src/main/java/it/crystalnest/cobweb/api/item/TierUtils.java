@@ -25,6 +25,28 @@ public final class TierUtils {
   }
 
   /**
+   * Returns the tool tier referenced by the given string.
+   *
+   * @param reference tier reference.
+   * @return tool tier or {@code null} if the reference is not valid.
+   */
+  @Nullable
+  public static Tier getTier(String reference) {
+    return Constants.TOOL_TIERS.getTier(reference);
+  }
+
+  /**
+   * Returns the tool tier referenced by the given {@link ResourceLocation}.
+   *
+   * @param reference tier reference.
+   * @return tool tier or {@code null} if the reference is not valid.
+   */
+  @Nullable
+  public static Tier getTier(ResourceLocation reference) {
+    return Constants.TOOL_TIERS.getTier(reference);
+  }
+
+  /**
    * Compares the two given tiers, abiding to the usual compare semantics.<br>
    * {@code 0} if the tiers are equal, {@code < 0} if {@code tier1} is lower than {@code tier2}, {@code > 0} i f{@code tier1} is higher than {@code tier2}
    *
@@ -52,12 +74,36 @@ public final class TierUtils {
    * Compares the two given tiers, abiding to the usual compare semantics.<br>
    * {@code 0} if the tiers are equal, {@code < 0} if {@code tier1} is lower than {@code tier2}, {@code > 0} i f{@code tier1} is higher than {@code tier2}
    *
-   * @param item1 first item.
-   * @param item2 second item.
+   * @param item1 first tier reference.
+   * @param item2 second tier reference.
    * @return comparison result.
    */
   public static int compare(Item item1, Item item2) {
     return item1 instanceof TieredItem tiered1 && item2 instanceof TieredItem tiered2 ? compare(tiered1, tiered2) : 0;
+  }
+
+  /**
+   * Compares the two given tiers, abiding to the usual compare semantics.<br>
+   * {@code 0} if the tiers are equal, {@code < 0} if {@code tier1} is lower than {@code tier2}, {@code > 0} i f{@code tier1} is higher than {@code tier2}
+   *
+   * @param reference1 first item.
+   * @param reference2 second item.
+   * @return comparison result.
+   */
+  public static int compare(String reference1, String reference2) {
+    return compare(getTier(reference1), getTier(reference2));
+  }
+
+  /**
+   * Compares the two given tiers, abiding to the usual compare semantics.<br>
+   * {@code 0} if the tiers are equal, {@code < 0} if {@code tier1} is lower than {@code tier2}, {@code > 0} i f{@code tier1} is higher than {@code tier2}
+   *
+   * @param reference1 first tier reference.
+   * @param reference2 second tier reference.
+   * @return comparison result.
+   */
+  public static int compare(ResourceLocation reference1, ResourceLocation reference2) {
+    return compare(getTier(reference1), getTier(reference2));
   }
 
   /**
@@ -101,7 +147,7 @@ public final class TierUtils {
    * @return tier level.
    */
   public static int getLevel(@Nullable Tier tier) {
-    return tier == null ? 0 : Constants.TOOL_TIERS.getLevel(tier);
+    return Constants.TOOL_TIERS.getLevel(tier);
   }
 
   /**

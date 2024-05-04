@@ -68,7 +68,7 @@ public interface ToolTiersHelper {
    * @param tier tool tier.
    * @return tier level.
    */
-  int getLevel(Tier tier);
+  int getLevel(@Nullable Tier tier);
 
   /**
    * Returns the tool tier referenced by the given string.
@@ -99,7 +99,7 @@ public interface ToolTiersHelper {
    * @param tier2 second tier.
    * @return comparison result.
    */
-  int compare(Tier tier1, Tier tier2);
+  int compare(@Nullable Tier tier1, @Nullable Tier tier2);
 
   /**
    * Checks whether the given reference represents the given tier.

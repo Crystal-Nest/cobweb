@@ -19,7 +19,7 @@ public final class FabricToolTiersHelper implements ToolTiersHelper {
 
   @Override
   public int getLevel(Tier tier) {
-    return tier.getLevel();
+    return tier == null ? 0 : tier.getLevel();
   }
 
   @Override
@@ -28,8 +28,8 @@ public final class FabricToolTiersHelper implements ToolTiersHelper {
   }
 
   @Override
-  public int compare(Tier tier1, Tier tier2) {
-    return tier1.getLevel() - tier2.getLevel();
+  public int compare(@Nullable Tier tier1, @Nullable Tier tier2) {
+    return getLevel(tier1) - getLevel(tier2);
   }
 
   @Override
