@@ -1,10 +1,5 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.platform.Services;
-import it.crystalnest.cobweb.platform.services.ConfigHelper;
-import it.crystalnest.cobweb.platform.services.PlatformHelper;
-import it.crystalnest.cobweb.platform.services.ToolTiersHelper;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,22 +16,6 @@ public final class Constants {
    * Mod logger.
    */
   public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
-  /**
-   * Provides information about what platform the mod is running on.
-   */
-  public static final PlatformHelper PLATFORM = Services.load(PlatformHelper.class);
-
-  /**
-   * Provides utilities for tool tiers.
-   */
-  public static final ToolTiersHelper TOOL_TIERS = Services.load(ToolTiersHelper.class);
-
-  /**
-   * Provides registration for configuration specs.
-   */
-  @Nullable
-  public static final ConfigHelper CONFIG = PLATFORM.isModLoaded("forgeconfigapiport") ? Services.load(ConfigHelper.class) : null;
 
   private Constants() {}
 }

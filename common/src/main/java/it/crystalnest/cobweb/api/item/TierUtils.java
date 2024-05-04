@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.item;
 
-import it.crystalnest.cobweb.Constants;
+import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Tier;
@@ -21,7 +21,7 @@ public final class TierUtils {
    * @return list of all available tool tiers.
    */
   public static Collection<Tier> getAllTiers() {
-    return Constants.TOOL_TIERS.getAllTiers();
+    return Services.TOOL_TIERS.getAllTiers();
   }
 
   /**
@@ -32,7 +32,7 @@ public final class TierUtils {
    */
   @Nullable
   public static Tier getTier(String reference) {
-    return Constants.TOOL_TIERS.getTier(reference);
+    return Services.TOOL_TIERS.getTier(reference);
   }
 
   /**
@@ -43,7 +43,7 @@ public final class TierUtils {
    */
   @Nullable
   public static Tier getTier(ResourceLocation reference) {
-    return Constants.TOOL_TIERS.getTier(reference);
+    return Services.TOOL_TIERS.getTier(reference);
   }
 
   /**
@@ -55,7 +55,7 @@ public final class TierUtils {
    * @return comparison result.
    */
   public static int compare(Tier tier1, Tier tier2) {
-    return Constants.TOOL_TIERS.compare(tier1, tier2);
+    return Services.TOOL_TIERS.compare(tier1, tier2);
   }
 
   /**
@@ -147,7 +147,7 @@ public final class TierUtils {
    * @return tier level.
    */
   public static int getLevel(@Nullable Tier tier) {
-    return Constants.TOOL_TIERS.getLevel(tier);
+    return Services.TOOL_TIERS.getLevel(tier);
   }
 
   /**
@@ -158,7 +158,7 @@ public final class TierUtils {
    * @return tier level.
    */
   public static int getLevel(ResourceLocation reference) {
-    return getLevel(Constants.TOOL_TIERS.getTier(reference));
+    return getLevel(Services.TOOL_TIERS.getTier(reference));
   }
 
   /**
@@ -169,7 +169,7 @@ public final class TierUtils {
    * @return tier level.
    */
   public static int getLevel(String reference) {
-    return getLevel(Constants.TOOL_TIERS.getTier(reference));
+    return getLevel(Services.TOOL_TIERS.getTier(reference));
   }
 
   /**
@@ -180,6 +180,6 @@ public final class TierUtils {
    * @return whether the reference matches the tier.
    */
   public static boolean matches(Tier tier, String reference) {
-    return Constants.TOOL_TIERS.matches(tier, reference);
+    return Services.TOOL_TIERS.matches(tier, reference);
   }
 }

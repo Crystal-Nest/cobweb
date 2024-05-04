@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.config;
 
-import it.crystalnest.cobweb.Constants;
+import it.crystalnest.cobweb.platform.Services;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,7 +27,7 @@ public abstract class CommonConfig extends CobwebConfig {
    */
   protected static <T extends CommonConfig> T register(String modId, Function<ModConfigSpec.Builder, T> constructor) {
     register(modId, ConfigType.COMMON, constructor);
-    Constants.CONFIG.registerCommonConfig(modId, getSpec(modId));
+    Services.CONFIG.registerCommonConfig(modId, getSpec(modId));
     return getConfig(modId);
   }
 
