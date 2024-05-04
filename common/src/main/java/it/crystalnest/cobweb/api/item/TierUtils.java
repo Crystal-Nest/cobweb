@@ -16,6 +16,15 @@ public final class TierUtils {
   private TierUtils() {}
 
   /**
+   * Returns the list of all available tool tiers.
+   *
+   * @return list of all available tool tiers.
+   */
+  public static Collection<Tier> getAllTiers() {
+    return Constants.TOOL_TIERS.getAllTiers();
+  }
+
+  /**
    * Compares the two given tiers, abiding to the usual compare semantics.<br>
    * {@code 0} if the tiers are equal, {@code < 0} if {@code tier1} is lower than {@code tier2}, {@code > 0} i f{@code tier1} is higher than {@code tier2}
    *
