@@ -9,6 +9,33 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 
 - Nothing new.
 
+## [1.20.4-0.0.2.4-alpha] - 2024/05/06
+
+- Made FCAP an optional dependency in development environments too.
+
+## [1.20.4-0.0.2.3-alpha] - 2024/05/06
+
+- Moved the services into a more proper class.
+
+## [1.20.4-0.0.2.2-alpha] - 2024/05/04
+
+- Improved tool tiers API.
+- Fixed rare NPE.
+
+## [1.20.4-0.0.2.1-alpha] - 2024/05/04
+
+- Improved tool tiers API.
+
+## [1.20.4-0.0.2.0-alpha] - 2024/05/04
+
+- Added tool tiers API.
+
+## [1.20.4-0.0.1.1-alpha] - 2024/05/01
+
+- Fixed Fabric jar.
+- Updated in-game icons and readme.
+- Made FCAP an actual optional dependency at runtime.
+
 ## [1.20.4-0.0.1.0-alpha] - 2024/04/30
 
 - Added utility to retrieve in-game IDs.
@@ -18,4 +45,10 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[1.20.4-0.0.2.4-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.4-alpha
+[1.20.4-0.0.2.3-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.3-alpha
+[1.20.4-0.0.2.2-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.2-alpha
+[1.20.4-0.0.2.1-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.1-alpha
+[1.20.4-0.0.2.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.0-alpha
+[1.20.4-0.0.1.1-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.1-alpha
 [1.20.4-0.0.1.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.0-alpha
