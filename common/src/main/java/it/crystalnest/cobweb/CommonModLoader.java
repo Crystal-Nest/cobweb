@@ -7,9 +7,7 @@ public final class CommonModLoader {
   private CommonModLoader() {}
 
   /**
-   * Initialize operations common across loaders.
+   * Initialize common operations across loaders.
    */
-  public static void init() {
-    // Initialize common operations here.
-  }
+  public static void init() {}
 }
