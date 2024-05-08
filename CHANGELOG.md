@@ -9,6 +9,10 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 
 - Nothing new.
 
+## [1.20.4-0.0.2.5-alpha] - 2024/05/08
+
+- Fixed NPE when using config with NeoForge.
+
 ## [1.20.4-0.0.2.4-alpha] - 2024/05/06
 
 - Made FCAP an optional dependency in development environments too.
