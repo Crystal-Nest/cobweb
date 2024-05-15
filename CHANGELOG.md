@@ -9,6 +9,10 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 
 - Nothing new.
 
+## [1.20.4-0.0.2.6-alpha] - 2024/05/16
+
+- Changed declared related dependencies.
+
 ## [1.20.4-0.0.2.5-alpha] - 2024/05/08
 
 - Fixed NPE when using config with NeoForge.
@@ -49,6 +53,8 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[1.20.4-0.0.2.6-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.6-alpha
+[1.20.4-0.0.2.5-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.5-alpha
 [1.20.4-0.0.2.4-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.4-alpha
 [1.20.4-0.0.2.3-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.3-alpha
 [1.20.4-0.0.2.2-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.2-alpha
