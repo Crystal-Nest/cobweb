@@ -211,16 +211,11 @@ subprojects { subproject ->
         case "Fabric":
           required.project "fabric-api"
           optional.project "forge-config-api-port"
-          optional.project "forge-config-screens"
-          optional.project "modmenu"
           break
         case "Forge":
           optional.project "forge-config-api-port"
-          optional.project "forge-config-screens"
           break
         case "NeoForge":
-          optional.project "forge-config-api-port"
-          optional.project "forge-config-screens"
           break
       }
     }
@@ -245,16 +240,11 @@ subprojects { subproject ->
         switch (loader) {
           case "Fabric":
             optionalDependency "forge-config-api-port-fabric"
-            optionalDependency "config-menus-forge"
-            optionalDependency "modmenu"
             break
           case "Forge":
             optionalDependency "forge-config-api-port-fabric"
-            optionalDependency "config-menus-forge"
             break
           case "NeoForge":
-            optionalDependency "forge-config-api-port-fabric"
-            optionalDependency "config-menus-forge"
             break
         }
       }

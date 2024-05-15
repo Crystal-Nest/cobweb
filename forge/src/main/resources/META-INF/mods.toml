@@ -30,9 +30,3 @@ issueTrackerURL="https://github.com/${github_user}/${mod_id_kebab}/issues" #opti
   versionRange = "[${fcap_version},)"
   ordering = "NONE"
   side = "BOTH"
-[[dependencies.${ mod_id }]]
-  modId = "forgeconfigscreens"
-  mandatory = false #mandatory (Can be one of "required", "optional", "incompatible" or "discouraged")
-  versionRange = ""
-  ordering = "NONE"
-  side = "CLIENT"
