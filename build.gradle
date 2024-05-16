@@ -196,9 +196,7 @@ subprojects { subproject ->
     setDisableEmptyJarCheck(true) // Disable check for valid mod metadata entry in artifact, which could possibly mean that the jar is empty.
     setModrinthID(mod_id_kebab)
     setCurseID(curseforge_id)
-    if (!noPublish) {
-      setLoaders(loader)
-    }
+    setLoaders(noPublish ? "fabric" : loader) // Avoid using "common" as a loader: when configuring for common, set it to any other loader.
     setGameVersions(minecraft_version)
     setDisplayName("[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}")
     setJavaVersions([JavaVersion.VERSION_17])
