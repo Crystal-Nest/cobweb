@@ -199,7 +199,7 @@ subprojects { subproject ->
     setLoaders(loader)
     setGameVersions(minecraft_version)
     setDisplayName("[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}")
-    setJavaVersions(JavaVersion.VERSION_17)
+    setJavaVersions([JavaVersion.VERSION_17])
     setCurseEnvironment("both") // "server", "client" or "both".
     modrinthDepends {
       switch (loader) {
