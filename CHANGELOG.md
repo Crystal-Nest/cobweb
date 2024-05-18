@@ -9,6 +9,10 @@ and this project adheres to [Forge Semantic Versioning](https://mcforge.readthed
 
 - Nothing new.
 
+## [1.20.4-0.0.3.0-beta] - 2024/05/18
+
+- Fixed declared related dependencies on CurseForge.
+
 ## [1.20.4-0.0.2.6-alpha] - 2024/05/16
 
 - Changed declared related dependencies.

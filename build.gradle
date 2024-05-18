@@ -221,6 +221,7 @@ subprojects { subproject ->
     curseDepends {
       switch (loader) {
         case "Fabric":
+          required "fabric-api"
           optional "forge-config-api-port-fabric"
           break
         case "Forge":
