@@ -1,7 +1,7 @@
 plugins {
   id "org.sonarqube" version "4.4.1.3373"
   id "org.jetbrains.gradle.plugin.idea-ext" version "1.1.7"
-  id "com.hypherionmc.modutils.modpublisher" version "2.1.2" apply false
+  id "com.hypherionmc.modutils.modpublisher" version "2.1.4" apply false
   id "fabric-loom" version "1.5-SNAPSHOT" apply false
 }
 
@@ -198,11 +198,12 @@ subprojects { subproject ->
     github {
       repo = "${github_user}/${mod_id_kebab}"
       tag = "v${project.version}"
+      displayName("v${project.version}")
+      target = minecraft_version
       createTag = true
       createRelease = true
       updateRelease = true
       draft = false
-      target = minecraft_version
     }
     modrinthDepends {
       switch (loader) {
