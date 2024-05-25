@@ -103,7 +103,6 @@ subprojects { subproject ->
       "forge_loader_version_range"   : forge_loader_version_range,
       "neoforge_version"             : neoforge_version,
       "neoforge_loader_version_range": neoforge_loader_version_range,
-      "cobweb_version"               : cobweb_version,
       "fcap_version"                 : fcap_version,
     ]
 
@@ -146,7 +145,7 @@ subprojects { subproject ->
     publications {
       gpr(MavenPublication) {
         groupId = project.group
-        artifactId = "${mod_id_kebab}-${loader.toLowerCase()}"
+        artifactId = "${mod_id_kebab}-${subproject.name}"
         version = project.version
         from components.java
         pom {
@@ -209,7 +208,6 @@ subprojects { subproject ->
       draft = false
     }
     modrinthDepends {
-      required "cobweb"
       switch (loader) {
         case "Fabric":
           required "fabric-api"
@@ -223,7 +221,6 @@ subprojects { subproject ->
       }
     }
     curseDepends {
-      required "cobweb"
       switch (loader) {
         case "Fabric":
           required "fabric-api"

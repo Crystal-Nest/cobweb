@@ -2,7 +2,7 @@
 
 ---
 
-![Minecraft](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/minecraft.svg "Minecraft")[![1.20.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-20-2.svg "1.20.2")](https://modrinth.com/mod/cobweb/versions?g=1.20.2)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.19.4](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-19-4.svg "1.19.4")](https://modrinth.com/mod/cobweb/versions?g=1.19.4)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.19.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-19-2.svg "1.19.2")](https://modrinth.com/mod/cobweb/versions?g=1.19.2)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.18.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-18-2.svg "1.18.2")](https://modrinth.com/mod/cobweb/versions?g=1.18.2)
+![Minecraft](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/minecraft.svg "Minecraft")[![1.20.4](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-20-4.svg "1.20.4")](https://modrinth.com/mod/cobweb/versions?g=1.20.4)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.20.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-20-2.svg "1.20.2")](https://modrinth.com/mod/cobweb/versions?g=1.20.2)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.19.4](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-19-4.svg "1.19.4")](https://modrinth.com/mod/cobweb/versions?g=1.19.4)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.19.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-19-2.svg "1.19.2")](https://modrinth.com/mod/cobweb/versions?g=1.19.2)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.18.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-18-2.svg "1.18.2")](https://modrinth.com/mod/cobweb/versions?g=1.18.2)
 
 ![Loader](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/loader.svg "Loader")[![NeoForge](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/neoforge.svg "NeoForge")](https://modrinth.com/mod/cobweb/versions?l=neoforge)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![Forge](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/forge.svg "Forge")](https://modrinth.com/mod/cobweb/versions?l=forge)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![Fabric](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/fabric.svg "Fabric")](https://modrinth.com/mod/cobweb/versions?l=fabric)
 
@@ -14,37 +14,35 @@
 
 ## **Description**
 
-Multiloader skeleton for Minecraft mods!
-Built on [Jared's MultiLoaderTemplate](https://github.com/jaredlll08/MultiLoader-Template), with the addition of:
+Shared mod API across Crystal Nest projects.
 
-- Tasks to publish on Maven, GitHub, Modrinth, and CurseForge.
-- [Cobweb](https://modrinth.com/mod/cobweb) API dependency.
-- A little bit more Javadoc.
-- Code style changes.
+Fully compatible with a multiloader environment!
 
-***Note: the intended use of this template is to create a repository from it, and then update each branch with the content built by our [official generator](https://crystalnest.it/generator).***
+Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 
-## **Setup completion**
+## **Features**
 
-To complete the setup:
+### Common features:
 
-- Change the [Support us](#support-us) section and the banner link.
-- Add your project CurseForge ID in the `gradle.properties`.
-- Update the changelog with proper release notes.
-- Run the task `common > Tasks > vanilla gradle > decompile`
-- Run the task `forge > Tasks > forgegradle runs > genIntellijRuns`
+- Easier way to retrieve in-game IDs.
+- Unified configuration system.
+- Tool tiers shared API.
 
-## Removing Platforms and Loaders
+### Fabric only features:
 
-While this template includes support for Fabric, Forge, and NeoForge, you can easily remove support for the ones you don't need.  
-This can be done by deleting the subproject folder and then removing it from the associated `include` in the `settings.gradle` file, along with deleting the related gradle properties.
+- Eased custom registering system.
 
-The same thing applies for the different publishing platforms, Maven, GitHub, Modrinth, and CurseForge.  
-To remove support for the ones you don't need just remove the section and properties regarding them.
+### Forge only features:
+
+Currently none.
+
+### NeoForge only features:
+
+Currently none.
 
 ## **License and right of use**
 
-Feel free to use this mod template for any mod, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
+Feel free to use this mod for any modpack or video, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
 This project is published under the [GNU General Public License v3.0](https://github.com/crystal-nest/cobweb/blob/master/LICENSE).
 
 ## **Support us**

@@ -24,15 +24,9 @@ issueTrackerURL="https://github.com/${github_user}/${mod_id_kebab}/issues" #opti
   versionRange = "${minecraft_version_range}"
   ordering = "NONE"
   side = "BOTH"
-[[dependencies.${mod_id}]]
-  modId = "cobweb"
-  mandatory = true
-  versionRange = "[${cobweb_version},)"
-  ordering = "NONE"
-  side = "BOTH"
-[[dependencies.${mod_id}]]
+[[dependencies.${ mod_id }]]
   modId = "forgeconfigapiport"
-  mandatory = true
+  mandatory = false
   versionRange = "[${fcap_version},)"
   ordering = "NONE"
   side = "BOTH"
