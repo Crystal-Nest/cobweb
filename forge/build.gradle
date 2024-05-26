@@ -2,6 +2,7 @@ plugins {
   id "net.minecraftforge.gradle" version "[6.0,6.2)"
   id "org.spongepowered.mixin" version "0.7-SNAPSHOT"
 }
+apply plugin: "maven-publish"
 
 mixin {
   add(sourceSets.main, "${mod_id}.refmap.json")
@@ -73,11 +74,6 @@ dependencies {
   compileOnly fg.deobf("fuzs.forgeconfigapiport:forgeconfigapiport-forge:${fcap_version}")
 }
 
-// Prevent Forge from creating module metadata that breaks dev artifacts.
-tasks.withType(GenerateModuleMetadata).configureEach {
-  enabled = false
-}
-
 tasks.withType(JavaCompile).configureEach {
   source(project(":common").sourceSets.main.allSource)
 }
@@ -102,4 +98,49 @@ sourceSets.each {
   def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
   it.output.resourcesDir = dir
   it.java.destinationDirectory = dir
+}
+
+publishing {
+  repositories {
+    maven {
+      name = "GitHubPackages"
+      url = uri("https://maven.pkg.github.com/${github_user}/${mod_id_kebab}")
+      credentials {
+        username = github_user
+        password = System.getenv("GITHUB_TOKEN") ?: ""
+      }
+    }
+  }
+  publications {
+    gpr(MavenPublication) {
+      groupId = project.group
+      artifactId = "${mod_id_kebab}-forge"
+      version = project.version
+      from components.java
+      fg.component(it)
+      pom {
+        name = "[Forge - ${minecraft_version}] ${mod_title} v${mod_version}"
+        description = "${description}"
+        url = "https://github.com/${github_user}/${mod_id_kebab}/tree/${minecraft_version}"
+        issueManagement {
+          system = "github"
+          url = "https://github.com/${github_user}/${mod_id_kebab}/issues"
+        }
+        licenses {
+          license {
+            name = license
+            url = "https://spdx.org/licenses/${license}.html"
+          }
+        }
+        developers {
+          mod_authors.split(", ").each { author ->
+            developer {
+              id = author.toLowerCase()
+              name = author
+            }
+          }
+        }
+      }
+    }
+  }
 }
