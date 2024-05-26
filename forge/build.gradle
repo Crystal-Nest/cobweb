@@ -99,8 +99,8 @@ processResources {
 
 jar.finalizedBy("configureReobfTaskForReobfJar")
 jar.finalizedBy("reobfJar")
-tasks.artifact.finalizedBy("configureReobfTaskForReobfJarJar")
-tasks.artifact.finalizedBy('reobfJarJar')
+tasks.jarJar.finalizedBy("configureReobfTaskForReobfJarJar")
+tasks.jarJar.finalizedBy('reobfJarJar')
 
 // Task seems bugged, breaks build because of mod dependencies in the Common project, with no apparent workaround.
 tasks.named('compileTestJava').get().setEnabled(false)
