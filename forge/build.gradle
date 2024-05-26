@@ -87,6 +87,7 @@ processResources {
   from project(":common").sourceSets.main.resources
 }
 
+jar.finalizedBy("configureReobfTaskForReobfJar")
 jar.finalizedBy("reobfJar")
 
 // Task seems bugged, breaks build because of mod dependencies in the Common project, with no apparent workaround.
