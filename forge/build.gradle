@@ -73,6 +73,11 @@ dependencies {
   compileOnly fg.deobf("fuzs.forgeconfigapiport:forgeconfigapiport-forge:${fcap_version}")
 }
 
+// Prevent Forge from creating module metadata that breaks dev artifacts.
+tasks.withType(GenerateModuleMetadata).configureEach {
+  enabled = false
+}
+
 tasks.withType(JavaCompile).configureEach {
   source(project(":common").sourceSets.main.allSource)
 }
@@ -91,7 +96,7 @@ jar.finalizedBy("configureReobfTaskForReobfJar")
 jar.finalizedBy("reobfJar")
 
 // Task seems bugged, breaks build because of mod dependencies in the Common project, with no apparent workaround.
-tasks.named('compileTestJava').get().setEnabled(false)
+tasks.named("compileTestJava").get().setEnabled(false)
 
 sourceSets.each {
   def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
