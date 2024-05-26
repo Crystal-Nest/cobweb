@@ -16,13 +16,14 @@ sonar {
 
 subprojects { subproject ->
   def noPublish = subproject.name === "common"
+  def isFabric = subproject.name == "fabric"
 
   apply plugin: "java"
   apply plugin: "idea"
   apply plugin: "java-library"
   apply plugin: "com.hypherionmc.modutils.modpublisher"
   apply plugin: "maven-publish"
-  if (subproject.name == "fabric") {
+  if (isFabric) {
     apply plugin: "fabric-loom"
   }
 
@@ -118,15 +119,12 @@ subprojects { subproject ->
   def changelog_body = "See [Changelog](https://github.com/${github_user}/${mod_id_kebab}/blob/master/CHANGELOG.md#${minecraft_version.replaceAll('\\.', '')}-${mod_version.replaceAll('\\.', '')}---${new Date().format("yyyyMMdd")})."
   def version_type = mod_version.replaceFirst("([0-9]+\\.?)+-?", "") ?: "release"
   def loader = "Common"
-  def artifact = jar
   switch (subproject.name) {
     case "fabric":
       loader = "Fabric"
-      artifact = remapJar
       break
     case "forge":
       loader = "Forge"
-      artifact = jarJar
       break
     case "neoforge":
       loader = "NeoForge"
@@ -150,7 +148,6 @@ subprojects { subproject ->
         artifactId = "${mod_id_kebab}-${subproject.name}"
         version = project.version
         from components.java
-        artifact artifact
         pom {
           name = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
           description = "${description}"
@@ -188,7 +185,7 @@ subprojects { subproject ->
     setVersion(project.version)
     setChangelog(changelog_body)
     setVersionType(version_type)
-    setArtifact(artifact)
+    setArtifact(isFabric ? remapJar : jar)
     setDisableMalwareScanner(true) // Disable the built in Fractureizer scanner.
     setDisableEmptyJarCheck(true) // Disable check for valid mod metadata entry in artifact, which could possibly mean that the jar is empty.
     setModrinthID(mod_id_kebab)
