@@ -2,7 +2,6 @@ plugins {
   id "org.sonarqube" version "4.4.1.3373"
   id "org.jetbrains.gradle.plugin.idea-ext" version "1.1.7"
   id "com.hypherionmc.modutils.modpublisher" version "2.1.4" apply false
-  id "fabric-loom" version "1.5-SNAPSHOT" apply false
 }
 
 sonar {
@@ -22,9 +21,6 @@ subprojects { subproject ->
   apply plugin: "java-library"
   apply plugin: "com.hypherionmc.modutils.modpublisher"
   apply plugin: "maven-publish"
-  if (subproject.name == "fabric") {
-    apply plugin: "fabric-loom"
-  }
 
   java.toolchain.languageVersion = JavaLanguageVersion.of(17)
   java.withSourcesJar()
@@ -118,19 +114,32 @@ subprojects { subproject ->
   def changelog_body = "See [Changelog](https://github.com/${github_user}/${mod_id_kebab}/blob/master/CHANGELOG.md#${minecraft_version.replaceAll('\\.', '')}-${mod_version.replaceAll('\\.', '')}---${new Date().format("yyyyMMdd")})."
   def version_type = mod_version.replaceFirst("([0-9]+\\.?)+-?", "") ?: "release"
   def loader = "Common"
-  def artifact = jar
   switch (subproject.name) {
     case "fabric":
       loader = "Fabric"
-      artifact = remapJar
       break
     case "forge":
       loader = "Forge"
-      artifact = jarJar
       break
     case "neoforge":
       loader = "NeoForge"
       break
+  }
+
+  tasks.register("artifact", Jar) {
+    group = "build"
+    description = "Assembles the artifact specific for ${loader}"
+    switch (loader) {
+      case "Fabric":
+        dependsOn "remapJar"
+        break
+      case "Forge":
+        dependsOn "jarJar"
+        break
+      default:
+        dependsOn "jar"
+        break
+    }
   }
 
   publishing {
@@ -149,8 +158,8 @@ subprojects { subproject ->
         groupId = project.group
         artifactId = "${mod_id_kebab}-${subproject.name}"
         version = project.version
+        artifact subproject.artifact
         from components.java
-        artifact artifact
         pom {
           name = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
           description = "${description}"
@@ -188,7 +197,7 @@ subprojects { subproject ->
     setVersion(project.version)
     setChangelog(changelog_body)
     setVersionType(version_type)
-    setArtifact(artifact)
+    setArtifact(subproject.artifact)
     setDisableMalwareScanner(true) // Disable the built in Fractureizer scanner.
     setDisableEmptyJarCheck(true) // Disable check for valid mod metadata entry in artifact, which could possibly mean that the jar is empty.
     setModrinthID(mod_id_kebab)
