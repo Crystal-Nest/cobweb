@@ -9,6 +9,18 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [1.20.4-0.0.3.5-beta] - 2024/05/26
+
+- Improve Forge distribution.
+
+## [1.20.4-0.0.3.4-beta] - 2024/05/26
+
+- Fix Forge distribution.
+
+## [1.20.4-0.0.3.3-beta] - 2024/05/26
+
+- Nothing new, just a test.
+
 ## [1.20.4-0.0.3.2-beta] - 2024/05/26
 
 - Revert to working version.
@@ -65,6 +77,9 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[1.20.4-0.0.3.5-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.5-beta
+[1.20.4-0.0.3.4-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.4-beta
+[1.20.4-0.0.3.3-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.3-beta
 [1.20.4-0.0.3.2-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.2-beta
 [1.20.4-0.0.3.1-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.1-beta
 [1.20.4-0.0.3.0-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.0-beta
