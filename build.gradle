@@ -158,7 +158,6 @@ subprojects { subproject ->
         groupId = project.group
         artifactId = "${mod_id_kebab}-${subproject.name}"
         version = project.version
-        artifacts.clear()
         artifact subproject.artifact
         from components.java
         pom {
