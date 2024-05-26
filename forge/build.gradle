@@ -73,6 +73,8 @@ dependencies {
   compileOnly fg.deobf("fuzs.forgeconfigapiport:forgeconfigapiport-forge:${fcap_version}")
 }
 
+tasks.jarJar.enabled = true
+
 tasks.named("jar").configure {
   archiveClassifier.set("slim")
 }
