@@ -101,46 +101,9 @@ sourceSets.each {
 }
 
 publishing {
-  repositories {
-    maven {
-      name = "GitHubPackages"
-      url = uri("https://maven.pkg.github.com/${github_user}/${mod_id_kebab}")
-      credentials {
-        username = github_user
-        password = System.getenv("GITHUB_TOKEN") ?: ""
-      }
-    }
-  }
   publications {
     gpr(MavenPublication) {
-      groupId = project.group
-      artifactId = "${mod_id_kebab}-forge"
-      version = project.version
-      from components.java
       fg.component(it)
-      pom {
-        name = "[Forge - ${minecraft_version}] ${mod_title} v${mod_version}"
-        description = "${description}"
-        url = "https://github.com/${github_user}/${mod_id_kebab}/tree/${minecraft_version}"
-        issueManagement {
-          system = "github"
-          url = "https://github.com/${github_user}/${mod_id_kebab}/issues"
-        }
-        licenses {
-          license {
-            name = license
-            url = "https://spdx.org/licenses/${license}.html"
-          }
-        }
-        developers {
-          mod_authors.split(", ").each { author ->
-            developer {
-              id = author.toLowerCase()
-              name = author
-            }
-          }
-        }
-      }
     }
   }
 }
