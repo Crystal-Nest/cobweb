@@ -1,58 +1,58 @@
 package it.crystalnest.cobweb.platform;
 
-import fuzs.forgeconfigapiport.forge.api.neoforge.v4.NeoForgeConfigRegistry;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.platform.services.ConfigHelper;
+import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
-import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
  * Forge configuration helper.
  */
 public final class ForgeConfigHelper implements ConfigHelper {
   /**
-   * @deprecated Forge can infer the mod ID, use {@link #registerCommonConfig(ModConfigSpec)} instead.
+   * @deprecated Forge can infer the mod ID, use {@link #registerCommonConfig(ForgeConfigSpec)} instead.
    */
   @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerCommonConfig(String modId, ModConfigSpec spec) {
+  @Deprecated(since = "0.0.1.0-alpha")
+  public void registerCommonConfig(String modId, ForgeConfigSpec spec) {
     registerCommonConfig(spec);
     warnUnsupportedRegistering();
   }
 
   /**
-   * @deprecated Forge can infer the mod ID, use {@link #registerClientConfig(ModConfigSpec)} instead.
+   * @deprecated Forge can infer the mod ID, use {@link #registerClientConfig(ForgeConfigSpec)} instead.
    */
   @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerClientConfig(String modId, ModConfigSpec spec) {
+  @Deprecated(since = "0.0.1.0-alpha")
+  public void registerClientConfig(String modId, ForgeConfigSpec spec) {
     registerClientConfig(spec);
     warnUnsupportedRegistering();
   }
 
   /**
-   * @deprecated Forge can infer the mod ID, use {@link #registerServerConfig(ModConfigSpec)} instead.
+   * @deprecated Forge can infer the mod ID, use {@link #registerServerConfig(ForgeConfigSpec)} instead.
    */
   @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerServerConfig(String modId, ModConfigSpec spec) {
+  @Deprecated(since = "0.0.1.0-alpha")
+  public void registerServerConfig(String modId, ForgeConfigSpec spec) {
     registerServerConfig(spec);
     warnUnsupportedRegistering();
   }
 
   @Override
-  public void registerCommonConfig(ModConfigSpec spec) {
-    NeoForgeConfigRegistry.INSTANCE.register(ModConfig.Type.COMMON, spec);
+  public void registerCommonConfig(ForgeConfigSpec spec) {
+    ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, spec);
   }
 
   @Override
-  public void registerClientConfig(ModConfigSpec spec) {
-    NeoForgeConfigRegistry.INSTANCE.register(ModConfig.Type.CLIENT, spec);
+  public void registerClientConfig(ForgeConfigSpec spec) {
+    ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, spec);
   }
 
   @Override
-  public void registerServerConfig(ModConfigSpec spec) {
-    NeoForgeConfigRegistry.INSTANCE.register(ModConfig.Type.SERVER, spec);
+  public void registerServerConfig(ForgeConfigSpec spec) {
+    ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, spec);
   }
 
   /**

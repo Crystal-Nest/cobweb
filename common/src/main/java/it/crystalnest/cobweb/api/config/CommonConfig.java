@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.config;
 
 import it.crystalnest.cobweb.platform.Services;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Function;
@@ -13,7 +13,7 @@ public abstract class CommonConfig extends CobwebConfig {
   /**
    * @param builder configuration builder.
    */
-  protected CommonConfig(ModConfigSpec.Builder builder) {
+  protected CommonConfig(ForgeConfigSpec.Builder builder) {
     super(builder);
   }
 
@@ -25,7 +25,7 @@ public abstract class CommonConfig extends CobwebConfig {
    * @param <T> class calling the method.
    * @return the new common configuration.
    */
-  protected static <T extends CommonConfig> T register(String modId, Function<ModConfigSpec.Builder, T> constructor) {
+  protected static <T extends CommonConfig> T register(String modId, Function<ForgeConfigSpec.Builder, T> constructor) {
     register(modId, ConfigType.COMMON, constructor);
     Services.CONFIG.registerCommonConfig(modId, getSpec(modId));
     return getConfig(modId);
@@ -50,7 +50,7 @@ public abstract class CommonConfig extends CobwebConfig {
    * @return common configuration specification for the specified mod or {@code null}.
    */
   @Nullable
-  protected static ModConfigSpec getSpec(String modId) {
+  protected static ForgeConfigSpec getSpec(String modId) {
     return getSpec(modId, ConfigType.COMMON);
   }
 }

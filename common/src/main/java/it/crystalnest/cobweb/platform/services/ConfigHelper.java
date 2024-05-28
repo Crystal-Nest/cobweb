@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.platform.services;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
  * Platform specific configuration helper.
@@ -12,7 +12,7 @@ public interface ConfigHelper {
    * @param modId mod registering the config.
    * @param spec config specification.
    */
-  void registerCommonConfig(String modId, ModConfigSpec spec);
+  void registerCommonConfig(String modId, ForgeConfigSpec spec);
 
   /**
    * Register the configuration for the client side.
@@ -20,7 +20,7 @@ public interface ConfigHelper {
    * @param modId mod registering the config.
    * @param spec config specification.
    */
-  void registerClientConfig(String modId, ModConfigSpec spec);
+  void registerClientConfig(String modId, ForgeConfigSpec spec);
 
   /**
    * Register the configuration for the server side.
@@ -28,26 +28,26 @@ public interface ConfigHelper {
    * @param modId mod registering the config.
    * @param spec config specification.
    */
-  void registerServerConfig(String modId, ModConfigSpec spec);
+  void registerServerConfig(String modId, ForgeConfigSpec spec);
 
   /**
    * Register the configuration for the common side.
    *
    * @param spec config specification.
    */
-  void registerCommonConfig(ModConfigSpec spec);
+  void registerCommonConfig(ForgeConfigSpec spec);
 
   /**
    * Register the configuration for the client side.
    *
    * @param spec config specification.
    */
-  void registerClientConfig(ModConfigSpec spec);
+  void registerClientConfig(ForgeConfigSpec spec);
 
   /**
    * Register the configuration for the server side.
    *
    * @param spec config specification.
    */
-  void registerServerConfig(ModConfigSpec spec);
+  void registerServerConfig(ForgeConfigSpec spec);
 }

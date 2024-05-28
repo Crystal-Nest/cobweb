@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.config;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,12 +15,12 @@ public abstract class CobwebConfig {
   /**
    * Map of all mods with their registered pairs of configuration and specification.
    */
-  private static final Map<String, Pair<? extends CobwebConfig, ModConfigSpec>> CONFIGS = new HashMap<>();
+  private static final Map<String, Pair<? extends CobwebConfig, ForgeConfigSpec>> CONFIGS = new HashMap<>();
 
   /**
    * @param builder configuration builder.
    */
-  protected CobwebConfig(ModConfigSpec.Builder builder) {
+  protected CobwebConfig(ForgeConfigSpec.Builder builder) {
     this.define(builder);
     builder.build();
   }
@@ -33,8 +33,8 @@ public abstract class CobwebConfig {
    * @param constructor mod configuration constructor, should always be the calling class constructor, e.g. {@code register(MOD_ID, MyConfig::new);}
    * @param <T> class calling the method.
    */
-  protected static <T extends CobwebConfig> void register(String modId, ConfigType type, Function<ModConfigSpec.Builder, T> constructor) {
-    CONFIGS.put(getId(modId, type), new ModConfigSpec.Builder().configure(constructor));
+  protected static <T extends CobwebConfig> void register(String modId, ConfigType type, Function<ForgeConfigSpec.Builder, T> constructor) {
+    CONFIGS.put(getId(modId, type), new ForgeConfigSpec.Builder().configure(constructor));
   }
 
   /**
@@ -59,7 +59,7 @@ public abstract class CobwebConfig {
    * @return cobweb configuration specification for the specified mod or {@code null}.
    */
   @Nullable
-  protected static ModConfigSpec getSpec(String modId, ConfigType type) {
+  protected static ForgeConfigSpec getSpec(String modId, ConfigType type) {
     return CONFIGS.containsKey(getId(modId, type)) ? CONFIGS.get(getId(modId, type)).getRight() : null;
   }
 
@@ -88,7 +88,7 @@ public abstract class CobwebConfig {
    *
    * @param builder configuration builder.
    */
-  protected abstract void define(ModConfigSpec.Builder builder);
+  protected abstract void define(ForgeConfigSpec.Builder builder);
 
   /**
    * Validator for a configuration item typed as a list of strings.

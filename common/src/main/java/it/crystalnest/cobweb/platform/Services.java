@@ -28,7 +28,7 @@ public final class Services {
    * Provides registration for configuration specs.
    */
   @Nullable
-  public static final ConfigHelper CONFIG = PLATFORM.getPlatformName() == Platform.NEOFORGE || PLATFORM.isModLoaded("forgeconfigapiport") ? load(ConfigHelper.class) : null;
+  public static final ConfigHelper CONFIG = PLATFORM.getPlatformName() == Platform.FORGE || PLATFORM.isModLoaded("forgeconfigapiport") ? load(ConfigHelper.class) : null;
 
   private Services() {}
 

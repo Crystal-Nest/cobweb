@@ -1,53 +1,53 @@
 package it.crystalnest.cobweb.platform;
 
-import fuzs.forgeconfigapiport.fabric.api.neoforge.v4.NeoForgeConfigRegistry;
+import fuzs.forgeconfigapiport.api.config.v2.ForgeConfigRegistry;
 import it.crystalnest.cobweb.platform.services.ConfigHelper;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.fml.config.ModConfig;
 
 /**
  * Fabric configuration helper.
  */
 public final class FabricConfigHelper implements ConfigHelper {
   @Override
-  public void registerCommonConfig(String modId, ModConfigSpec spec) {
-    NeoForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.COMMON, spec);
+  public void registerCommonConfig(String modId, ForgeConfigSpec spec) {
+    ForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.COMMON, spec);
   }
 
   @Override
-  public void registerClientConfig(String modId, ModConfigSpec spec) {
-    NeoForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.CLIENT, spec);
+  public void registerClientConfig(String modId, ForgeConfigSpec spec) {
+    ForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.CLIENT, spec);
   }
 
   @Override
-  public void registerServerConfig(String modId, ModConfigSpec spec) {
-    NeoForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.SERVER, spec);
+  public void registerServerConfig(String modId, ForgeConfigSpec spec) {
+    ForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.SERVER, spec);
   }
 
   /**
-   * @deprecated Fabric cannot infer the mod ID, use {@link #registerCommonConfig(String, ModConfigSpec)} instead.
+   * @deprecated Fabric cannot infer the mod ID, use {@link #registerCommonConfig(String, ForgeConfigSpec)} instead.
    */
   @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerCommonConfig(ModConfigSpec spec) {
+  @Deprecated(since = "0.0.1.0-alpha")
+  public void registerCommonConfig(ForgeConfigSpec spec) {
     throwUnsupportedRegistering();
   }
 
   /**
-   * @deprecated Fabric cannot infer the mod ID, use {@link #registerClientConfig(String, ModConfigSpec)} instead.
+   * @deprecated Fabric cannot infer the mod ID, use {@link #registerClientConfig(String, ForgeConfigSpec)} instead.
    */
   @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerClientConfig(ModConfigSpec spec) {
+  @Deprecated(since = "0.0.1.0-alpha")
+  public void registerClientConfig(ForgeConfigSpec spec) {
     throwUnsupportedRegistering();
   }
 
   /**
-   * @deprecated Fabric cannot infer the mod ID, use {@link #registerServerConfig(String, ModConfigSpec)} instead.
+   * @deprecated Fabric cannot infer the mod ID, use {@link #registerServerConfig(String, ForgeConfigSpec)} instead.
    */
   @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerServerConfig(ModConfigSpec spec) {
+  @Deprecated(since = "0.0.1.0-alpha")
+  public void registerServerConfig(ForgeConfigSpec spec) {
     throwUnsupportedRegistering();
   }
 

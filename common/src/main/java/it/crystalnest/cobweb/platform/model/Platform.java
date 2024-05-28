@@ -9,13 +9,9 @@ public enum Platform {
    */
   FABRIC,
   /**
-   * Fabric loader identifier.
+   * Forge loader identifier.
    */
-  FORGE,
-  /**
-   * Fabric loader identifier.
-   */
-  NEOFORGE;
+  FORGE;
 
   @Override
   public String toString() {
