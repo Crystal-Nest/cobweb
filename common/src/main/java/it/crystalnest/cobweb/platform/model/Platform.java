@@ -9,11 +9,11 @@ public enum Platform {
    */
   FABRIC,
   /**
-   * Fabric loader identifier.
+   * Forge loader identifier.
    */
   FORGE,
   /**
-   * Fabric loader identifier.
+   * NeoForge loader identifier.
    */
   NEOFORGE;
 
