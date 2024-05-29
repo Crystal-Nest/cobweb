@@ -102,6 +102,7 @@ subprojects { subproject ->
       "forge_version"                : forge_version,
       "forge_loader_version_range"   : forge_loader_version_range,
       "fcap_version"                 : fcap_version,
+      "nightconfig_version"          : nightconfig_version,
     ]
 
     filesMatching(["pack.mcmeta", "fabric.mod.json", "META-INF/mods.toml", "*.mixins.json"]) {

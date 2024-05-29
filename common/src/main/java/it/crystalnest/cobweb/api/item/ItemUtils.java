@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.item;
 
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
@@ -17,7 +17,7 @@ public final class ItemUtils {
    * @return {@link ResourceLocation} of the given item.
    */
   public static ResourceLocation getKey(Item item) {
-    return BuiltInRegistries.ITEM.getKey(item);
+    return Registry.ITEM.getKey(item);
   }
 
   /**
