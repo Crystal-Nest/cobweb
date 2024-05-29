@@ -6,8 +6,8 @@ dependencies {
   modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
   modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
   compileOnly project(":common")
-  implementation "com.electronwill.night-config:core:${nightconfig_version}"
-  implementation "com.electronwill.night-config:toml:${nightconfig_version}"
+  api "com.electronwill.night-config:core:${nightconfig_version}"
+  api "com.electronwill.night-config:toml:${nightconfig_version}"
   modCompileOnly "net.minecraftforge:forgeconfigapiport-fabric:${fcap_version}"
 }
 
