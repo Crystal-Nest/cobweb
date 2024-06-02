@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.item.TierUtils;
 import it.crystalnest.cobweb.platform.services.ToolTiersHelper;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.Tiers;
@@ -19,17 +20,12 @@ public final class FabricToolTiersHelper implements ToolTiersHelper {
 
   @Override
   public int getLevel(Tier tier) {
-    return tier == null ? 0 : tier.getLevel();
+    return tier == null ? -1 : tier.getLevel();
   }
 
   @Override
   public @Nullable Tier getTier(String reference) {
-    return NO_TIER_REFERENCE.equalsIgnoreCase(reference) ? NO_TIER : getAllTiers().stream().filter(tier -> matches(tier, reference)).findFirst().orElse(null);
-  }
-
-  @Override
-  public int compare(@Nullable Tier tier1, @Nullable Tier tier2) {
-    return getLevel(tier1) - getLevel(tier2);
+    return TierUtils.NO_TIER_REFERENCE.equalsIgnoreCase(reference) ? TierUtils.NO_TIER : getAllTiers().stream().filter(tier -> matches(tier, reference)).findFirst().orElse(null);
   }
 
   @Override
