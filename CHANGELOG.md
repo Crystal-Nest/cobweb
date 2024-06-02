@@ -9,74 +9,145 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
-## [1.20.4-0.0.3.5-beta] - 2024/05/26
+## [1.20.4-1.0.0] - 2024/06/02
 
-- Improve Forge distribution.
+- Added some Internal annotations.
+- Added a few overloads for some `TierUtils` methods.
 
-## [1.20.4-0.0.3.4-beta] - 2024/05/26
+## [1.20.2-1.0.0] - 2024/06/02
 
-- Fix Forge distribution.
+- Added some Internal annotations.
+- Added a few overloads for some `TierUtils` methods.
 
-## [1.20.4-0.0.3.3-beta] - 2024/05/26
+## [1.19.4-1.0.0] - 2024/06/02
 
-- Nothing new, just a test.
+- Added some Internal annotations.
+- Added a few overloads for some `TierUtils` methods.
 
-## [1.20.4-0.0.3.2-beta] - 2024/05/26
+## [1.19.2-1.0.0] - 2024/06/02
 
-- Revert to working version.
+- Added some Internal annotations.
+- Added a few overloads for some `TierUtils` methods.
 
-## [1.20.4-0.0.3.1-beta] - 2024/05/26
+## [1.18.2-1.0.0] - 2024/06/02
 
-- Attempt to fix Forge distribution, but instead broke everything.
+- Added some Internal annotations.
+- Added a few overloads for some `TierUtils` methods.
 
-## [1.20.4-0.0.3.0-beta] - 2024/05/18
+## Legacy
 
-- Fixed declared related dependencies on CurseForge.
+<details>
+ <summary>Click to expand</summary>
 
-## [1.20.4-0.0.2.6-alpha] - 2024/05/16
+  ### [1.18.2-0.0.3.7-beta] - 2024/05/30
+  
+  - Backport to 1.18.2.
+  
+  ### [1.19.2-0.0.3.7-beta] - 2024/05/29
+  
+  - Fix missing nightconfig dependency on dependants.
+  
+  ### [1.19.2-0.0.3.6-beta] - 2024/05/29
+  
+  - Backport to 1.19.2.
+  
+  ### [1.19.4-0.0.3.6-beta] - 2024/05/28
+  
+  - Backport to 1.19.4.
+  
+  ### [1.20.2-0.0.3.6-beta] - 2024/05/28
+  
+  - Fix NeoForge build.
+  
+  ### [1.20.2-0.0.3.5-beta] - 2024/05/27
+  
+  - Fix Forge distribution.
+  
+  ### [1.20.4-0.0.3.5-beta] - 2024/05/26
+  
+  - Improve Forge distribution.
+  
+  ### [1.20.4-0.0.3.4-beta] - 2024/05/26
+  
+  - Fix Forge distribution.
+  
+  ### [1.20.4-0.0.3.3-beta] - 2024/05/26
+  
+  - Nothing new, just a test.
+  
+  ### [1.20.4-0.0.3.2-beta] - 2024/05/26
+  
+  - Revert to working version.
+  
+  ### [1.20.4-0.0.3.1-beta] - 2024/05/26
+  
+  - Attempt to fix Forge distribution, but instead broke everything.
+  
+  ### [1.20.4-0.0.3.0-beta] - 2024/05/18
+  
+  - Fixed declared related dependencies on CurseForge.
+  
+  ### [1.20.4-0.0.2.6-alpha] - 2024/05/16
+  
+  - Changed declared related dependencies.
+  
+  ### [1.20.4-0.0.2.5-alpha] - 2024/05/08
+  
+  - Fixed NPE when using config with NeoForge.
+  
+  ### [1.20.4-0.0.2.4-alpha] - 2024/05/06
+  
+  - Made FCAP an optional dependency in development environments too.
+  
+  ### [1.20.4-0.0.2.3-alpha] - 2024/05/06
+  
+  - Moved the services into a more proper class.
+  
+  ### [1.20.4-0.0.2.2-alpha] - 2024/05/04
 
-- Changed declared related dependencies.
+  - Improved tool tiers API.
+  - Fixed rare NPE.
+  
+  ### [1.20.4-0.0.2.1-alpha] - 2024/05/04
+  
+  - Improved tool tiers API.
+  
+  ### [1.20.4-0.0.2.0-alpha] - 2024/05/04
+  
+  - Added tool tiers API.
+  
+  ### [1.20.4-0.0.1.1-alpha] - 2024/05/01
 
-## [1.20.4-0.0.2.5-alpha] - 2024/05/08
+  - Fixed Fabric jar.
+  - Updated in-game icons and readme.
+  - Made FCAP an actual optional dependency at runtime.
 
-- Fixed NPE when using config with NeoForge.
-
-## [1.20.4-0.0.2.4-alpha] - 2024/05/06
-
-- Made FCAP an optional dependency in development environments too.
-
-## [1.20.4-0.0.2.3-alpha] - 2024/05/06
-
-- Moved the services into a more proper class.
-
-## [1.20.4-0.0.2.2-alpha] - 2024/05/04
-
-- Improved tool tiers API.
-- Fixed rare NPE.
-
-## [1.20.4-0.0.2.1-alpha] - 2024/05/04
-
-- Improved tool tiers API.
-
-## [1.20.4-0.0.2.0-alpha] - 2024/05/04
-
-- Added tool tiers API.
-
-## [1.20.4-0.0.1.1-alpha] - 2024/05/01
-
-- Fixed Fabric jar.
-- Updated in-game icons and readme.
-- Made FCAP an actual optional dependency at runtime.
-
-## [1.20.4-0.0.1.0-alpha] - 2024/04/30
-
-- Added utility to retrieve in-game IDs.
-- Added first draft of a unified configuration system.
-- Added Fabric specific registering system.
+  ### [1.20.4-0.0.1.0-alpha] - 2024/04/30
+  
+  - Added utility to retrieve in-game IDs.
+  - Added first draft of a unified configuration system.
+  - Added Fabric specific registering system.
+</details>
 
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[1.20.4-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-1.0.0
+
+[1.20.2-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.2-1.0.0
+
+[1.19.4-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.4-1.0.0
+
+[1.19.2-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-1.0.0
+
+[1.18.2-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.18.2-1.0.0
+
+[1.18.2-0.0.3.7-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.18.2-0.0.3.7-beta
+[1.19.2-0.0.3.7-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-0.0.3.7-beta
+[1.19.2-0.0.3.6-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-0.0.3.6-beta
+[1.19.4-0.0.3.6-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.4-0.0.3.6-beta
+[1.20.2-0.0.3.6-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.2-0.0.3.6-beta
+[1.20.2-0.0.3.5-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.2-0.0.3.5-beta
 [1.20.4-0.0.3.5-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.5-beta
 [1.20.4-0.0.3.4-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.4-beta
 [1.20.4-0.0.3.3-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.3-beta
