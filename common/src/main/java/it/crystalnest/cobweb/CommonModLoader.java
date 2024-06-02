@@ -1,18 +1,16 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.api.block.BlockUtils;
-import net.minecraft.world.level.block.Blocks;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Common mod loader.
  */
+@ApiStatus.Internal
 public final class CommonModLoader {
   private CommonModLoader() {}
 
   /**
    * Initialize common operations across loaders.
    */
-  public static void init() {
-    Constants.LOGGER.info(BlockUtils.getStringKey(Blocks.AMETHYST_BLOCK));
-  }
+  public static void init() {}
 }
