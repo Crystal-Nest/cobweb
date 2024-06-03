@@ -4,10 +4,15 @@
   "package": "${group}.${mod_id}.mixin",
   "refmap": "${mod_id}.refmap.json",
   "compatibilityLevel": "JAVA_17",
-  "mixins": [],
+  "mixins": [
+    "LivingEntityMixin",
+    "LivingEntityMixinSquared",
+    "ServerPlayerMixin"
+  ],
   "client": [],
   "server": [],
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "plugin": "it.crystalnest.cobweb.MixinConfigPlugin"
 }
