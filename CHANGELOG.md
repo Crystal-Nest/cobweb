@@ -9,30 +9,31 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
-## [1.20.4-1.0.0] - 2024/06/02
+## [1.20.4-1.0.0] - 2024/06/dd
 
 - Added some Internal annotations.
 - Added a few overloads for some `TierUtils` methods.
 
-## [1.20.2-1.0.0] - 2024/06/02
+## [1.20.2-1.0.0] - 2024/06/dd
 
 - Added some Internal annotations.
 - Added a few overloads for some `TierUtils` methods.
 
-## [1.19.4-1.0.0] - 2024/06/02
+## [1.19.4-1.0.0] - 2024/06/dd
 
 - Added some Internal annotations.
 - Added a few overloads for some `TierUtils` methods.
 
-## [1.19.2-1.0.0] - 2024/06/02
+## [1.19.2-1.0.0] - 2024/06/dd
 
 - Added some Internal annotations.
 - Added a few overloads for some `TierUtils` methods.
 
-## [1.18.2-1.0.0] - 2024/06/02
+## [1.18.2-1.0.0] - 2024/06/dd
 
 - Added some Internal annotations.
 - Added a few overloads for some `TierUtils` methods.
+- Integrate Fabric Polyfill backported event.
 
 ## Legacy
 
