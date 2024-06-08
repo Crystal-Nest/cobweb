@@ -13,6 +13,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - TODO
 
+## [v0.5.0-beta] - 2024/06/09
+
+- Removed redundant methods in config helpers, namely the ones without the mod ID as parameter.
+- Added unified registration API.
+
 ## [v0.4.0-beta] - 2024/06/08
 
 - Added some Internal annotations.

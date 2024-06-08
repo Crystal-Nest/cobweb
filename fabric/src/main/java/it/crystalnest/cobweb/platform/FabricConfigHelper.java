@@ -23,40 +23,4 @@ public final class FabricConfigHelper implements ConfigHelper {
   public void registerServerConfig(String modId, ModConfigSpec spec) {
     NeoForgeConfigRegistry.INSTANCE.register(modId, ModConfig.Type.SERVER, spec);
   }
-
-  /**
-   * @deprecated Fabric cannot infer the mod ID, use {@link #registerCommonConfig(String, ModConfigSpec)} instead.
-   */
-  @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerCommonConfig(ModConfigSpec spec) {
-    throwUnsupportedRegistering();
-  }
-
-  /**
-   * @deprecated Fabric cannot infer the mod ID, use {@link #registerClientConfig(String, ModConfigSpec)} instead.
-   */
-  @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerClientConfig(ModConfigSpec spec) {
-    throwUnsupportedRegistering();
-  }
-
-  /**
-   * @deprecated Fabric cannot infer the mod ID, use {@link #registerServerConfig(String, ModConfigSpec)} instead.
-   */
-  @Override
-  @Deprecated(since = "1.0.0.0-alpha")
-  public void registerServerConfig(ModConfigSpec spec) {
-    throwUnsupportedRegistering();
-  }
-
-  /**
-   * Throws an {@link UnsupportedOperationException} for incorrectly registering a configuration on Fabric.
-   *
-   * @throws UnsupportedOperationException for incorrectly registering a configuration.
-   */
-  private void throwUnsupportedRegistering() {
-    throw new UnsupportedOperationException("Fabric configs must be registered with modId.");
-  }
 }

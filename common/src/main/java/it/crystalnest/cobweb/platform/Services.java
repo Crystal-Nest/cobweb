@@ -4,6 +4,7 @@ import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.ConfigHelper;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
+import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import it.crystalnest.cobweb.platform.services.ToolTiersHelper;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +26,11 @@ public final class Services {
    * Provides utilities for tool tiers.
    */
   public static final ToolTiersHelper TOOL_TIERS = load(ToolTiersHelper.class);
+
+  /**
+   * Provides registration for game objects.
+   */
+  public static final RegistryHelper<?> REGISTRY = load(RegistryHelper.class);
 
   /**
    * Provides registration for configuration specs.
