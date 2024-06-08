@@ -13,10 +13,14 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - TODO
 
+## [v0.5.1-beta] - 2024/06/09
+
+- Exposed unified registering API.
+
 ## [v0.5.0-beta] - 2024/06/08
 
 - Removed redundant methods in config helpers, namely the ones without the mod ID as parameter.
-- Added unified registration API.
+- Added unified registering API.
 
 ## [v0.4.0-beta] - 2024/06/08
 
@@ -123,6 +127,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [README]: https://github.com/crystal-nest/cobweb#readme
 
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
+
+[v0.5.1-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.1-beta
 [v0.5.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.0-beta
 [v0.4.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.4.0-beta
 
