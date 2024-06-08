@@ -29,25 +29,4 @@ public interface ConfigHelper {
    * @param spec config specification.
    */
   void registerServerConfig(String modId, ForgeConfigSpec spec);
-
-  /**
-   * Register the configuration for the common side.
-   *
-   * @param spec config specification.
-   */
-  void registerCommonConfig(ForgeConfigSpec spec);
-
-  /**
-   * Register the configuration for the client side.
-   *
-   * @param spec config specification.
-   */
-  void registerClientConfig(ForgeConfigSpec spec);
-
-  /**
-   * Register the configuration for the server side.
-   *
-   * @param spec config specification.
-   */
-  void registerServerConfig(ForgeConfigSpec spec);
 }

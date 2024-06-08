@@ -1,6 +1,8 @@
 package it.crystalnest.cobweb.api.registry;
 
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -10,13 +12,25 @@ public final class RegisterProvider {
   /**
    * Mod ID used to identify the mod registering objects via the Minecraft {@link Registry}s.
    */
-  private final String modId;
+  private final String namespace;
 
   /**
-   * @param modId {@link #modId}.
+   * @param namespace {@link #namespace}.
    */
-  public RegisterProvider(String modId) {
-    this.modId = modId;
+  public RegisterProvider(String namespace) {
+    this.namespace = namespace;
+  }
+
+  /**
+   * Provides {@link Register} for the specified Minecraft {@link Registry}.
+   *
+   * @param <R> type hold by Minecraft {@link Registry}.
+   * @param registryKey Minecraft {@link ResourceKey} for a register.
+   * @return {@link Register}.
+   */
+  @SuppressWarnings("unchecked")
+  public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey) {
+    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()));
   }
 
   /**
@@ -27,6 +41,6 @@ public final class RegisterProvider {
    * @return {@link Register}.
    */
   public <R> Register<R> of(Registry<R> registry) {
-    return (key, value) -> Registry.register(registry, new ResourceLocation(modId, key), value);
+    return (key, value) -> Registry.register(registry, new ResourceLocation(namespace, key), value);
   }
 }
