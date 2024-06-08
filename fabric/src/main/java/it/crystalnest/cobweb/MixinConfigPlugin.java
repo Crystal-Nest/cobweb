@@ -27,7 +27,7 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
 
   @Override
   public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-    return Services.PLATFORM.isModLoaded("fabric-entity-events-v1") || !mixinClassName.equals("crystalspider.fabricpolyfill.mixin.LivingEntityMixinSquared");
+    return Services.PLATFORM.isModLoaded("fabric-entity-events-v1") || !"crystalspider.fabricpolyfill.mixin.LivingEntityMixinSquared".equals(mixinClassName);
   }
 
   @Override
