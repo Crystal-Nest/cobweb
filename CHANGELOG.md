@@ -9,31 +9,15 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
-## [1.20.4-1.0.0] - 2024/06/dd
+## [v1.0.0] - 2024/06/dd
+
+- TODO
+
+## [v0.4.0-beta] - 2024/06/08
 
 - Added some Internal annotations.
 - Added a few overloads for some `TierUtils` methods.
-
-## [1.20.2-1.0.0] - 2024/06/dd
-
-- Added some Internal annotations.
-- Added a few overloads for some `TierUtils` methods.
-
-## [1.19.4-1.0.0] - 2024/06/dd
-
-- Added some Internal annotations.
-- Added a few overloads for some `TierUtils` methods.
-
-## [1.19.2-1.0.0] - 2024/06/dd
-
-- Added some Internal annotations.
-- Added a few overloads for some `TierUtils` methods.
-
-## [1.18.2-1.0.0] - 2024/06/dd
-
-- Added some Internal annotations.
-- Added a few overloads for some `TierUtils` methods.
-- Integrate Fabric Polyfill backported event.
+- 1.18.2 only: Integrate Fabric Polyfill backported event.
 
 ## Legacy
 
@@ -133,15 +117,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
-[1.20.4-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-1.0.0
-
-[1.20.2-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.2-1.0.0
-
-[1.19.4-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.4-1.0.0
-
-[1.19.2-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-1.0.0
-
-[1.18.2-1.0.0]: https://github.com/crystal-nest/cobweb/releases/tag/v1.18.2-1.0.0
+[v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
+[v0.4.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.4.0-beta
 
 [1.18.2-0.0.3.7-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.18.2-0.0.3.7-beta
 [1.19.2-0.0.3.7-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-0.0.3.7-beta
