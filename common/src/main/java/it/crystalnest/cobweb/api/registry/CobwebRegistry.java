@@ -6,7 +6,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.level.block.Block;
@@ -89,15 +88,5 @@ public final class CobwebRegistry {
    */
   public static CobwebRegister<Potion> ofPotions(String namespace) {
     return of(Registries.POTION, namespace);
-  }
-
-  /**
-   * Provides a {@link CobwebRegister} of {@link CreativeModeTab}s for the specified mod.
-   *
-   * @param namespace mod ID.
-   * @return {@link CobwebRegister} of {@link CreativeModeTab}s.
-   */
-  public static CobwebRegister<CreativeModeTab> ofCreativeModeTabs(String namespace) {
-    return of(Registries.CREATIVE_MODE_TAB, namespace);
   }
 }
