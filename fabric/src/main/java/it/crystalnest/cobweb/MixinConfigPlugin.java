@@ -14,7 +14,7 @@ import java.util.Set;
  * Mixin Squared plugin configuration.
  */
 @ApiStatus.Internal
-public class MixinConfigPlugin implements IMixinConfigPlugin {
+public final class MixinConfigPlugin implements IMixinConfigPlugin {
   @Override
   public void onLoad(String mixinPackage) {
     MixinSquaredBootstrap.init();
