@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.api.registry;
 
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
@@ -30,7 +29,7 @@ public final class RegisterProvider {
    */
   @SuppressWarnings("unchecked")
   public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey) {
-    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()));
+    return of((Registry<R>) Registry.REGISTRY.get(registryKey.location()));
   }
 
   /**
