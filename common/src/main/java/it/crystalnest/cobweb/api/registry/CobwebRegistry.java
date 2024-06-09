@@ -2,7 +2,6 @@ package it.crystalnest.cobweb.api.registry;
 
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
@@ -47,7 +46,7 @@ public final class CobwebRegistry {
    * @return {@link CobwebRegister} of {@link Item}s.
    */
   public static CobwebRegister<Item> ofItems(String namespace) {
-    return of(Registries.ITEM, namespace);
+    return of(Registry.ITEM, namespace);
   }
 
   /**
@@ -57,7 +56,7 @@ public final class CobwebRegistry {
    * @return {@link CobwebRegister} of {@link Block}s.
    */
   public static CobwebRegister<Block> ofBlocks(String namespace) {
-    return of(Registries.BLOCK, namespace);
+    return of(Registry.BLOCK, namespace);
   }
 
   /**
@@ -67,7 +66,7 @@ public final class CobwebRegistry {
    * @return {@link CobwebRegister} of {@link EntityType}s.
    */
   public static CobwebRegister<EntityType<?>> ofEntityTypes(String namespace) {
-    return of(Registries.ENTITY_TYPE, namespace);
+    return of(Registry.ENTITY_TYPE, namespace);
   }
 
   /**
@@ -77,7 +76,7 @@ public final class CobwebRegistry {
    * @return {@link CobwebRegister} of {@link MobEffect}s.
    */
   public static CobwebRegister<MobEffect> ofMobEffects(String namespace) {
-    return of(Registries.MOB_EFFECT, namespace);
+    return of(Registry.MOB_EFFECT, namespace);
   }
 
   /**
@@ -87,6 +86,6 @@ public final class CobwebRegistry {
    * @return {@link CobwebRegister} of {@link Potion}s.
    */
   public static CobwebRegister<Potion> ofPotions(String namespace) {
-    return of(Registries.POTION, namespace);
+    return of(Registry.POTION, namespace);
   }
 }
