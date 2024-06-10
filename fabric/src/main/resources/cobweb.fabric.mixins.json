@@ -7,9 +7,13 @@
   "mixins": [
     "LivingEntityMixin",
     "LivingEntityMixinSquared",
+    "ServerPacksSourceMixin",
     "ServerPlayerMixin"
   ],
-  "client": [],
+  "client": [
+    "client.CreateWorldScreenMixin",
+    "client.MinecraftMixin"
+  ],
   "server": [],
   "injectors": {
     "defaultRequire": 1
