@@ -5,9 +5,13 @@ import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.Pack;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.HashMap;
+import java.util.function.Supplier;
 
 /**
  * NeoForge registration helper.
@@ -20,6 +24,15 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
       Register<R> register = Register.create(registryKey, namespace);
       register.register(ModLoader.getBus());
       return register;
+    });
+  }
+
+  @Override
+  public void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier) {
+    ModLoader.getBus().addListener((AddPackFindersEvent event) -> {
+      if (event.getPackType() == type) {
+        event.addRepositorySource(consumer -> consumer.accept(supplier.get()));
+      }
     });
   }
 
