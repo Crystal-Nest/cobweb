@@ -1,12 +1,16 @@
 package it.crystalnest.cobweb.platform.services;
 
+import it.crystalnest.cobweb.api.pack.DynamicResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.Pack;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Platform specific registration helper.
@@ -41,4 +45,12 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * @return {@link CobwebRegister}.
    */
   public abstract <R> CobwebRegister<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace);
+
+  /**
+   * Registers a {@link DynamicResourcePack}.
+   *
+   * @param type {@link PackType}.
+   * @param supplier {@link Supplier} for the {@link Pack} to register.
+   */
+  public abstract void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier);
 }

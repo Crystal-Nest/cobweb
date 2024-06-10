@@ -13,6 +13,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - TODO
 
+## [v0.5.2-beta] - 2024/06/10
+
+- Add dynamic datapacks for tags.
+
 ## [v0.5.1-beta] - 2024/06/09
 
 - Exposed unified registering API.

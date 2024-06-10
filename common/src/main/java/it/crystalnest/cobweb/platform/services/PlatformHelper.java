@@ -2,11 +2,21 @@ package it.crystalnest.cobweb.platform.services;
 
 import it.crystalnest.cobweb.platform.model.Environment;
 import it.crystalnest.cobweb.platform.model.Platform;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.packs.repository.Pack;
 
 /**
  * Platform specific helper.
  */
 public interface PlatformHelper {
+  /**
+   * Creates a {@link Pack.Info}.
+   *
+   * @param description resource pack description.
+   * @return {@link Pack.Info}.
+   */
+  Pack.Info createPackInfo(Component description);
+
   /**
    * Gets the name of the current platform
    *
