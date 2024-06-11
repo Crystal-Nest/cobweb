@@ -83,16 +83,19 @@ public abstract class DynamicResourcePack implements PackResources {
   public void register() {
     Services.REGISTRY.registerDynamicResourcePack(
       type,
-      () -> Pack.create(
-        packId(),
-        Component.translatable(packId()),
-        true,
-        new DynamicResourcesSupplier(this),
-        Services.PLATFORM.createPackInfo(metadata.get().description()),
-        Pack.Position.TOP,
-        false,
-        PackSource.BUILT_IN
-      )
+      Suppliers.memoize(() -> {
+        this.build();
+        return Pack.create(
+          packId(),
+          Component.translatable(packId()),
+          true,
+          new DynamicResourcesSupplier(this),
+          Services.PLATFORM.createPackInfo(metadata.get().description()),
+          Pack.Position.TOP,
+          false,
+          PackSource.BUILT_IN
+        );
+      })
     );
   }
 
@@ -183,6 +186,11 @@ public abstract class DynamicResourcePack implements PackResources {
       });
     }
   }
+
+  /**
+   * Starts the building process.
+   */
+  protected abstract void build();
 
   /**
    * Dynamic {@link Pack.ResourcesSupplier}.
