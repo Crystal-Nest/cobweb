@@ -13,7 +13,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - TODO
 
-## [v0.5.2-beta] - 2024/06/10
+## [v0.5.2-beta] - 2024/06/11
 
 - Add dynamic datapacks for tags.
 
@@ -132,6 +132,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
+[v0.5.2-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.2-beta
 [v0.5.1-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.1-beta
 [v0.5.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.0-beta
 [v0.4.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.4.0-beta
