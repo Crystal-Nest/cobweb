@@ -10,6 +10,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
+import java.util.function.Supplier;
+
 /**
  * Injects into {@link CreateWorldScreen} to add dynamic data packs.
  */
@@ -24,8 +26,8 @@ public abstract class CreateWorldScreenMixin {
    */
   @ModifyVariable(method = "openFresh", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"))
   private static PackRepository onCreate(PackRepository packRepository) {
-    for (Pack pack : FabricRegistryHelper.DYNAMIC_DATA_PACKS) {
-      packRepository.sources.add(packConsumer -> packConsumer.accept(pack));
+    for (Supplier<Pack> pack : FabricRegistryHelper.DYNAMIC_DATA_PACKS) {
+      packRepository.sources.add(packConsumer -> packConsumer.accept(pack.get()));
     }
     return packRepository;
   }
