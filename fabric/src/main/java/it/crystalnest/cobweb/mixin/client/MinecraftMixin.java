@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.function.Supplier;
+
 /**
  * Injects into {@link Minecraft} to add dynamic texture packs.
  */
@@ -31,8 +33,8 @@ public abstract class MinecraftMixin {
    */
   @Inject(method = "<init>", at = @At(value = "INVOKE", shift = At.Shift.BEFORE, target = "Lnet/minecraft/server/packs/repository/PackRepository;reload()V"))
   private void beforeReload(CallbackInfo ci) {
-    for (Pack pack : FabricRegistryHelper.DYNAMIC_TEXTURE_PACKS) {
-      resourcePackRepository.sources.add(packConsumer -> packConsumer.accept(pack));
+    for (Supplier<Pack> pack : FabricRegistryHelper.DYNAMIC_TEXTURE_PACKS) {
+      resourcePackRepository.sources.add(packConsumer -> packConsumer.accept(pack.get()));
     }
   }
 }

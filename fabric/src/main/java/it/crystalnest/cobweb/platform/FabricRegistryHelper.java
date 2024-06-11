@@ -21,12 +21,12 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   /**
    * Internal list of {@link Pack data pack}s to register.
    */
-  public static final List<Pack> DYNAMIC_DATA_PACKS = new ArrayList<>();
+  public static final List<Supplier<Pack>> DYNAMIC_DATA_PACKS = new ArrayList<>();
 
   /**
    * Internal list of {@link Pack texture pack}s to register.
    */
-  public static final List<Pack> DYNAMIC_TEXTURE_PACKS = new ArrayList<>();
+  public static final List<Supplier<Pack>> DYNAMIC_TEXTURE_PACKS = new ArrayList<>();
 
   @Override
   @SuppressWarnings("unchecked")
@@ -37,8 +37,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   @Override
   public void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier) {
     switch (type) {
-      case SERVER_DATA -> DYNAMIC_DATA_PACKS.add(supplier.get());
-      case CLIENT_RESOURCES -> DYNAMIC_TEXTURE_PACKS.add(supplier.get());
+      case SERVER_DATA -> DYNAMIC_DATA_PACKS.add(supplier);
+      case CLIENT_RESOURCES -> DYNAMIC_TEXTURE_PACKS.add(supplier);
     }
   }
 
