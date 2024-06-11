@@ -29,7 +29,7 @@ public abstract class ServerPacksSourceMixin {
     RepositorySource[] providers = new RepositorySource[sources.length + FabricRegistryHelper.DYNAMIC_DATA_PACKS.size()];
     System.arraycopy(sources, 0, providers, 0, sources.length);
     for (int i = 0; i < FabricRegistryHelper.DYNAMIC_DATA_PACKS.size(); i++) {
-      Pack pack = FabricRegistryHelper.DYNAMIC_DATA_PACKS.get(i);
+      Pack pack = FabricRegistryHelper.DYNAMIC_DATA_PACKS.get(i).get();
       providers[sources.length + i] = packConsumer -> packConsumer.accept(pack);
     }
     return providers;
