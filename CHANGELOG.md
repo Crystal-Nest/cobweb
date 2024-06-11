@@ -13,7 +13,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - TODO
 
-## [v0.5.2-beta] - 2024/06/11
+## [v0.5.3-beta] - 2024/06/11
 
 - Dynamic datapacks for tags now build lazily.
 
