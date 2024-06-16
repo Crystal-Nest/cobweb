@@ -7,7 +7,7 @@ import com.google.gson.stream.JsonWriter;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.SharedConstants;
-import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
@@ -75,7 +75,7 @@ public abstract class DynamicResourcePack implements PackResources {
     this.name = name;
     this.namespace = name.getNamespace();
     this.namespaces.add(namespace);
-    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type.bridgeType)));
+    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(new TextComponent(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type.bridgeType)));
   }
 
   /**
@@ -88,7 +88,7 @@ public abstract class DynamicResourcePack implements PackResources {
         this.build();
         return new Pack(
           getName(),
-          Component.translatable(getName()),
+          new TextComponent(getName()),
           true,
           () -> this,
           this.metadata.get(),
@@ -148,9 +148,9 @@ public abstract class DynamicResourcePack implements PackResources {
 
   @NotNull
   @Override
-  public Collection<ResourceLocation> getResources(@NotNull PackType type, @NotNull String namespace, @NotNull String id, @NotNull Predicate<ResourceLocation> allowedPathPredicate) {
+  public Collection<ResourceLocation> getResources(@NotNull PackType type, @NotNull String namespace, @NotNull String id, int maxDepth, @NotNull Predicate<String> allowedPathPredicate) {
     if (this.type == type && this.namespaces.contains(namespace)) {
-      return this.resources.keySet().stream().filter(resource -> resource.getNamespace().equals(namespace) && resource.getPath().startsWith(id) && allowedPathPredicate.test(resource)).toList();
+      return this.resources.keySet().stream().filter(resource -> resource.getNamespace().equals(namespace) && resource.getPath().startsWith(id) && allowedPathPredicate.test(resource.toString())).toList();
     }
     return Collections.emptyList();
   }

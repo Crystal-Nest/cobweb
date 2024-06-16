@@ -1,13 +1,12 @@
 package it.crystalnest.cobweb.api.pack;
 
 import com.google.gson.JsonElement;
-import com.mojang.serialization.JsonOps;
+import it.crystalnest.cobweb.Constants;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagBuilder;
-import net.minecraft.tags.TagEntry;
-import net.minecraft.tags.TagFile;
+import net.minecraft.tags.Tag;
+import net.minecraft.tags.Tag.Builder;
 import net.minecraft.tags.TagKey;
 import org.jetbrains.annotations.NotNull;
 
@@ -24,7 +23,12 @@ import java.util.Set;
  * @param <T>
  */
 @SuppressWarnings("unchecked")
-public class DynamicTagBuilder<T> extends TagBuilder {
+public class DynamicTagBuilder<T> extends Builder {
+  /**
+   * Source identifier.
+   */
+  private static final String SOURCE = Constants.MOD_ID + "_dynamic_datapacks";
+
   /**
    * Set of unique keys.
    */
@@ -94,14 +98,14 @@ public class DynamicTagBuilder<T> extends TagBuilder {
   }
 
   /**
-   * Add a new unique {@link TagEntry}.
+   * Add a new unique {@link Tag.BuilderEntry}.
    *
-   * @param entry new unique {@link TagEntry}.
+   * @param entry new unique {@link Tag.BuilderEntry}.
    * @return this builder.
    */
   @NotNull
   @Override
-  public DynamicTagBuilder<T> add(@NotNull TagEntry entry) {
+  public DynamicTagBuilder<T> add(Tag.BuilderEntry entry) {
     if (keys.add(entry.toString())) {
       return (DynamicTagBuilder<T>) super.add(entry);
     }
@@ -115,7 +119,7 @@ public class DynamicTagBuilder<T> extends TagBuilder {
    * @return this builder.
    */
   public DynamicTagBuilder<T> addTag(TagKey<? extends T> tagKey) {
-    return addTag(tagKey.location());
+    return (DynamicTagBuilder<T>) addTag(tagKey.location(), SOURCE);
   }
 
   /**
@@ -125,7 +129,7 @@ public class DynamicTagBuilder<T> extends TagBuilder {
    * @return this builder.
    */
   public DynamicTagBuilder<T> addElement(T element) {
-    return addElement(Objects.requireNonNull(registry.getKey(element)));
+    return (DynamicTagBuilder<T>) addElement(Objects.requireNonNull(registry.getKey(element)), SOURCE);
   }
 
   /**
@@ -160,6 +164,6 @@ public class DynamicTagBuilder<T> extends TagBuilder {
    * @return {@link JsonElement}.
    */
   public JsonElement json() {
-    return TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(build(), false)).getOrThrow(false, error -> {});
+    return serializeToJson();
   }
 }
