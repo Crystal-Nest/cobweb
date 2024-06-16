@@ -7,7 +7,7 @@
   "mixins": [
     "LivingEntityMixin",
     "LivingEntityMixinSquared",
-    "ServerPacksSourceMixin",
+    "PackRepositoryMixin",
     "ServerPlayerMixin"
   ],
   "client": [

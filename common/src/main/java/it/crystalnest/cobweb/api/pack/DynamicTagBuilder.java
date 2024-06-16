@@ -3,7 +3,6 @@ package it.crystalnest.cobweb.api.pack;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagBuilder;
@@ -73,7 +72,7 @@ public class DynamicTagBuilder<T> extends TagBuilder {
    */
   @SafeVarargs
   public static <R> DynamicTagBuilder<R> of(ResourceKey<? extends Registry<R>> registryKey, TagKey<? extends R>... tags) {
-    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()), tags);
+    return of((Registry<R>) Registry.REGISTRY.get(registryKey.location()), tags);
   }
 
   /**

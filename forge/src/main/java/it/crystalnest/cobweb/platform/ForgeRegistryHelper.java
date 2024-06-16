@@ -32,7 +32,7 @@ public final class ForgeRegistryHelper extends RegistryHelper<ForgeRegistryHelpe
   public void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier) {
     FMLJavaModLoadingContext.get().getModEventBus().addListener((AddPackFindersEvent event) -> {
       if (event.getPackType() == type) {
-        event.addRepositorySource(consumer -> consumer.accept(supplier.get()));
+        event.addRepositorySource((consumer, factory) -> consumer.accept(supplier.get()));
       }
     });
   }
