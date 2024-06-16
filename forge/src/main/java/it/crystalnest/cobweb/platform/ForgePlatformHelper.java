@@ -16,7 +16,7 @@ import java.util.List;
  */
 public final class ForgePlatformHelper implements PlatformHelper {
   @Override
-  public Pack.Info createPackInfo(Component description) {
+  public Pack.Info createPackInfo(Component description, int packFormat) {
     return new Pack.Info(description, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), List.of(), true);
   }
 

@@ -16,8 +16,8 @@ import java.util.List;
  */
 public final class NeoForgePlatformHelper implements PlatformHelper {
   @Override
-  public Pack.Info createPackInfo(Component description) {
-    return new Pack.Info(description, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), List.of(), true);
+  public Pack.Info createPackInfo(Component description, int packFormat) {
+    return new Pack.Info(description, packFormat, packFormat, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), List.of(), true);
   }
 
   @Override

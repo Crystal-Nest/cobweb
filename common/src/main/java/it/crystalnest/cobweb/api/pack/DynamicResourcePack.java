@@ -90,7 +90,7 @@ public abstract class DynamicResourcePack implements PackResources {
           Component.translatable(packId()),
           true,
           new DynamicResourcesSupplier(this),
-          Services.PLATFORM.createPackInfo(metadata.get().description()),
+          Services.PLATFORM.createPackInfo(metadata.get().description(), metadata.get().packFormat()),
           Pack.Position.TOP,
           false,
           PackSource.BUILT_IN
