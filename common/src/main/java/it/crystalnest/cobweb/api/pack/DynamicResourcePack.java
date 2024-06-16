@@ -26,7 +26,6 @@ import java.io.StringWriter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -74,7 +73,7 @@ public abstract class DynamicResourcePack implements PackResources {
     this.name = name;
     this.namespace = name.getNamespace();
     this.namespaces.add(namespace);
-    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type), Optional.empty()));
+    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type)));
   }
 
   /**
@@ -90,7 +89,8 @@ public abstract class DynamicResourcePack implements PackResources {
           Component.translatable(packId()),
           true,
           new DynamicResourcesSupplier(this),
-          Services.PLATFORM.createPackInfo(metadata.get().description()),
+          Services.PLATFORM.createPackInfo(metadata.get().getDescription(), metadata.get().getPackFormat()),
+          type,
           Pack.Position.TOP,
           false,
           PackSource.BUILT_IN
@@ -210,13 +210,7 @@ public abstract class DynamicResourcePack implements PackResources {
 
     @NotNull
     @Override
-    public PackResources openPrimary(@NotNull String name) {
-      return this.instance;
-    }
-
-    @NotNull
-    @Override
-    public PackResources openFull(@NotNull String name, Pack.@NotNull Info info) {
+    public PackResources open(@NotNull String name) {
       return this.instance;
     }
   }
