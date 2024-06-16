@@ -13,9 +13,10 @@ public interface PlatformHelper {
    * Creates a {@link Pack.Info}.
    *
    * @param description resource pack description.
+   * @param packFormat pack format.
    * @return {@link Pack.Info}.
    */
-  Pack.Info createPackInfo(Component description);
+  Pack.Info createPackInfo(Component description, int packFormat);
 
   /**
    * Gets the name of the current platform
