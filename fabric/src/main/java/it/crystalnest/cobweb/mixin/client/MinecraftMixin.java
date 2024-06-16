@@ -34,7 +34,7 @@ public abstract class MinecraftMixin {
   @Inject(method = "<init>", at = @At(value = "INVOKE", shift = At.Shift.BEFORE, target = "Lnet/minecraft/server/packs/repository/PackRepository;reload()V"))
   private void beforeReload(CallbackInfo ci) {
     for (Supplier<Pack> pack : FabricRegistryHelper.DYNAMIC_TEXTURE_PACKS) {
-      resourcePackRepository.sources.add(packConsumer -> packConsumer.accept(pack.get()));
+      resourcePackRepository.sources.add((consumer, factory) -> consumer.accept(pack.get()));
     }
   }
 }

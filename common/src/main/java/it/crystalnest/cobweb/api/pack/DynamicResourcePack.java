@@ -15,7 +15,6 @@ import net.minecraft.server.packs.metadata.MetadataSectionSerializer;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
-import net.minecraft.server.packs.resources.IoSupplier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -23,11 +22,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -73,7 +75,7 @@ public abstract class DynamicResourcePack implements PackResources {
     this.name = name;
     this.namespace = name.getNamespace();
     this.namespaces.add(namespace);
-    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type)));
+    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type.bridgeType)));
   }
 
   /**
@@ -84,15 +86,14 @@ public abstract class DynamicResourcePack implements PackResources {
       type,
       Suppliers.memoize(() -> {
         this.build();
-        return Pack.create(
-          packId(),
-          Component.translatable(packId()),
+        return new Pack(
+          getName(),
+          Component.translatable(getName()),
           true,
-          new DynamicResourcesSupplier(this),
-          Services.PLATFORM.createPackInfo(metadata.get().getDescription(), metadata.get().getPackFormat()),
+          () -> this,
+          this.metadata.get(),
           type,
           Pack.Position.TOP,
-          false,
           PackSource.BUILT_IN
         );
       })
@@ -101,35 +102,36 @@ public abstract class DynamicResourcePack implements PackResources {
 
   @Override
   public String toString() {
-    return packId();
+    return getName();
   }
 
+  @Override
   @Nullable
-  @Override
-  public IoSupplier<InputStream> getRootResource(String @NotNull ... strings) {
+  public InputStream getRootResource(@NotNull String fileName) {
     return null;
   }
 
+  @NotNull
   @Override
-  public IoSupplier<InputStream> getResource(@NotNull PackType type, @NotNull ResourceLocation id) {
-    if (this.resources.containsKey(id)) {
-      return () -> {
-        if (this.type == type) {
-          return new ByteArrayInputStream(this.resources.get(id).get());
-        }
-        throw new IOException(String.format("Tried to access wrong type of resource on %s.", this.name));
-      };
+  public InputStream getResource(@NotNull PackType type, @NotNull ResourceLocation id) {
+    if (this.type == type && this.resources.containsKey(id)) {
+      return new ByteArrayInputStream(this.resources.get(id).get());
     }
-    return null;
+    return new ByteArrayInputStream(new byte[0]);
   }
 
+  @NotNull
   @Override
-  public void listResources(@NotNull PackType type, @NotNull String namespace, @NotNull String id, @NotNull ResourceOutput output) {
+  public Collection<ResourceLocation> getResources(@NotNull PackType type, @NotNull String namespace, @NotNull String id, @NotNull Predicate<ResourceLocation> allowedPathPredicate) {
     if (this.type == type && this.namespaces.contains(namespace)) {
-      this.resources.entrySet().stream()
-        .filter(resource -> (resource.getKey().getNamespace().equals(namespace) && resource.getKey().getPath().startsWith(id)))
-        .forEach(resource -> output.accept(resource.getKey(), () -> new ByteArrayInputStream(resource.getValue().get())));
+      return this.resources.keySet().stream().filter(resource -> resource.getNamespace().equals(namespace) && resource.getPath().startsWith(id) && allowedPathPredicate.test(resource)).toList();
     }
+    return Collections.emptyList();
+  }
+
+  @Override
+  public boolean hasResource(@NotNull PackType type, @NotNull ResourceLocation id) {
+    return this.type == type && this.resources.containsKey(id);
   }
 
   @NotNull
@@ -141,12 +143,12 @@ public abstract class DynamicResourcePack implements PackResources {
   @Override
   @SuppressWarnings("unchecked")
   public <T> T getMetadataSection(MetadataSectionSerializer<T> serializer) {
-    return serializer.getMetadataSectionName().equals(PackMetadataSection.TYPE.getMetadataSectionName()) ? (T) this.metadata : null;
+    return serializer.getMetadataSectionName().equals(PackMetadataSection.SERIALIZER.getMetadataSectionName()) ? (T) this.metadata : null;
   }
 
   @NotNull
   @Override
-  public String packId() {
+  public String getName() {
     return name.toString();
   }
 
@@ -191,27 +193,4 @@ public abstract class DynamicResourcePack implements PackResources {
    * Starts the building process.
    */
   protected abstract void build();
-
-  /**
-   * Dynamic {@link Pack.ResourcesSupplier}.
-   */
-  public static class DynamicResourcesSupplier implements Pack.ResourcesSupplier {
-    /**
-     * {@link PackResources} instance.
-     */
-    private final PackResources instance;
-
-    /**
-     * @param instance {@link #instance}.
-     */
-    DynamicResourcesSupplier(PackResources instance) {
-      this.instance = instance;
-    }
-
-    @NotNull
-    @Override
-    public PackResources open(@NotNull String name) {
-      return this.instance;
-    }
-  }
 }
