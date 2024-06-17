@@ -9,7 +9,7 @@ dependencies {
   api "com.electronwill.night-config:core:${nightconfig_version}"
   api "com.electronwill.night-config:toml:${nightconfig_version}"
   modCompileOnly "net.minecraftforge:forgeconfigapiport-fabric:${fcap_version}"
-  include(api(annotationProcessor("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.1.1")))
+  include(implementation(annotationProcessor("com.github.bawnorton.mixinsquared:mixinsquared-fabric:0.2.0-beta.4")))
 }
 
 loom {

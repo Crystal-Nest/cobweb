@@ -64,6 +64,7 @@ subprojects { subproject ->
 
   repositories {
     mavenCentral()
+    maven { url = "https://jitpack.io" }
     maven {
       name = "Sponge / Mixin"
       url = "https://repo.spongepowered.org/repository/maven-public/"
@@ -76,7 +77,6 @@ subprojects { subproject ->
       name = "Fuzs Mod Resources"
       url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/"
     }
-    maven { url = "https://jitpack.io" }
   }
 
   tasks.withType(JavaCompile).configureEach {
