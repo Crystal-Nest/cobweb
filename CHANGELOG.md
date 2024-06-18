@@ -13,6 +13,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Stable version release.
 
+## [v0.5.8-beta] - 2024/06/18
+
+- 1.18.2 only: Update to the latest Mixin Squared dependency version.
+
 ## [v0.5.7-beta] - 2024/06/18
 
 - 1.18.2 only: Revert Mixin Squared dependency version change.
@@ -152,6 +156,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
+[v0.5.8-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.8-beta
+[v0.5.7-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.7-beta
 [v0.5.6-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.6-beta
 [v0.5.5-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.5-beta
 [v0.5.4-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.4-beta
