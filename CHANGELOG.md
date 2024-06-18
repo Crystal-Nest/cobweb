@@ -13,6 +13,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Stable version release.
 
+## [v0.5.7-beta] - 2024/06/18
+
+- 1.18.2 only: Revert Mixin Squared dependency version change.
+
 ## [v0.5.6-beta] - 2024/06/17
 
 - 1.18.2 only: Changed Mixin Squared dependency.
