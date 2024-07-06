@@ -9,9 +9,29 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
-## [v1.0.0] - 2024/06/dd
+## [v1.0.0] - 2024/06/18
 
-- TODO
+- Stable version release.
+
+## [v0.5.9-beta] - 2024/06/18
+
+- 1.18.2 only: Revert Mixin Squared update
+
+## [v0.5.8-beta] - 2024/06/18
+
+- 1.18.2 only: Update to the latest Mixin Squared dependency version.
+
+## [v0.5.7-beta] - 2024/06/18
+
+- 1.18.2 only: Revert Mixin Squared dependency version change.
+
+## [v0.5.6-beta] - 2024/06/17
+
+- 1.18.2 only: Changed Mixin Squared dependency.
+
+## [v0.5.5-beta] - 2024/06/17
+
+- Fixed accesswidener for Fabric.
 
 ## [v0.5.4-beta] - 2024/06/11
 
@@ -140,6 +160,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
+[v0.5.9-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.9-beta
+[v0.5.8-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.8-beta
+[v0.5.7-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.7-beta
+[v0.5.6-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.6-beta
+[v0.5.5-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.5-beta
 [v0.5.4-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.4-beta
 [v0.5.3-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.3-beta
 [v0.5.2-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.2-beta
