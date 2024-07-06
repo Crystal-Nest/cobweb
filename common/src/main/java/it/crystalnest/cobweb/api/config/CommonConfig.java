@@ -27,7 +27,11 @@ public abstract class CommonConfig extends CobwebConfig {
    */
   protected static <T extends CommonConfig> T register(String modId, Function<ModConfigSpec.Builder, T> constructor) {
     register(modId, ConfigType.COMMON, constructor);
-    Services.CONFIG.registerCommonConfig(modId, getSpec(modId));
+    if (Services.CONFIG != null) {
+      Services.CONFIG.registerCommonConfig(modId, getSpec(modId));
+    } else {
+      throw new NullPointerException("Make sure you are on NeoForge or the mod Forge Config API Port is installed!");
+    }
     return getConfig(modId);
   }
 

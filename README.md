@@ -26,8 +26,8 @@ Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 
 - Unified configuration system.
 - Unified registering system.
-- Shared tool tiers API.
 - Easier way to retrieve in-game IDs.
+- Shared tool tiers API. (`< 1.21`)
 
 ### Fabric only features:
 

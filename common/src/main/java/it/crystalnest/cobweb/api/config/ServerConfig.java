@@ -27,7 +27,11 @@ public abstract class ServerConfig extends CobwebConfig {
    */
   protected static <T extends ServerConfig> T register(String modId, Function<ModConfigSpec.Builder, T> constructor) {
     register(modId, ConfigType.SERVER, constructor);
-    Services.CONFIG.registerServerConfig(getId(modId, ConfigType.SERVER), getSpec(modId));
+    if (Services.CONFIG != null) {
+      Services.CONFIG.registerServerConfig(getId(modId, ConfigType.SERVER), getSpec(modId));
+    } else {
+      throw new NullPointerException("Make sure you are on NeoForge or the mod Forge Config API Port is installed!");
+    }
     return getConfig(modId);
   }
 

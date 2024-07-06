@@ -30,7 +30,7 @@ public final class NeoForgeToolTiersHelper implements ToolTiersHelper {
 
   @Override
   public @Nullable Tier getTier(String reference) {
-    return TierUtils.NO_TIER_REFERENCE.equalsIgnoreCase(reference) ? TierUtils.NO_TIER : ResourceLocation.isValidResourceLocation(reference) ? TierSortingRegistry.byName(new ResourceLocation(reference)) : null;
+    return TierUtils.NO_TIER_REFERENCE.equalsIgnoreCase(reference) ? TierUtils.NO_TIER : ResourceLocation.isValidResourceLocation(reference) ? TierSortingRegistry.byName(ResourceLocation.parse(reference)) : null;
   }
 
   @Override

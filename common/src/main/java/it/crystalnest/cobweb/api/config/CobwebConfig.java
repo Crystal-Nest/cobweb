@@ -18,6 +18,11 @@ public abstract class CobwebConfig {
   private static final Map<String, Pair<? extends CobwebConfig, ModConfigSpec>> CONFIGS = new HashMap<>();
 
   /**
+   * Nullish config to avoid creating new objects when calling {@link #getSpec(String, ConfigType)}.
+   */
+  private static final Pair<? extends CobwebConfig, ModConfigSpec> NULL_CONFIG = Pair.of(null, null);
+
+  /**
    * @param builder configuration builder.
    */
   protected CobwebConfig(ModConfigSpec.Builder builder) {
@@ -60,7 +65,7 @@ public abstract class CobwebConfig {
    */
   @Nullable
   protected static ModConfigSpec getSpec(String modId, ConfigType type) {
-    return CONFIGS.containsKey(getId(modId, type)) ? CONFIGS.get(getId(modId, type)).getRight() : null;
+    return CONFIGS.getOrDefault(getId(modId, type), NULL_CONFIG).getRight();
   }
 
   /**

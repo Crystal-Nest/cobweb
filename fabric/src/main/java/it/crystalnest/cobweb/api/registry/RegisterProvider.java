@@ -41,6 +41,6 @@ public final class RegisterProvider {
    * @return {@link Register}.
    */
   public <R> Register<R> of(Registry<R> registry) {
-    return (key, value) -> Registry.register(registry, new ResourceLocation(namespace, key), value);
+    return (key, value) -> Registry.register(registry, ResourceLocation.fromNamespaceAndPath(namespace, key), value);
   }
 }

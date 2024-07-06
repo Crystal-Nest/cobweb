@@ -34,6 +34,6 @@ public enum DynamicResourceType {
    * @return complete path for this resource.
    */
   public ResourceLocation getPath(ResourceLocation id) {
-    return new ResourceLocation(id.getNamespace(), String.format(path, id.getPath()));
+    return ResourceLocation.fromNamespaceAndPath(id.getNamespace(), String.format(path, id.getPath()));
   }
 }

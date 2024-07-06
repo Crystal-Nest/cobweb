@@ -216,7 +216,7 @@ public abstract class DynamicResourcePack implements PackResources {
 
     @NotNull
     @Override
-    public PackResources openFull(@NotNull String name, Pack.@NotNull Info info) {
+    public PackResources openFull(@NotNull String name, @NotNull Pack.Info info) {
       return this.instance;
     }
   }
