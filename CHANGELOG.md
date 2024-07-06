@@ -7,7 +7,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 ## [Unreleased]
 
-- Nothing new.
+- Updated to 1.21
+- Removed the Tool Tiers API due to Minecraft removing levels from tiers.
 
 ## [v1.0.0] - 2024/06/18
 
@@ -158,6 +159,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[vX.Y.Z]: https://github.com/crystal-nest/cobweb/releases?q=X.Y.Z
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
 [v0.5.9-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.9-beta

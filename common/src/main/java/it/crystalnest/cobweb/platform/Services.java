@@ -5,8 +5,6 @@ import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.ConfigHelper;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
-import it.crystalnest.cobweb.platform.services.ToolTiersHelper;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ServiceLoader;
@@ -15,17 +13,11 @@ import java.util.ServiceLoader;
  * Service loaders are a built-in Java feature that allow us to locate implementations of an interface that vary from one environment to another.
  * In the context of MultiLoader we use this feature to access a mock API in the common code that is swapped out for the platform specific implementation at runtime.
  */
-@ApiStatus.Internal
 public final class Services {
   /**
    * Provides information about what platform the mod is running on.
    */
   public static final PlatformHelper PLATFORM = load(PlatformHelper.class);
-
-  /**
-   * Provides utilities for tool tiers.
-   */
-  public static final ToolTiersHelper TOOL_TIERS = load(ToolTiersHelper.class);
 
   /**
    * Provides registration for game objects.

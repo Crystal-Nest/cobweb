@@ -25,7 +25,7 @@ import java.util.Set;
  * @param <T>
  */
 @SuppressWarnings("unchecked")
-public class DynamicTagBuilder<T> extends TagBuilder {
+public final class DynamicTagBuilder<T> extends TagBuilder {
   /**
    * Set of unique keys.
    */

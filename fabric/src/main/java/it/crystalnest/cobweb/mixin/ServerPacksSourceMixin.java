@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Injects into {@link ServerPacksSource} to add dynamic data packs.
@@ -26,10 +28,11 @@ public abstract class ServerPacksSourceMixin {
    */
   @ModifyArg(method = "createPackRepository(Ljava/nio/file/Path;Lnet/minecraft/world/level/validation/DirectoryValidator;)Lnet/minecraft/server/packs/repository/PackRepository;", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackRepository;<init>([Lnet/minecraft/server/packs/repository/RepositorySource;)V"))
   private static RepositorySource[] onCreatePackRepository(RepositorySource[] sources) {
-    RepositorySource[] providers = new RepositorySource[sources.length + FabricRegistryHelper.DYNAMIC_DATA_PACKS.size()];
+    List<Pack> packs = FabricRegistryHelper.dynamicDataPacks();
+    RepositorySource[] providers = new RepositorySource[sources.length + packs.size()];
     System.arraycopy(sources, 0, providers, 0, sources.length);
-    for (int i = 0; i < FabricRegistryHelper.DYNAMIC_DATA_PACKS.size(); i++) {
-      Pack pack = FabricRegistryHelper.DYNAMIC_DATA_PACKS.get(i).get();
+    for (int i = 0; i < packs.size(); i++) {
+      Pack pack = packs.get(i);
       providers[sources.length + i] = packConsumer -> packConsumer.accept(pack);
     }
     return providers;

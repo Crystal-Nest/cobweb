@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 /**
  * Dynamic data pack.
  */
-public class DynamicDataPack extends DynamicResourcePack {
+public final class DynamicDataPack extends DynamicResourcePack {
   /**
    * List of tag builders.
    */

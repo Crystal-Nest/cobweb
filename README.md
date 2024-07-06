@@ -37,9 +37,13 @@ Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 
 Currently none.
 
+###### Available only `≤ 1.20.4`
+
 ### NeoForge only features:
 
 Currently none.
+
+###### Available only `≥ 1.20.2`
 
 ## **License and right of use**
 

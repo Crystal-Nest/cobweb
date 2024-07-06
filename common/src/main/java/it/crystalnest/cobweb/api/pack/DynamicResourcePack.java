@@ -177,7 +177,6 @@ public abstract class DynamicResourcePack implements PackResources {
         try (StringWriter stringWriter = new StringWriter(); JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
           jsonWriter.setIndent("  ");
           Streams.write(element, jsonWriter);
-          jsonWriter.close();
           return stringWriter.toString().getBytes();
         } catch (IOException e) {
           Constants.LOGGER.error("Failed to write JSON {} to resource pack\n{}.", path, name, e);

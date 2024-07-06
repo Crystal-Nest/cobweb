@@ -26,7 +26,25 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   /**
    * Internal list of {@link Pack texture pack}s to register.
    */
-  public static final List<Supplier<Pack>> DYNAMIC_TEXTURE_PACKS = new ArrayList<>();
+  private static final List<Supplier<Pack>> DYNAMIC_TEXTURE_PACKS = new ArrayList<>();
+
+  /**
+   * Returns the list of currently registered dynamic {@link Pack data pack}s.
+   *
+   * @return list of registered dynamic {@link Pack data pack}s.
+   */
+  public static List<Pack> dynamicDataPacks() {
+    return DYNAMIC_DATA_PACKS.stream().map(Supplier::get).toList();
+  }
+
+  /**
+   * Returns the list of currently registered dynamic {@link Pack texture pack}s.
+   *
+   * @return list of registered dynamic {@link Pack texture pack}s.
+   */
+  public static List<Pack> dynamicTexturePacks() {
+    return DYNAMIC_TEXTURE_PACKS.stream().map(Supplier::get).toList();
+  }
 
   @Override
   @SuppressWarnings("unchecked")
