@@ -12,7 +12,7 @@ public final class NeoForgeConfigHelper implements ConfigHelper {
   /**
    * NeoForge mod container.
    */
-  private ModContainer container;
+  private ModContainer container = null;
 
   @Override
   public void registerCommonConfig(String modId, ModConfigSpec spec) {

@@ -21,7 +21,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   /**
    * Internal list of {@link Pack data pack}s to register.
    */
-  public static final List<Supplier<Pack>> DYNAMIC_DATA_PACKS = new ArrayList<>();
+  private static final List<Supplier<Pack>> DYNAMIC_DATA_PACKS = new ArrayList<>();
 
   /**
    * Internal list of {@link Pack texture pack}s to register.

@@ -20,7 +20,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   /**
    * NeoForge event bus.
    */
-  private IEventBus bus;
+  private IEventBus bus = null;
 
   @Override
   @SuppressWarnings("unchecked")
