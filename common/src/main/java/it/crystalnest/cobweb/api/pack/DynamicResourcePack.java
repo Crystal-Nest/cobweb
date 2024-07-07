@@ -9,7 +9,9 @@ import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.MetadataSectionSerializer;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
@@ -39,6 +41,8 @@ public abstract class DynamicResourcePack implements PackResources {
    * {@link PackType}.
    */
   private final PackType type;
+
+  private final PackLocationInfo location;
 
   /**
    * Pack name.
@@ -70,6 +74,7 @@ public abstract class DynamicResourcePack implements PackResources {
    * @param type {@link #type}.
    */
   protected DynamicResourcePack(ResourceLocation name, PackType type) {
+    this.location = new PackLocationInfo(name.toString(), Component.translatable(name.toString()), PackSource.BUILT_IN, Optional.empty());
     this.type = type;
     this.name = name;
     this.namespace = name.getNamespace();
@@ -85,16 +90,7 @@ public abstract class DynamicResourcePack implements PackResources {
       type,
       Suppliers.memoize(() -> {
         this.build();
-        return Pack.create(
-          packId(),
-          Component.translatable(packId()),
-          true,
-          new DynamicResourcesSupplier(this),
-          Services.PLATFORM.createPackInfo(metadata.get().description()),
-          Pack.Position.TOP,
-          false,
-          PackSource.BUILT_IN
-        );
+        return new Pack(location(), new DynamicResourcesSupplier(this), Services.PLATFORM.createPackMetadata(metadata.get().description()), new PackSelectionConfig(true, Pack.Position.TOP, false));
       })
     );
   }
@@ -102,6 +98,12 @@ public abstract class DynamicResourcePack implements PackResources {
   @Override
   public String toString() {
     return packId();
+  }
+
+  @NotNull
+  @Override
+  public PackLocationInfo location() {
+    return location;
   }
 
   @Nullable
@@ -112,12 +114,12 @@ public abstract class DynamicResourcePack implements PackResources {
 
   @Override
   public IoSupplier<InputStream> getResource(@NotNull PackType type, @NotNull ResourceLocation id) {
-    if (this.resources.containsKey(id)) {
+    if (resources.containsKey(id)) {
       return () -> {
         if (this.type == type) {
-          return new ByteArrayInputStream(this.resources.get(id).get());
+          return new ByteArrayInputStream(resources.get(id).get());
         }
-        throw new IOException(String.format("Tried to access wrong type of resource on %s.", this.name));
+        throw new IOException(String.format("Tried to access wrong type of resource on %s.", name));
       };
     }
     return null;
@@ -125,7 +127,7 @@ public abstract class DynamicResourcePack implements PackResources {
 
   @Override
   public void listResources(@NotNull PackType type, @NotNull String namespace, @NotNull String id, @NotNull ResourceOutput output) {
-    if (this.type == type && this.namespaces.contains(namespace)) {
+    if (this.type == type && namespaces.contains(namespace)) {
       this.resources.entrySet().stream()
         .filter(resource -> (resource.getKey().getNamespace().equals(namespace) && resource.getKey().getPath().startsWith(id)))
         .forEach(resource -> output.accept(resource.getKey(), () -> new ByteArrayInputStream(resource.getValue().get())));
@@ -135,19 +137,13 @@ public abstract class DynamicResourcePack implements PackResources {
   @NotNull
   @Override
   public Set<String> getNamespaces(@NotNull PackType packType) {
-    return this.namespaces;
+    return namespaces;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <T> T getMetadataSection(MetadataSectionSerializer<T> serializer) {
-    return serializer.getMetadataSectionName().equals(PackMetadataSection.TYPE.getMetadataSectionName()) ? (T) this.metadata : null;
-  }
-
-  @NotNull
-  @Override
-  public String packId() {
-    return name.toString();
+    return serializer.getMetadataSectionName().equals(PackMetadataSection.TYPE.getMetadataSectionName()) ? (T) metadata : null;
   }
 
   @Override
@@ -160,8 +156,8 @@ public abstract class DynamicResourcePack implements PackResources {
    * @param bytes raw data.
    */
   private void build(ResourceLocation path, Supplier<byte[]> bytes) {
-    this.namespaces.add(path.getNamespace());
-    this.resources.put(path, Suppliers.memoize(bytes::get));
+    namespaces.add(path.getNamespace());
+    resources.put(path, Suppliers.memoize(bytes::get));
   }
 
   /**
@@ -173,7 +169,7 @@ public abstract class DynamicResourcePack implements PackResources {
   protected void build(List<ResourceLocation> paths, Supplier<JsonElement> json) {
     for (ResourceLocation path : paths) {
       JsonElement element = json.get();
-      this.build(DynamicResourceType.GENERAL.getPath(path), () -> {
+      build(DynamicResourceType.GENERAL.getPath(path), () -> {
         try (StringWriter stringWriter = new StringWriter(); JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
           jsonWriter.setIndent("  ");
           Streams.write(element, jsonWriter);
@@ -209,14 +205,14 @@ public abstract class DynamicResourcePack implements PackResources {
 
     @NotNull
     @Override
-    public PackResources openPrimary(@NotNull String name) {
-      return this.instance;
+    public PackResources openPrimary(@NotNull PackLocationInfo name) {
+      return instance;
     }
 
     @NotNull
     @Override
-    public PackResources openFull(@NotNull String name, @NotNull Pack.Info info) {
-      return this.instance;
+    public PackResources openFull(@NotNull PackLocationInfo name, @NotNull Pack.Metadata info) {
+      return instance;
     }
   }
 }

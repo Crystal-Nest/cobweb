@@ -10,12 +10,12 @@ import net.minecraft.server.packs.repository.Pack;
  */
 public interface PlatformHelper {
   /**
-   * Creates a {@link Pack.Info}.
+   * Creates a {@link Pack.Metadata}.
    *
    * @param description resource pack description.
-   * @return {@link Pack.Info}.
+   * @return {@link Pack.Metadata}.
    */
-  Pack.Info createPackInfo(Component description);
+  Pack.Metadata createPackMetadata(Component description);
 
   /**
    * Gets the name of the current platform

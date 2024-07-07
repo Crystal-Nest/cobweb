@@ -62,6 +62,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
 
   /**
    * Deferred register.
+   *
+   * @param <R> registry type.
    */
   public static final class DeferredRegister<R> implements CobwebRegister<R> {
     /**

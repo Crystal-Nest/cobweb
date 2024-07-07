@@ -22,7 +22,7 @@ import java.util.Set;
 /**
  * Builder for dynamic tags.
  *
- * @param <T>
+ * @param <T> tag type.
  */
 @SuppressWarnings("unchecked")
 public final class DynamicTagBuilder<T> extends TagBuilder {
@@ -161,6 +161,6 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    * @return {@link JsonElement}.
    */
   public JsonElement json() {
-    return TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(build(), false)).getOrThrow(false, error -> {});
+    return TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(build(), false)).getOrThrow();
   }
 }

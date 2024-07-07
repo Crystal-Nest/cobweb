@@ -15,8 +15,8 @@ import java.util.List;
  */
 public final class FabricPlatformHelper implements PlatformHelper {
   @Override
-  public Pack.Info createPackInfo(Component description) {
-    return new Pack.Info(description, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), List.of());
+  public Pack.Metadata createPackMetadata(Component description) {
+    return new Pack.Metadata(description, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), List.of());
   }
 
   @Override
