@@ -4,13 +4,11 @@ import it.crystalnest.cobweb.platform.FabricRegistryHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.server.packs.repository.RepositorySource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-
-import java.util.function.Supplier;
 
 /**
  * Injects into {@link CreateWorldScreen} to add dynamic data packs.
@@ -26,9 +24,7 @@ public abstract class CreateWorldScreenMixin {
    */
   @ModifyVariable(method = "openFresh", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"))
   private static PackRepository onCreate(PackRepository packRepository) {
-    for (Supplier<Pack> pack : FabricRegistryHelper.DYNAMIC_DATA_PACKS) {
-      packRepository.sources.add(packConsumer -> packConsumer.accept(pack.get()));
-    }
+    FabricRegistryHelper.dynamicDataPacks().stream().<RepositorySource>map(pack -> packConsumer -> packConsumer.accept(pack)).forEach(packRepository.sources::add);
     return packRepository;
   }
 }
