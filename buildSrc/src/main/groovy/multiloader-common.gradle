@@ -5,8 +5,8 @@ plugins {
 }
 
 base {
-  archivesName = "${mod_id_kebab}-${name}"
-  version = "${minecraft_version}-${mod_version}"
+  archivesName = "$mod_id_kebab-$name"
+  version = "$minecraft_version-$mod_version"
 }
 
 java {
@@ -57,7 +57,7 @@ repositories {
 ["apiElements", "runtimeElements", "sourcesElements", "javadocElements"].each { variant ->
   configurations."$variant".outgoing {
     capability("$group:${base.archivesName.get()}:$version")
-    capability("$group:$mod_id-${project.name}-${minecraft_version}:$version")
+    capability("$group:$mod_id-${project.name}-$minecraft_version:$version")
     capability("$group:$mod_id:$version")
   }
   publishing.publications.configureEach {
@@ -67,13 +67,13 @@ repositories {
 
 sourcesJar {
   from(rootProject.file("LICENSE")) {
-    rename { "${it}_${mod_title}" }
+    rename { "${it}_$mod_title" }
   }
 }
 
 jar {
   from(rootProject.file("LICENSE")) {
-    rename { "${it}_${mod_title}" }
+    rename { "${it}_$mod_title" }
   }
   manifest {
     attributes([
@@ -83,7 +83,7 @@ jar {
       "Implementation-Title"    : mod_title,
       "Implementation-Vendor"   : mod_authors,
       "Implementation-Version"  : project.version,
-      "Implementation-URL"      : "https://github.com/${github_user}/${mod_id_kebab}/tree/${minecraft_version}",
+      "Implementation-URL"      : "https://github.com/$github_user/$mod_id_kebab/tree/$minecraft_version",
       "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
       "Timestamp"               : System.currentTimeMillis(),
       "Built-On-Java"           : "${System.getProperty('java.vm.version')} (${System.getProperty('java.vm.vendor')})",
@@ -121,7 +121,7 @@ processResources {
 }
 
 def noPublish = name == "common"
-def changelog_body = "See [Changelog](https://github.com/${github_user}/${mod_id_kebab}/blob/master/CHANGELOG.md#v${mod_version.replaceAll('\\.', '')}---${new Date().format("yyyyMMdd")})."
+def changelog_body = "See [Changelog](https://github.com/$github_user/$mod_id_kebab/blob/master/CHANGELOG.md#v${mod_version.replaceAll('\\.', '')}---${new Date().format("yyyyMMdd")})."
 def version_type = mod_version.replaceFirst("([0-9]+\\.?)+-?", "") ?: "release"
 def loader = "Common"
 switch (name) {
@@ -137,7 +137,7 @@ publishing {
   repositories {
     maven {
       name = "GitHubPackages"
-      url = uri("https://maven.pkg.github.com/${github_user}/${mod_id_kebab}")
+      url = uri("https://maven.pkg.github.com/$github_user/$mod_id_kebab")
       credentials {
         username = github_user
         password = System.getenv("GITHUB_TOKEN") ?: ""
@@ -147,16 +147,16 @@ publishing {
   publications {
     gpr(MavenPublication) {
       groupId = project.group
-      artifactId = "${mod_id_kebab}-${loader.toLowerCase()}"
+      artifactId = "$mod_id_kebab-${loader.toLowerCase()}"
       version = project.version
       from components.java
       pom {
-        name = "[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}"
-        description = "${description}"
-        url = "https://github.com/${github_user}/${mod_id_kebab}/tree/${minecraft_version}"
+        name = "[$loader - $minecraft_version] $mod_title v$mod_version"
+        description = "$description"
+        url = "https://github.com/$github_user/$mod_id_kebab/tree/$minecraft_version"
         issueManagement {
           system = "github"
-          url = "https://github.com/${github_user}/${mod_id_kebab}/issues"
+          url = "https://github.com/$github_user/$mod_id_kebab/issues"
         }
         licenses {
           license {
@@ -187,7 +187,7 @@ publisher {
   setVersion(mod_version)
   setChangelog(changelog_body)
   setVersionType(version_type)
-  setArtifact(name == "fabric" ? remapJar : jar)
+  setArtifact(jar)
   setDisableMalwareScanner(true) // Disable the built in Fractureizer scanner.
   setDisableEmptyJarCheck(true) // Disable check for valid mod metadata entry in artifact, which could possibly mean that the jar is empty.
   setModrinthID(mod_id_kebab)
@@ -196,11 +196,11 @@ publisher {
     setLoaders(loader)
   }
   setGameVersions(minecraft_version)
-  setDisplayName("[${loader} - ${minecraft_version}] ${mod_title} v${mod_version}")
-  setJavaVersions([java_version])
+  setDisplayName("[$loader - $minecraft_version] $mod_title v$mod_version")
+  setJavaVersions([java_version as Integer])
   setCurseEnvironment("both") // "server", "client" or "both".
   github {
-    repo = "${github_user}/${mod_id_kebab}"
+    repo = "$github_user/$mod_id_kebab"
     tag = "v${project.version}"
     displayName("v${project.version}")
     target = minecraft_version
@@ -235,7 +235,7 @@ publisher {
 
 tasks.register("publishLoader") {
   group = "publishing"
-  description = "Publish ${loader} specific versions to all platforms"
+  description = "Publish $loader specific versions to all platforms"
   dependsOn "publish"
   dependsOn "publishMod"
 }
