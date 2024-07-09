@@ -9,7 +9,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
-## [v1.0.0] - 2024/07/07
+## [v1.0.0] - 2024/07/09
 
 - Updated to 1.21
 - Removed the Tool Tiers API due to Minecraft removing levels from tiers.

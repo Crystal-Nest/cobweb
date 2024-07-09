@@ -210,22 +210,20 @@ publisher {
     draft = false
   }
   modrinthDepends {
-    required "cobweb"
     switch (loader) {
       case "Fabric":
         required "fabric-api"
-        required "forge-config-api-port"
+        optional "forge-config-api-port"
         break
       case "NeoForge":
         break
     }
   }
   curseDepends {
-    required "cobweb"
     switch (loader) {
       case "Fabric":
         required "fabric-api"
-        required "forge-config-api-port-fabric"
+        optional "forge-config-api-port-fabric"
         break
       case "NeoForge":
         break
