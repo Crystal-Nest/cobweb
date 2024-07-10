@@ -21,10 +21,10 @@ public final class ModLoader {
    * @param container Mod container.
    */
   public ModLoader(IEventBus bus, ModContainer container) {
-    CommonModLoader.init();
     ((NeoForgeRegistryHelper) Services.REGISTRY).register(bus);
     if (Services.CONFIG != null) {
       ((NeoForgeConfigHelper) Services.CONFIG).register(container);
     }
+    CommonModLoader.init();
   }
 }
