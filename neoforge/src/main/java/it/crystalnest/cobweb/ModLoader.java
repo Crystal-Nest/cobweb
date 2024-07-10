@@ -1,6 +1,5 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.platform.NeoForgeConfigHelper;
 import it.crystalnest.cobweb.platform.NeoForgeRegistryHelper;
 import it.crystalnest.cobweb.platform.Services;
 import net.neoforged.bus.api.IEventBus;
@@ -22,9 +21,6 @@ public final class ModLoader {
    */
   public ModLoader(IEventBus bus, ModContainer container) {
     ((NeoForgeRegistryHelper) Services.REGISTRY).register(bus);
-    if (Services.CONFIG != null) {
-      ((NeoForgeConfigHelper) Services.CONFIG).register(container);
-    }
     CommonModLoader.init();
   }
 }
