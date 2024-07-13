@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.Register;
 import it.crystalnest.cobweb.api.registry.RegisterProvider;
