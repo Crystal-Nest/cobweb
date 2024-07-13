@@ -4,6 +4,7 @@ import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.Register;
 import it.crystalnest.cobweb.api.registry.RegisterProvider;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
@@ -80,9 +81,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends R> Supplier<T> register(String name, Supplier<? extends T> supplier) {
-      T value = (T) this.register.apply(name, supplier.get());
-      return () -> value;
+    public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
+      return new CobwebEntry<>(Holder.direct((T) this.register.apply(name, supplier.get())));
     }
   }
 }

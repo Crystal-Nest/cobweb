@@ -2,6 +2,7 @@ package it.crystalnest.cobweb.platform;
 
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
@@ -55,13 +56,18 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
    *
    * @param <R> registry type.
    */
-  public static final class Register<R> extends DeferredRegister<R> implements CobwebRegister<R> {
+  public static final class Register<R> implements CobwebRegister<R> {
     /**
-     * @param registryKey {@link #registryKey}.
-     * @param namespace {@link #namespace}.
+     * Wrapped instance of {@link DeferredRegister}.
+     */
+    private final DeferredRegister<R> register;
+
+    /**
+     * @param registryKey {@link DeferredRegister#registryKey}.
+     * @param namespace {@link DeferredRegister#namespace}.
      */
     private Register(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-      super(registryKey, namespace);
+      register = DeferredRegister.create(registryKey, namespace);
     }
 
     /**
@@ -74,6 +80,21 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      */
     public static <R> Register<R> create(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
       return new Register<>(registryKey, namespace);
+    }
+
+    /**
+     * Wrapper around {@link DeferredRegister#register(IEventBus)}.
+     *
+     * @param bus {@link IEventBus}.
+     */
+    public void register(IEventBus bus) {
+      register.register(bus);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
+      return new CobwebEntry<>((Holder<T>) register.register(name, supplier));
     }
   }
 }

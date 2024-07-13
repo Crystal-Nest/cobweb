@@ -9,6 +9,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.1.0] - 2024/07/13
+
+- Changed registry methods to return `CobwebEntry` instead of a simple `Supplier`.
+
 ## [v1.0.0] - 2024/07/09
 
 - Updated to 1.21
