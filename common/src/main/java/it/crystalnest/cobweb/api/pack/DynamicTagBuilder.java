@@ -91,7 +91,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    * @return list of paths for each tag.
    */
   public List<ResourceLocation> getPaths() {
-    return getTags().stream().map(tag -> DynamicResourceType.TAG.getPath(ResourceLocation.fromNamespaceAndPath(tag.getNamespace(), this.registry.key().location().getPath() + tag.getPath()))).toList();
+    return getTags().stream().map(tag -> DynamicResourceType.TAG.getPath(ResourceLocation.fromNamespaceAndPath(tag.getNamespace(), this.registry.key().location().getPath() + "/" + tag.getPath()))).toList();
   }
 
   /**
