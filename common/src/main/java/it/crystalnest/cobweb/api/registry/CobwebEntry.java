@@ -16,21 +16,10 @@ import java.util.stream.Stream;
 /**
  * Wrapper around {@link Holder} to implement {@link Supplier}.
  *
+ * @param holder wrapped instance of {@link Holder}.
  * @param <T> game object type.
  */
-public final class CobwebEntry<T> implements Holder<T>, Supplier<T> {
-  /**
-   * Wrapped instance of {@link Holder}.
-   */
-  private final Holder<T> holder;
-
-  /**
-   * @param holder {@link #holder}.
-   */
-  public CobwebEntry(Holder<T> holder) {
-    this.holder = holder;
-  }
-
+public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T> {
   @NotNull
   @Override
   public T get() {
