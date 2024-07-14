@@ -9,6 +9,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.1.1] - 2024/07/14
+
+- Fixed item tags in internal API for data packs.
+
 ## [v1.1.0] - 2024/07/13
 
 - Changed registry methods to return `CobwebEntry` instead of a simple `Supplier`.
@@ -167,6 +171,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.1.1]: https://github.com/crystal-nest/cobweb/releases?q=1.1.1
+[v1.1.0]: https://github.com/crystal-nest/cobweb/releases?q=1.1.0
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
 [v0.5.9-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.9-beta
