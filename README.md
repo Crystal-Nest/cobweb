@@ -12,11 +12,21 @@
 
 ---
 
+[![Discord](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/discord/discord32.png)](https://discord.gg/BP6EdBfAmt)
+[![Kofi](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/kofi/kofi32.png)](https://ko-fi.com/crystalspider)
+[![Patreon](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/patreon/patreon32.png)](https://www.patreon.com/crystalspider)  
+Want to chat and ask questions? Join our Discord!  
+Want to stay up-to-date and support us? Visit our Kofi!  
+Want extra content, previews, and early access? Become our Patron!
+
+---
+
 ## **Description**
 
-Shared mod API across Crystal Nest projects.
+Mod API to ease the development process in a multiloader environment.  
+It provides a Unified Configuration System and a Unified Registering System, both available in the common module, to abstract configuration and registration outside of loader-specific modules.
 
-Fully compatible with a multiloader environment!
+Shared mod API across Crystal Nest projects.
 
 Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 
@@ -31,7 +41,7 @@ Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 
 ### Fabric only features:
 
-- Eased custom registering system.
+- Eased registering system.
 
 ### Forge only features:
 
@@ -47,7 +57,7 @@ Currently none.
 
 ## **License and right of use**
 
-Feel free to use this mod for any modpack or video, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
+Feel free to use this mod for any mod, modpack, or video, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
 This project is published under the [GNU General Public License v3.0](https://github.com/crystal-nest/cobweb/blob/master/LICENSE).
 
 ## **Support us**
