@@ -16,8 +16,10 @@
 [![Kofi](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/kofi/kofi32.png)](https://ko-fi.com/crystalspider)
 [![Patreon](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/patreon/patreon32.png)](https://www.patreon.com/crystalspider)  
 Want to chat and ask questions? Join our Discord!  
-Want to stay up-to-date and support us? Visit our Kofi!  
-Want extra content, previews, and early access? Become our Patron!
+Stay up to date and support us on Kofi!  
+Become a lore-rich spider on Patreon to get extra content, previews, early access, and more!
+
+###### Becoming a member of any platform is always free! Get more benefits and content with additional support!
 
 ---
 
