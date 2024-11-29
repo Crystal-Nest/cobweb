@@ -73,7 +73,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    */
   @SafeVarargs
   public static <R> DynamicTagBuilder<R> of(ResourceKey<? extends Registry<R>> registryKey, TagKey<? extends R>... tags) {
-    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()), tags);
+    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()).orElseThrow(), tags);
   }
 
   /**
