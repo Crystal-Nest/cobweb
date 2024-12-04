@@ -9,10 +9,14 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.1.4] - 2024/12/04
+
+- Fixed a critical bug in 1.21.3.
+
 ## [v1.1.3] - 2024/11/29
 
 - Ported to 1.21.3.
-  
+
 ## [v1.1.3] - 2024/09/30
 
 - 1.21 and above only.
@@ -187,6 +191,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.1.4]: https://github.com/crystal-nest/cobweb/releases?q=1.1.4
 [v1.1.3]: https://github.com/crystal-nest/cobweb/releases?q=1.1.3
 [v1.1.2]: https://github.com/crystal-nest/cobweb/releases?q=1.1.2
 [v1.1.1]: https://github.com/crystal-nest/cobweb/releases?q=1.1.1
