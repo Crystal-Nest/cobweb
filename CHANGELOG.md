@@ -196,6 +196,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.2.0]: https://github.com/crystal-nest/cobweb/releases?q=1.2.0
 [v1.1.4]: https://github.com/crystal-nest/cobweb/releases?q=1.1.4
 [v1.1.3]: https://github.com/crystal-nest/cobweb/releases?q=1.1.3
 [v1.1.2]: https://github.com/crystal-nest/cobweb/releases?q=1.1.2
