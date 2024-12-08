@@ -9,6 +9,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.2.1] - 2024/02/08
+
+- 1.21.3 and above only.
+- Fixed crash when using dynamic datapacks feature.
+
 ## [v1.2.0] - 2024/02/08
 
 - 1.21.3 and above only.
@@ -196,6 +201,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.2.1]: https://github.com/crystal-nest/cobweb/releases?q=1.2.1
 [v1.2.0]: https://github.com/crystal-nest/cobweb/releases?q=1.2.0
 [v1.1.4]: https://github.com/crystal-nest/cobweb/releases?q=1.1.4
 [v1.1.3]: https://github.com/crystal-nest/cobweb/releases?q=1.1.3
