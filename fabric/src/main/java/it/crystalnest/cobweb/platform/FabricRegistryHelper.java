@@ -7,13 +7,17 @@ import it.crystalnest.cobweb.api.registry.RegisterProvider;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -49,9 +53,33 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <R> DeferredRegister<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (DeferredRegister<R>) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.location(), key -> new DeferredRegister<>(new RegisterProvider(namespace).of(registryKey)));
+    return of(id -> new DeferredRegister<>(registryKey, id), registryKey, namespace);
+  }
+
+  @Override
+  public CobwebRegister.Items ofItems(String namespace) {
+    return of(DeferredRegister.Items::new, Registries.ITEM, namespace);
+  }
+
+  @Override
+  public CobwebRegister.Blocks ofBlocks(String namespace) {
+    return of(DeferredRegister.Blocks::new, Registries.BLOCK, namespace);
+  }
+
+  /**
+   * Provides a {@link DeferredRegister} for the specified mod and {@link Registry}.
+   *
+   * @param constructor {@link DeferredRegister} subclass constructor.
+   * @param registryKey Minecraft {@link Registry} key.
+   * @param namespace mod ID.
+   * @return {@link DeferredRegister}.
+   * @param <R> register type.
+   * @param <T> {@link DeferredRegister} type.
+   */
+  @SuppressWarnings("unchecked")
+  private <R, T extends DeferredRegister<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
+    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.location(), key -> constructor.apply(namespace));
   }
 
   @Override
@@ -67,23 +95,59 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    *
    * @param <R> registry type.
    */
-  public static final class DeferredRegister<R> implements CobwebRegister<R> {
+  public static class DeferredRegister<R> implements CobwebRegister<R> {
     /**
      * {@link Register}.
      */
     private final Register<R> register;
 
     /**
-     * @param register {@link #register}.
+     * Namespace.
      */
-    private DeferredRegister(Register<R> register) {
-      this.register = register;
+    private final String namespace;
+
+    /**
+     * @param registryKey Minecraft {@link Registry} key.
+     * @param namespace {@link #namespace}.
+     */
+    private DeferredRegister(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
+      this.register = new RegisterProvider(namespace).of(registryKey);
+      this.namespace = namespace;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
       return new CobwebEntry<>(Holder.direct((T) this.register.apply(name, supplier.get())));
+    }
+
+    @Override
+    public String namespace() {
+      return namespace;
+    }
+
+    /**
+     * Deferred register for {@link Item}s.
+     */
+    public static final class Items extends DeferredRegister<Item> implements CobwebRegister.Items {
+      /**
+       * @param namespace {@link #namespace}.
+       */
+      private Items(String namespace) {
+        super(Registries.ITEM, namespace);
+      }
+    }
+
+    /**
+     * Deferred register for {@link Block}s.
+     */
+    public static final class Blocks extends DeferredRegister<Block> implements CobwebRegister.Blocks {
+      /**
+       * @param namespace {@link #namespace}.
+       */
+      private Blocks(String namespace) {
+        super(Registries.BLOCK, namespace);
+      }
     }
   }
 }

@@ -7,9 +7,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.level.block.Block;
 
 /**
  * Cobweb unified registering API.
@@ -42,23 +40,23 @@ public final class CobwebRegistry {
   }
 
   /**
-   * Provides a {@link CobwebRegister} of {@link Item}s for the specified mod.
+   * Provides a {@link CobwebRegister.Items} for the specified mod.
    *
    * @param namespace mod ID.
-   * @return {@link CobwebRegister} of {@link Item}s.
+   * @return {@link CobwebRegister.Items}.
    */
-  public static CobwebRegister<Item> ofItems(String namespace) {
-    return of(Registries.ITEM, namespace);
+  public static CobwebRegister.Items ofItems(String namespace) {
+    return Services.REGISTRY.ofItems(namespace);
   }
 
   /**
-   * Provides a {@link CobwebRegister} of {@link Block}s for the specified mod.
+   * Provides a {@link CobwebRegister.Blocks} for the specified mod.
    *
    * @param namespace mod ID.
-   * @return {@link CobwebRegister} of {@link Block}s.
+   * @return {@link CobwebRegister.Blocks}.
    */
-  public static CobwebRegister<Block> ofBlocks(String namespace) {
-    return of(Registries.BLOCK, namespace);
+  public static CobwebRegister.Blocks ofBlocks(String namespace) {
+    return Services.REGISTRY.ofBlocks(namespace);
   }
 
   /**

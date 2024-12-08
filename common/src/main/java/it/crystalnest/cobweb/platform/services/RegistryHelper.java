@@ -47,6 +47,22 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   public abstract <R> CobwebRegister<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace);
 
   /**
+   * Provides a {@link CobwebRegister.Items} for the specified mod.
+   *
+   * @param namespace mod ID.
+   * @return {@link CobwebRegister.Items}.
+   */
+  public abstract CobwebRegister.Items ofItems(String namespace);
+
+  /**
+   * Provides a {@link CobwebRegister.Blocks} for the specified mod.
+   *
+   * @param namespace mod ID.
+   * @return {@link CobwebRegister.Blocks}.
+   */
+  public abstract CobwebRegister.Blocks ofBlocks(String namespace);
+
+  /**
    * Registers a {@link DynamicResourcePack}.
    *
    * @param type {@link PackType}.

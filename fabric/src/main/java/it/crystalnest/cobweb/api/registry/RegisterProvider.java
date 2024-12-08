@@ -30,7 +30,7 @@ public final class RegisterProvider {
    */
   @SuppressWarnings("unchecked")
   public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey) {
-    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()).orElseThrow());
+    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()).orElseThrow().value());
   }
 
   /**

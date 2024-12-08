@@ -9,6 +9,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.2.0] - 2024/02/08
+
+- 1.21.3 and above only.
+- Added new API methods to more easily register blocks and items.
+
 ## [v1.1.4] - 2024/12/04
 
 - Fixed a critical bug in 1.21.3.
