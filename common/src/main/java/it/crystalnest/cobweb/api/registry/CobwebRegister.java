@@ -7,6 +7,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -48,6 +49,21 @@ public interface CobwebRegister<R> {
     default <T extends Item> CobwebEntry<T> registerItem(String name, Function<Item.Properties, T> supplier) {
       return register(name, () -> supplier.apply(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace(), name)))));
     }
+
+    /**
+     * Registers the custom {@link BlockItem} for the {@link Block} returned by the given supplier.<br />
+     * Automatically sets the Item ID in its properties and makes it use the block description.
+     *
+     * @param name item name.
+     * @param block block supplier.
+     * @param properties item properties.
+     * @param constructor custom block item constructor.
+     * @return registered item holder.
+     */
+    default <T extends BlockItem, B extends Block> CobwebEntry<T> registerBlockItemLike(String name, Supplier<B> block, Item.Properties properties, BiFunction<B, Item.Properties, T> constructor) {
+      return register(name, () -> constructor.apply(block.get(), properties.setId(ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace(), name))).useBlockDescriptionPrefix()));
+    }
+
     /**
      * Registers the {@link BlockItem} for the {@link Block} returned by the given supplier.<br />
      * Automatically sets the Item ID in its properties and makes it use the block description.
@@ -58,8 +74,9 @@ public interface CobwebRegister<R> {
      * @return registered item holder.
      */
     default CobwebEntry<BlockItem> registerBlockItem(String name, Supplier<? extends Block> block, Item.Properties properties) {
-      return register(name, () -> new BlockItem(block.get(), properties.setId(ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace(), name))).useBlockDescriptionPrefix()));
+      return registerBlockItemLike(name, block, properties, BlockItem::new);
     }
+
     /**
      * Registers the {@link BlockItem} for the {@link Block} returned by the given supplier.<br />
      * Automatically sets the Item ID in its properties and makes it use the block description.

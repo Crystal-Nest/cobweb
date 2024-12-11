@@ -9,12 +9,17 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
-## [v1.2.1] - 2024/02/08
+## [v1.2.2] - 2024/12/11
+
+- 1.21.3 and above only.
+- Added new method to register BlockItem subclasses while keeping their exact type, rather than forcing BlockItem class.
+
+## [v1.2.1] - 2024/12/08
 
 - 1.21.3 and above only.
 - Fixed crash when using dynamic datapacks feature.
 
-## [v1.2.0] - 2024/02/08
+## [v1.2.0] - 2024/12/08
 
 - 1.21.3 and above only.
 - Added new API methods to more easily register blocks and items.
@@ -201,6 +206,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.2.2]: https://github.com/crystal-nest/cobweb/releases?q=1.2.2
 [v1.2.1]: https://github.com/crystal-nest/cobweb/releases?q=1.2.1
 [v1.2.0]: https://github.com/crystal-nest/cobweb/releases?q=1.2.0
 [v1.1.4]: https://github.com/crystal-nest/cobweb/releases?q=1.1.4
