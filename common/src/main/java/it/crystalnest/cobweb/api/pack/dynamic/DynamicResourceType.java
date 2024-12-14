@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.api.pack;
+package it.crystalnest.cobweb.api.pack.dynamic;
 
 import net.minecraft.resources.ResourceLocation;
 

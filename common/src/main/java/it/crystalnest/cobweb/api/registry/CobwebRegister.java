@@ -39,7 +39,7 @@ public interface CobwebRegister<R> {
    */
   interface Items extends CobwebRegister<Item> {
     /**
-     * Registers the {@link Item} returned by the given supplier.<br />
+     * Registers the {@link Item} returned by the given supplier.<br>
      * Automatically sets the Item ID in its properties.
      *
      * @param name item name.
@@ -51,7 +51,7 @@ public interface CobwebRegister<R> {
     }
 
     /**
-     * Registers the custom {@link BlockItem} for the {@link Block} returned by the given supplier.<br />
+     * Registers the custom {@link BlockItem} for the {@link Block} returned by the given supplier.<br>
      * Automatically sets the Item ID in its properties and makes it use the block description.
      *
      * @param name item name.
@@ -65,7 +65,7 @@ public interface CobwebRegister<R> {
     }
 
     /**
-     * Registers the {@link BlockItem} for the {@link Block} returned by the given supplier.<br />
+     * Registers the {@link BlockItem} for the {@link Block} returned by the given supplier.<br>
      * Automatically sets the Item ID in its properties and makes it use the block description.
      *
      * @param name item name.
@@ -78,7 +78,7 @@ public interface CobwebRegister<R> {
     }
 
     /**
-     * Registers the {@link BlockItem} for the {@link Block} returned by the given supplier.<br />
+     * Registers the {@link BlockItem} for the {@link Block} returned by the given supplier.<br>
      * Automatically sets the Item ID in its properties and makes it use the block description.
      *
      * @param name item name.
@@ -95,7 +95,7 @@ public interface CobwebRegister<R> {
    */
   interface Blocks extends CobwebRegister<Block> {
     /**
-     * Registers the {@link Block} returned by the given supplier.<br />
+     * Registers the {@link Block} returned by the given supplier.<br>
      * Automatically sets the Block ID in its properties.
      *
      * @param name block name.

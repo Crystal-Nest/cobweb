@@ -8,6 +8,7 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.world.flag.FeatureFlagSet;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -27,6 +28,16 @@ public final class FabricPlatformHelper implements PlatformHelper {
   @Override
   public boolean isModLoaded(String modId) {
     return FabricLoader.getInstance().isModLoaded(modId);
+  }
+
+  @Override
+  public String getModVersion(String modId) {
+    return FabricLoader.getInstance().getModContainer(modId).orElseThrow().getMetadata().getVersion().getFriendlyString();
+  }
+
+  @Override
+  public Path getResourcePath(String modId, String path) {
+    return FabricLoader.getInstance().getModContainer(modId).flatMap(container -> container.findPath(path)).orElseThrow();
   }
 
   @Override

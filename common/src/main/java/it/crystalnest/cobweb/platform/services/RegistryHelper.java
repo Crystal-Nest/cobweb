@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.platform.services;
 
-import it.crystalnest.cobweb.api.pack.DynamicResourcePack;
+import it.crystalnest.cobweb.api.pack.dynamic.DynamicResourcePack;
+import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -19,7 +20,7 @@ import java.util.function.Supplier;
  */
 public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   /**
-   * Map linking all mods that use the API to all the registries they use.<br />
+   * Map linking all mods that use the API to all the registries they use.<br>
    * Used to avoid creating and registering multiple instances of the same register.
    */
   protected final Map<String, Map<ResourceLocation, T>> registries = new HashMap<>();
@@ -69,4 +70,11 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * @param supplier {@link Supplier} for the {@link Pack} to register.
    */
   public abstract void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier);
+
+  /**
+   * Registers a {@link StaticResourcePack}.
+   *
+   * @param pack {@link StaticResourcePack}.
+   */
+  public abstract void registerStaticResourcePack(StaticResourcePack pack);
 }

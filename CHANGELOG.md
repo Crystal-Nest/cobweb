@@ -9,6 +9,12 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.3.0] - 2024/12/14
+
+- 1.21 and above only.
+- Added new API to easily register, in common, built-in resource packs.
+- Moved deeper into `dynamic` the unstable API for dynamic resource packs.
+
 ## [v1.2.2] - 2024/12/11
 
 - 1.21.3 and above only.

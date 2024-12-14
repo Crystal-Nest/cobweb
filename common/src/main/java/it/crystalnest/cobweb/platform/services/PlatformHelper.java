@@ -5,6 +5,9 @@ import it.crystalnest.cobweb.platform.model.Platform;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
 
+import java.nio.file.Path;
+import java.util.NoSuchElementException;
+
 /**
  * Platform specific helper.
  */
@@ -20,29 +23,48 @@ public interface PlatformHelper {
   /**
    * Gets the name of the current platform
    *
-   * @return The name of the current platform.
+   * @return name of the current platform.
    */
   Platform getPlatformName();
 
   /**
-   * Checks if a mod with the given id is loaded.
+   * Checks if a mod with the given ID is loaded.
    *
-   * @param modId The mod to check if it is loaded.
-   * @return True if the mod is loaded, false otherwise.
+   * @param modId mod ID.
+   * @return whether the mod is loaded.
    */
   boolean isModLoaded(String modId);
 
   /**
-   * Check if the game is currently in a development environment.
+   * Returns the version of the specified mod.
    *
-   * @return True if in a development environment, false otherwise.
+   * @param modId mod ID.
+   * @return mod version.
+   * @throws NoSuchElementException if the mod is not loaded.
+   */
+  String getModVersion(String modId) throws NoSuchElementException;
+
+  /**
+   * Returns the {@link Path} for the resource of the specified mod under the given relative path.
+   *
+   * @param modId mod ID.
+   * @param path relative path.
+   * @return resource {@link Path}.
+   * @throws NoSuchElementException if the mod is not loaded or the path can't be found.
+   */
+  Path getResourcePath(String modId, String path) throws NoSuchElementException;
+
+  /**
+   * Checks if the game is currently in a development environment.
+   *
+   * @return whether it's a development environment.
    */
   boolean isDevEnv();
 
   /**
    * Gets the name of the environment type as a string.
    *
-   * @return The name of the environment type.
+   * @return name of the environment type.
    */
   default Environment getEnvironment() {
     return isDevEnv() ? Environment.DEVELOPMENT : Environment.PRODUCTION;

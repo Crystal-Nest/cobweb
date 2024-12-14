@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
@@ -52,15 +53,20 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     });
   }
 
+  @Override
+  public void registerStaticResourcePack(StaticResourcePack pack) {
+    bus.addListener((AddPackFindersEvent event) -> event.addPackFinders(pack.location(), pack.type(), pack.name(), pack.source(), pack.alwaysActive(), pack.position()));
+  }
+
   /**
    * Provides a {@link Register} for the specified mod and {@link Registry}.
    *
    * @param constructor {@link Register} subclass constructor.
    * @param registryKey Minecraft {@link Registry} key.
    * @param namespace mod ID.
-   * @return {@link Register}.
    * @param <R> register type.
    * @param <T> {@link Register} type.
+   * @return {@link Register}.
    */
   @SuppressWarnings("unchecked")
   private <R, T extends Register<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
