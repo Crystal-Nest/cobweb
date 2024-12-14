@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
@@ -13,6 +14,7 @@ import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.HashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -40,6 +42,30 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
       if (event.getPackType() == type) {
         event.addRepositorySource(consumer -> consumer.accept(supplier.get()));
       }
+    });
+  }
+
+  @Override
+  public void registerStaticResourcePack(StaticResourcePack pack) {
+    bus.addListener((AddPackFindersEvent event) -> event.addPackFinders(pack.location(), pack.type(), pack.name(), pack.source(), pack.alwaysActive(), pack.position()));
+  }
+
+  /**
+   * Provides a {@link Register} for the specified mod and {@link Registry}.
+   *
+   * @param constructor {@link Register} subclass constructor.
+   * @param registryKey Minecraft {@link Registry} key.
+   * @param namespace mod ID.
+   * @param <R> register type.
+   * @param <T> {@link Register} type.
+   * @return {@link Register}.
+   */
+  @SuppressWarnings("unchecked")
+  private <R, T extends Register<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
+    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.location(), key -> {
+      T register = constructor.apply(namespace);
+      register.register(bus);
+      return register;
     });
   }
 

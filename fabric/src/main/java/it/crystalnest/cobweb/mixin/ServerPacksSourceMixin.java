@@ -1,39 +1,26 @@
 package it.crystalnest.cobweb.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import it.crystalnest.cobweb.platform.FabricRegistryHelper;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
-import net.minecraft.server.packs.repository.RepositorySource;
 import net.minecraft.server.packs.repository.ServerPacksSource;
-import net.minecraft.world.level.validation.DirectoryValidator;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
-
-import java.nio.file.Path;
-import java.util.List;
 
 /**
- * Injects into {@link ServerPacksSource} to add dynamic data packs.
+ * Injects into {@link ServerPacksSource} to add dynamic and static data packs.
  */
 @Mixin(ServerPacksSource.class)
 public abstract class ServerPacksSourceMixin {
   /**
-   * Modifies the {@link RepositorySource} argument for the {@link PackRepository} constructor in the method {@link ServerPacksSource#createPackRepository(Path, DirectoryValidator)}.<br />
-   * Adds all the registered dynamic data packs to the {@link PackRepository#sources}.
+   * Modifies the return value of all overloads of the method {@link ServerPacksSource#createPackRepository}.<br>
+   * Registers all dynamic and static data packs to the original repository.
    *
-   * @param sources original {@link RepositorySource}s.
-   * @return modified {@link RepositorySource}s.
+   * @param repository original return value.
+   * @return updated repository.
    */
-  @ModifyArg(method = "createPackRepository(Ljava/nio/file/Path;Lnet/minecraft/world/level/validation/DirectoryValidator;)Lnet/minecraft/server/packs/repository/PackRepository;", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackRepository;<init>([Lnet/minecraft/server/packs/repository/RepositorySource;)V"))
-  private static RepositorySource[] onCreatePackRepository(RepositorySource[] sources) {
-    List<Pack> packs = FabricRegistryHelper.dynamicDataPacks();
-    RepositorySource[] providers = new RepositorySource[sources.length + packs.size()];
-    System.arraycopy(sources, 0, providers, 0, sources.length);
-    for (int i = 0; i < packs.size(); i++) {
-      Pack pack = packs.get(i);
-      providers[sources.length + i] = packConsumer -> packConsumer.accept(pack);
-    }
-    return providers;
+  @ModifyReturnValue(method = "createPackRepository*", at = @At(value = "RETURN"))
+  private static PackRepository onCreatePackRepository(PackRepository repository) {
+    return FabricRegistryHelper.registerDataPacks(repository);
   }
 }

@@ -9,6 +9,7 @@ import net.minecraft.world.flag.FeatureFlagSet;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -28,6 +29,16 @@ public final class NeoForgePlatformHelper implements PlatformHelper {
   @Override
   public boolean isModLoaded(String modId) {
     return ModList.get().isLoaded(modId);
+  }
+
+  @Override
+  public String getModVersion(String modId) {
+    return ModList.get().getModContainerById(modId).orElseThrow().getModInfo().getVersion().toString();
+  }
+
+  @Override
+  public Path getResourcePath(String modId, String path) {
+    return ModList.get().getModContainerById(modId).orElseThrow().getModInfo().getOwningFile().getFile().findResource(path);
   }
 
   @Override

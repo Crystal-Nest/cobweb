@@ -1,5 +1,7 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.pack.PackSources;
+import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.Register;
@@ -10,10 +12,12 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackRepository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -31,21 +35,69 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   private static final List<Supplier<Pack>> DYNAMIC_TEXTURE_PACKS = new ArrayList<>();
 
   /**
-   * Returns the list of currently registered dynamic {@link Pack data pack}s.
-   *
-   * @return list of registered dynamic {@link Pack data pack}s.
+   * Internal list of {@link StaticResourcePack} of type {@link PackType#SERVER_DATA}.
    */
-  public static List<Pack> dynamicDataPacks() {
-    return DYNAMIC_DATA_PACKS.stream().map(Supplier::get).toList();
+  private static final List<StaticResourcePack> STATIC_DATA_PACKS = new ArrayList<>();
+
+  /**
+   * Internal list of {@link StaticResourcePack} of type {@link PackType#CLIENT_RESOURCES}.
+   */
+  private static final List<StaticResourcePack> STATIC_TEXTURE_PACKS = new ArrayList<>();
+
+  /**
+   * Registers all data packs, dynamic and static, to the given repository.
+   *
+   * @param repository {@link PackRepository}.
+   * @return updated repository.
+   */
+  public static PackRepository registerDataPacks(PackRepository repository) {
+    registerDynamicPacks(DYNAMIC_DATA_PACKS, repository);
+    registerStaticPacks(STATIC_DATA_PACKS, repository);
+    return repository;
   }
 
   /**
-   * Returns the list of currently registered dynamic {@link Pack texture pack}s.
+   * Registers all texture packs, dynamic and static, to the given repository.
    *
-   * @return list of registered dynamic {@link Pack texture pack}s.
+   * @param repository {@link PackRepository}.
+   * @return updated repository.
    */
-  public static List<Pack> dynamicTexturePacks() {
-    return DYNAMIC_TEXTURE_PACKS.stream().map(Supplier::get).toList();
+  public static PackRepository registerTexturePacks(PackRepository repository) {
+    registerDynamicPacks(DYNAMIC_TEXTURE_PACKS, repository);
+    registerStaticPacks(STATIC_TEXTURE_PACKS, repository);
+    return repository;
+  }
+
+  /**
+   * Registers the provided list of dynamic resource packs to the given repository.
+   *
+   * @param packs list of dynamic packs.
+   * @param repository {@link PackRepository} to update.
+   */
+  private static void registerDynamicPacks(List<Supplier<Pack>> packs, PackRepository repository) {
+    registerPacks(packs, Supplier::get, repository);
+  }
+
+  /**
+   * Registers the provided list of static resource packs to the given repository.
+   *
+   * @param packs list of static packs.
+   * @param repository {@link PackRepository} to update.
+   */
+  private static void registerStaticPacks(List<StaticResourcePack> packs, PackRepository repository) {
+    registerPacks(packs, StaticResourcePack::toPack, repository);
+  }
+
+  /**
+   * Registers the provided list of resource packs to the given repository.
+   *
+   * @param packs resource packs.
+   * @param toPack function to map a resource pack into a {@link Pack}.
+   * @param repository {@link PackRepository}.
+   * @param <T> resource pack type.
+   */
+  private static <T> void registerPacks(List<T> packs, Function<T, Pack> toPack, PackRepository repository) {
+    packs.stream().map(toPack).forEach(pack -> ((PackSources) repository).addSource(packConsumer -> packConsumer.accept(pack)));
   }
 
   @Override
@@ -59,6 +111,14 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     switch (type) {
       case SERVER_DATA -> DYNAMIC_DATA_PACKS.add(supplier);
       case CLIENT_RESOURCES -> DYNAMIC_TEXTURE_PACKS.add(supplier);
+    }
+  }
+
+  @Override
+  public void registerStaticResourcePack(StaticResourcePack pack) {
+    switch (pack.type()) {
+      case SERVER_DATA -> STATIC_DATA_PACKS.add(pack);
+      case CLIENT_RESOURCES -> STATIC_TEXTURE_PACKS.add(pack);
     }
   }
 
