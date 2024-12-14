@@ -39,6 +39,8 @@ Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 - Unified configuration system.
 - Unified registering system.
 - Easier way to retrieve in-game IDs.
+- Creation and registration of dynamic resource packs (unstable).
+- Creation and registration of built-in resource packs (`≥ 1.21`).
 - Shared tool tiers API. (`< 1.21`)
 
 ### Fabric only features:
