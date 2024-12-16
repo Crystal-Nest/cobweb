@@ -13,7 +13,7 @@ import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.metadata.MetadataSectionSerializer;
+import net.minecraft.server.packs.metadata.MetadataSectionType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
@@ -142,8 +142,8 @@ public abstract class DynamicResourcePack implements PackResources {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> T getMetadataSection(MetadataSectionSerializer<T> serializer) {
-    return serializer.getMetadataSectionName().equals(PackMetadataSection.TYPE.getMetadataSectionName()) ? (T) metadata : null;
+  public <T> T getMetadataSection(@NotNull MetadataSectionType<T> type) {
+    return type.name().equals(PackMetadataSection.TYPE.name()) ? (T) metadata : null;
   }
 
   @Override
