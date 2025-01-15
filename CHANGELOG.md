@@ -226,6 +226,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.3.1]: https://github.com/crystal-nest/cobweb/releases?q=1.3.1
 [v1.3.0]: https://github.com/crystal-nest/cobweb/releases?q=1.3.0
 [v1.2.2]: https://github.com/crystal-nest/cobweb/releases?q=1.2.2
 [v1.2.1]: https://github.com/crystal-nest/cobweb/releases?q=1.2.1
@@ -235,6 +236,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [v1.1.2]: https://github.com/crystal-nest/cobweb/releases?q=1.1.2
 [v1.1.1]: https://github.com/crystal-nest/cobweb/releases?q=1.1.1
 [v1.1.0]: https://github.com/crystal-nest/cobweb/releases?q=1.1.0
+
+[v1.0.1]: https://github.com/crystal-nest/cobweb/releases?q=1.0.1
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
 [v0.5.9-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.9-beta
