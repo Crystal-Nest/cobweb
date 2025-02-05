@@ -12,17 +12,6 @@
 
 ---
 
-[![Discord](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/discord/discord32.png)](https://discord.gg/BP6EdBfAmt)
-[![Kofi](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/kofi/kofi32.png)](https://ko-fi.com/crystalspider)
-[![Patreon](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/patreon/patreon32.png)](https://www.patreon.com/crystalspider)  
-Want to chat and ask questions? Join our Discord!  
-Stay up to date and support us on Kofi!  
-Become a lore-rich spider on Patreon to get extra content, previews, early access, and more!
-
-###### Becoming a member of any platform is always free! Get more benefits and content with additional support!
-
----
-
 ## **Description**
 
 Mod API to ease the development process in a multiloader environment.  
@@ -40,7 +29,7 @@ Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
 - Unified registering system.
 - Easier way to retrieve in-game IDs.
 - Creation and registration of dynamic resource packs (unstable).
-- Creation and registration of built-in resource packs (`≥ 1.21`).
+- Creation and registration of built-in (static) resource packs (`≥ 1.21`).
 - Shared tool tiers API. (`< 1.21`)
 
 ### Fabric only features:
