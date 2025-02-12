@@ -188,13 +188,13 @@ public abstract class StaticResourcePack {
     @NotNull
     @Override
     public PackResources openPrimary(@NotNull PackLocationInfo info) {
-      return open(info);
+      return openInfo(info);
     }
 
     @NotNull
     @Override
     public PackResources openFull(@NotNull PackLocationInfo info, @NotNull Pack.Metadata metadata) {
-      return open(info);
+      return openInfo(info);
     }
 
     /**
@@ -203,7 +203,7 @@ public abstract class StaticResourcePack {
      * @param info {@link PackLocationInfo}.
      * @return {@link PackResources}.
      */
-    private PackResources open(@NotNull PackLocationInfo info) {
+    private PackResources openInfo(@NotNull PackLocationInfo info) {
       return new PathPackResources(info, path);
     }
   }
