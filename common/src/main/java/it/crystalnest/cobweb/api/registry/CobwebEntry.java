@@ -59,8 +59,8 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
 
   @Override
   @SuppressWarnings("deprecation")
-  public boolean is(Holder<T> holder) {
-    return holder.is(holder);
+  public boolean is(@NotNull Holder<T> holder) {
+    return this.holder.is(holder);
   }
 
   @NotNull
