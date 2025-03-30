@@ -51,7 +51,7 @@ Currently none.
 ## **License and right of use**
 
 Feel free to use this mod for any mod, modpack, or video, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
-This project is published under the [GNU General Public License v3.0](https://github.com/crystal-nest/cobweb/blob/master/LICENSE).
+This project is published under the [Crystal Nest Community License v1](https://github.com/crystal-nest/cobweb/blob/master/LICENSE).
 
 ## **Support us**
 
