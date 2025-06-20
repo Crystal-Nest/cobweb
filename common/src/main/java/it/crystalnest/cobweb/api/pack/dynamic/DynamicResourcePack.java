@@ -79,7 +79,7 @@ public abstract class DynamicResourcePack implements PackResources {
     this.name = name;
     this.namespace = name.getNamespace();
     this.namespaces.add(namespace);
-    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().getPackVersion(type), Optional.empty()));
+    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().packVersion(type), Optional.empty()));
   }
 
   /**
