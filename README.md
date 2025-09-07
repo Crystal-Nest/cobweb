@@ -12,25 +12,28 @@
 
 ---
 
-## **Description**
+## 📝 **Description**
 
-Mod API to ease the development process in a multiloader environment.  
-It provides a Unified Configuration System and a Unified Registering System, both available in the common module, to abstract configuration and registration outside of loader-specific modules.
+**Cobweb** is a lightweight, modular API designed to simplify Minecraft mod development across multiple loaders.  
+It provides a **Unified Configuration System** and a **Unified Registering System**, both available directly in the common module. These systems help you abstract away the differences between loaders, so you can focus on writing clean, maintainable, and reusable code — not boilerplate.
 
-Shared mod API across Crystal Nest projects.
+Cobweb is the shared modding API used across all **Crystal Nest** projects.  
+📚 Want to dive deeper? Check out the full [Wiki](https://github.com/Crystal-Nest/cobweb/wiki).
 
-Follow the [Wiki](https://github.com/Crystal-Nest/cobweb/wiki) for more!
+[![Minecraft Storage](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/cobweb/minecraft-storage-banner.png "Minecraft Storage")](https://minecraftstorage.com/mods/cobweb)
 
-## **Features**
+## ✨ **Features**
 
-### Common features:
+Whether you're developing for Fabric, Forge, or NeoForge, Cobweb helps unify your modding workflow. Use it as the base for your multi-loader projects or as a dependency to simplify your architecture!
 
-- Unified configuration system.
-- Unified registering system.
-- Easier way to retrieve in-game IDs.
-- Creation and registration of dynamic resource packs (unstable).
-- Creation and registration of built-in (static) resource packs (`≥ 1.21`).
-- Shared tool tiers API. (`< 1.21`)
+### 🔄 Common (All loaders):
+
+* ✅ Unified Configuration System — write your configs once, load them everywhere
+* ✅ Unified Registering System — abstract away loader-specific registration
+* 🔍 Simple API to retrieve in-game IDs
+* 📦 Create and register **dynamic** resource packs *(experimental)*
+* 📦 Create and register **built-in** (static) resource packs *(available since Minecraft 1.21)*
+* 🛠️ Shared Tool Tiers API *(for Minecraft versions < 1.21)*
 
 ### Fabric only features:
 
@@ -48,12 +51,12 @@ Currently none.
 
 ###### Available only `≥ 1.20.2`
 
-## **License and right of use**
+## 📜 **License and right of use**
 
 Feel free to use this mod for any mod, modpack, or video, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
 This project is published under the [Crystal Nest Community License v1](https://github.com/crystal-nest/cobweb/blob/master/LICENSE).
 
-## **Support us**
+## ❤️ **Support us**
 
 <a href="https://crystalnest.it"><img alt="Crystal Nest Website" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/crystal-nest/pic512.png" width="14.286%"></a><a href="https://discord.gg/BP6EdBfAmt"><img alt="Discord" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/discord/discord512.png" width="14.286%"></a><a href="https://www.patreon.com/crystalspider"><img alt="Patreon" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/patreon/patreon512.png" width="14.286%"></a><a href="https://ko-fi.com/crystalspider"><img alt="Ko-fi" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/kofi/kofi512.png" width="14.286%"></a><a href="https://github.com/Crystal-Nest"><img alt="Our other projects" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/github/github512.png" width="14.286%"><a href="https://modrinth.com/organization/crystal-nest"><img alt="Modrinth" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/modrinth/modrinth512.png" width="14.286%"></a><a href="https://www.curseforge.com/members/crystalspider/projects"><img alt="CurseForge" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/curseforge/curseforge512.png" width="14.286%"></a>
 
