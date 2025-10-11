@@ -38,11 +38,11 @@ public final class NeoForgePlatformHelper implements PlatformHelper {
 
   @Override
   public Path getResourcePath(String modId, String path) {
-    return ModList.get().getModContainerById(modId).orElseThrow().getModInfo().getOwningFile().getFile().findResource(path);
+    return Path.of(ModList.get().getModContainerById(modId).orElseThrow().getModInfo().getOwningFile().getFile().getContents().findFile(path + "/pack.mcmeta").orElseThrow()).getParent();
   }
 
   @Override
   public boolean isDevEnv() {
-    return !FMLLoader.isProduction();
+    return !FMLLoader.getCurrent().isProduction();
   }
 }

@@ -14,10 +14,12 @@ import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.MetadataSectionType;
+import net.minecraft.server.packs.metadata.pack.PackFormat;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.resources.IoSupplier;
+import net.minecraft.util.InclusiveRange;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -72,14 +74,23 @@ public abstract class DynamicResourcePack implements PackResources {
   /**
    * @param name {@link #name}.
    * @param type {@link #type}.
+   * @param formats {@link InclusiveRange} of supported {@link PackFormat}s.
    */
-  protected DynamicResourcePack(ResourceLocation name, PackType type) {
+  protected DynamicResourcePack(ResourceLocation name, PackType type, InclusiveRange<PackFormat> formats) {
     this.location = new PackLocationInfo(name.toString(), Component.translatable(name.toString()), PackSource.BUILT_IN, Optional.empty());
     this.type = type;
     this.name = name;
     this.namespace = name.getNamespace();
     this.namespaces.add(namespace);
-    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), SharedConstants.getCurrentVersion().packVersion(type), Optional.empty()));
+    this.metadata = Suppliers.memoize(() -> new PackMetadataSection(Component.translatable(namespace + "_dynamic_" + name.getPath()), formats));
+  }
+
+  /**
+   * @param name {@link #name}.
+   * @param type {@link #type}.
+   */
+  protected DynamicResourcePack(ResourceLocation name, PackType type) {
+    this(name, type, new InclusiveRange<>(SharedConstants.getCurrentVersion().packVersion(type), SharedConstants.getCurrentVersion().packVersion(type)));
   }
 
   /**
@@ -143,7 +154,7 @@ public abstract class DynamicResourcePack implements PackResources {
   @Override
   @SuppressWarnings("unchecked")
   public <T> T getMetadataSection(@NotNull MetadataSectionType<T> type) {
-    return type.name().equals(PackMetadataSection.TYPE.name()) ? (T) metadata : null;
+    return PackMetadataSection.CLIENT_TYPE.equals(type) || PackMetadataSection.SERVER_TYPE.equals(type) ? (T) this.metadata : null;
   }
 
   @Override
