@@ -16,10 +16,14 @@ import java.util.function.Function;
  * @param <T> block entity.
  */
 public class DynamicBlockEntityType<T extends BlockEntity> extends BlockEntityType<T> {
+  /**
+   * Validator function that determines whether this block entity can be applied to a block state.
+   */
   private final Function<BlockState, Boolean> validator;
 
   /**
    * @param supplier {@link BlockEntitySupplier} for the custom block entity.
+   * @param validator validator function that determines whether this block entity can be applied to a block state.
    */
   public DynamicBlockEntityType(BlockEntitySupplier<? extends T> supplier, Function<BlockState, Boolean> validator) {
     //noinspection DataFlowIssue
@@ -28,10 +32,16 @@ public class DynamicBlockEntityType<T extends BlockEntity> extends BlockEntityTy
   }
 
   /**
+   * Creates a {@link DynamicBlockEntityType}.<br>
+   * Equivalent to the public constructor, but does not require access to the {@link BlockEntitySupplier} class.
+   *
    * @param supplier {@link BlockEntitySupplier} for the custom block entity.
+   * @param validator validator function that determines whether this block entity can be applied to a block state.
+   * @return {@link DynamicBlockEntityType}.
+   * @param <E> block entity type.
    */
-  public DynamicBlockEntityType(BiFunction<BlockPos, BlockState, ? extends T> supplier, Function<BlockState, Boolean> validator) {
-    this((BlockEntitySupplier<? extends T>) supplier::apply, validator);
+  public static <E extends BlockEntity> DynamicBlockEntityType<E> of(BiFunction<BlockPos, BlockState, ? extends E> supplier, Function<BlockState, Boolean> validator) {
+    return new DynamicBlockEntityType<>(supplier::apply, validator);
   }
 
   @Override
