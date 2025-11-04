@@ -32,8 +32,8 @@ Whether you're developing for Fabric or NeoForge, Cobweb helps unify your moddin
 * ✅ Unified Registering System — abstract away loader-specific registration
 * 🔍 Simple API to retrieve in-game IDs
 * 📦 Create and register **dynamic** resource packs *(experimental)*
-* 📦 Create and register **built-in** (static) resource packs *(available since Minecraft 1.21)*
-* 🛠️ Shared Tool Tiers API *(for Minecraft versions < 1.21)*
+* 📦 Create and register **built-in** (static) resource packs
+* 🌀 Dynamic Block Entity for mutable sets of blocks
 
 ### Fabric only features:
 
