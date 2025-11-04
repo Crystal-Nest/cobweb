@@ -9,6 +9,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - Nothing new.
 
+## [v1.4.0] - 2025/11/04
+
+- Added `DynamicBlockEntityType`.
+- Dropped support for Minecraft `<1.21`.
+
 ## [v1.3.4] - 2025/10/11
 
 - Ported to 1.21.10.
@@ -256,6 +261,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 [README]: https://github.com/crystal-nest/cobweb#readme
 
+[v1.4.0]: https://github.com/crystal-nest/cobweb/releases?q=1.4.0
 [v1.3.4]: https://github.com/crystal-nest/cobweb/releases?q=1.3.4
 [v1.3.3]: https://github.com/crystal-nest/cobweb/releases?q=1.3.3
 [v1.3.2]: https://github.com/crystal-nest/cobweb/releases?q=1.3.2
@@ -269,7 +275,6 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [v1.1.2]: https://github.com/crystal-nest/cobweb/releases?q=1.1.2
 [v1.1.1]: https://github.com/crystal-nest/cobweb/releases?q=1.1.1
 [v1.1.0]: https://github.com/crystal-nest/cobweb/releases?q=1.1.0
-
 [v1.0.1]: https://github.com/crystal-nest/cobweb/releases?q=1.0.1
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
