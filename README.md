@@ -39,13 +39,9 @@ Whether you're developing for Fabric or NeoForge, Cobweb helps unify your moddin
 
 - Eased registering system.
 
-###### Available only `≤ 1.20.4`
-
 ### NeoForge only features:
 
 Currently none.
-
-###### Available only `≥ 1.20.2`
 
 ## 📜 **License and right of use**
 
