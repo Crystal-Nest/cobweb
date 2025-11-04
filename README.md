@@ -37,7 +37,7 @@ Whether you're developing for Fabric or NeoForge, Cobweb helps unify your moddin
 
 ### Fabric only features:
 
-- Eased registering system.
+- 📝 Eased registering system.
 
 ### NeoForge only features:
 
