@@ -22,8 +22,7 @@ public class DynamicBlockEntityType<T extends BlockEntity> extends BlockEntityTy
    * @param supplier {@link BlockEntitySupplier} for the custom block entity.
    */
   public DynamicBlockEntityType(BlockEntitySupplier<? extends T> supplier, Function<BlockState, Boolean> validator) {
-    //noinspection DataFlowIssue
-    super(supplier, Set.of(), null);
+    super(supplier, Set.of());
     this.validator = validator;
   }
 
@@ -36,6 +35,7 @@ public class DynamicBlockEntityType<T extends BlockEntity> extends BlockEntityTy
 
   @Override
   public boolean isValid(@NotNull BlockState state) {
+    new DynamicBlockEntityType<>((BlockEntitySupplier<BlockEntity>) null, s -> true);
     return validator.apply(state);
   }
 }
