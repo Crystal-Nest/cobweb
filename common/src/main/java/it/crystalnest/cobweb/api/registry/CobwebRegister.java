@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -106,8 +107,8 @@ public interface CobwebRegister<R> {
      * @return registered block holder.
      * @param <T> block type.
      */
-    default <T extends Block> CobwebEntry<T> registerBlock(String name, Function<Block.Properties, T> supplier) {
-      return register(name, () -> supplier.apply(Block.Properties.of().setId(ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(namespace(), name)))));
+    default <T extends Block> CobwebEntry<T> registerBlock(String name, Function<BlockBehaviour.Properties, T> supplier) {
+      return register(name, () -> supplier.apply(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(namespace(), name)))));
     }
   }
 }

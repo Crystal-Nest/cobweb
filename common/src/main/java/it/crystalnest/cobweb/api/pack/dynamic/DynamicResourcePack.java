@@ -119,12 +119,12 @@ public abstract class DynamicResourcePack implements PackResources {
 
   @Nullable
   @Override
-  public IoSupplier<InputStream> getRootResource(String @NotNull ... strings) {
+  public IoSupplier<@NotNull InputStream> getRootResource(String @NotNull ... strings) {
     return null;
   }
 
   @Override
-  public IoSupplier<InputStream> getResource(@NotNull PackType type, @NotNull Identifier id) {
+  public IoSupplier<@NotNull InputStream> getResource(@NotNull PackType type, @NotNull Identifier id) {
     if (resources.containsKey(id)) {
       return () -> {
         if (this.type == type) {
