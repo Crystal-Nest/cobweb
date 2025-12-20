@@ -3,8 +3,8 @@ package it.crystalnest.cobweb.api.registry;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderOwner;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,7 +38,7 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
   }
 
   @Override
-  public boolean is(@NotNull ResourceLocation key) {
+  public boolean is(@NotNull Identifier key) {
     return holder.is(key);
   }
 

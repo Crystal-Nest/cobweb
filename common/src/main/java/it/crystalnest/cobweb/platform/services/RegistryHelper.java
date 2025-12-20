@@ -4,8 +4,8 @@ import it.crystalnest.cobweb.api.pack.dynamic.DynamicResourcePack;
 import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import net.minecraft.core.Registry;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 
@@ -23,7 +23,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * Map linking all mods that use the API to all the registries they use.<br>
    * Used to avoid creating and registering multiple instances of the same register.
    */
-  protected final Map<String, Map<ResourceLocation, T>> registries = new HashMap<>();
+  protected final Map<String, Map<Identifier, T>> registries = new HashMap<>();
 
   /**
    * Provides a {@link CobwebRegister} for the specified mod and {@link Registry}.

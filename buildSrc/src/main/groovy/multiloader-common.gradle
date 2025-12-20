@@ -114,7 +114,7 @@ processResources {
     "neoforge_loader_version_range": neoforge_loader_version_range,
     "fcap_version"                 : fcap_version,
   ]
-  filesMatching(["pack.mcmeta", "fabric.mod.json", "META-INF/neoforge.mods.toml", "*.mixins.json"]) {
+  filesMatching(["**/pack.mcmeta", "fabric.mod.json", "META-INF/neoforge.mods.toml", "*.mixins.json"]) {
     expand expandProps
   }
   inputs.properties(expandProps)

@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.pack.dynamic;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ public final class DynamicDataPack extends DynamicResourcePack {
   /**
    * @param name data pack name.
    */
-  private DynamicDataPack(ResourceLocation name) {
+  private DynamicDataPack(Identifier name) {
     super(name, PackType.SERVER_DATA);
   }
 
@@ -30,7 +30,7 @@ public final class DynamicDataPack extends DynamicResourcePack {
    * @param name data pack name.
    * @return a new {@link DynamicDataPack}.
    */
-  public static DynamicDataPack named(ResourceLocation name) {
+  public static DynamicDataPack named(Identifier name) {
     return new DynamicDataPack(name);
   }
 

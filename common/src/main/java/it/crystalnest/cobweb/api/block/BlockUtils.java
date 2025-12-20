@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.block;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 
 /**
@@ -11,12 +11,12 @@ public final class BlockUtils {
   private BlockUtils() {}
 
   /**
-   * Returns the in-game {@link ResourceLocation} of the block passed as parameter.
+   * Returns the in-game {@link Identifier} of the block passed as parameter.
    *
    * @param block block.
-   * @return {@link ResourceLocation} of the given block.
+   * @return {@link Identifier} of the given block.
    */
-  public static ResourceLocation getKey(Block block) {
+  public static Identifier getKey(Block block) {
     return BuiltInRegistries.BLOCK.getKey(block);
   }
 

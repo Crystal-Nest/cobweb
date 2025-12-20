@@ -55,7 +55,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
 
   @Override
   public void registerStaticResourcePack(StaticResourcePack pack) {
-    bus.addListener((AddPackFindersEvent event) -> event.addPackFinders(pack.location(), pack.type(), pack.name(), pack.source(), pack.alwaysActive(), pack.position()));
+    bus.addListener((AddPackFindersEvent event) -> event.addPackFinders(pack.identifier(), pack.type(), pack.name(), pack.source(), pack.alwaysActive(), pack.position()));
   }
 
   /**
@@ -70,7 +70,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
    */
   @SuppressWarnings("unchecked")
   private <R, T extends Register<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.location(), key -> {
+    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
       T register = constructor.apply(namespace);
       register.register(bus);
       return register;

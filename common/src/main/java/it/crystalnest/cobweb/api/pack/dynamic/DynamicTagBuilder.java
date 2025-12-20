@@ -4,8 +4,8 @@ import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagBuilder;
 import net.minecraft.tags.TagEntry;
 import net.minecraft.tags.TagFile;
@@ -34,7 +34,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   /**
    * Tags to build.
    */
-  private final List<ResourceLocation> tags;
+  private final List<Identifier> tags;
 
   /**
    * {@link Registry} reference.
@@ -45,7 +45,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    * @param registry {@link #registry}.
    * @param tags {@link #tags}.
    */
-  private DynamicTagBuilder(Registry<T> registry, List<ResourceLocation> tags) {
+  private DynamicTagBuilder(Registry<T> registry, List<Identifier> tags) {
     this.tags = tags;
     this.registry = registry;
   }
@@ -73,7 +73,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    */
   @SafeVarargs
   public static <R> DynamicTagBuilder<R> of(ResourceKey<? extends Registry<R>> registryKey, TagKey<? extends R>... tags) {
-    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.location()).orElseThrow().value(), tags);
+    return of((Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.identifier()).orElseThrow().value(), tags);
   }
 
   /**
@@ -81,7 +81,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    *
    * @return {@link #tags}.
    */
-  public List<ResourceLocation> getTags() {
+  public List<Identifier> getTags() {
     return tags;
   }
 
@@ -90,8 +90,8 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
    *
    * @return list of paths for each tag.
    */
-  public List<ResourceLocation> getPaths() {
-    return getTags().stream().map(tag -> DynamicResourceType.TAG.getPath(ResourceLocation.fromNamespaceAndPath(tag.getNamespace(), this.registry.key().location().getPath() + "/" + tag.getPath()))).toList();
+  public List<Identifier> getPaths() {
+    return getTags().stream().map(tag -> DynamicResourceType.TAG.getPath(Identifier.fromNamespaceAndPath(tag.getNamespace(), this.registry.key().identifier().getPath() + "/" + tag.getPath()))).toList();
   }
 
   /**

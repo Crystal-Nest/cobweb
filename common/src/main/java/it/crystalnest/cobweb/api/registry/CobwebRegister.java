@@ -1,8 +1,8 @@
 package it.crystalnest.cobweb.api.registry;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -45,9 +45,10 @@ public interface CobwebRegister<R> {
      * @param name item name.
      * @param supplier item supplier.
      * @return registered item holder.
+     * @param <T> item type.
      */
     default <T extends Item> CobwebEntry<T> registerItem(String name, Function<Item.Properties, T> supplier) {
-      return register(name, () -> supplier.apply(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace(), name)))));
+      return register(name, () -> supplier.apply(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(namespace(), name)))));
     }
 
     /**
@@ -59,9 +60,11 @@ public interface CobwebRegister<R> {
      * @param properties item properties.
      * @param constructor custom block item constructor.
      * @return registered item holder.
+     * @param <T> block item type.
+     * @param <B> block type.
      */
     default <T extends BlockItem, B extends Block> CobwebEntry<T> registerBlockItemLike(String name, Supplier<B> block, Item.Properties properties, BiFunction<B, Item.Properties, T> constructor) {
-      return register(name, () -> constructor.apply(block.get(), properties.setId(ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace(), name))).useBlockDescriptionPrefix()));
+      return register(name, () -> constructor.apply(block.get(), properties.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(namespace(), name))).useBlockDescriptionPrefix()));
     }
 
     /**
@@ -101,9 +104,10 @@ public interface CobwebRegister<R> {
      * @param name block name.
      * @param supplier block supplier.
      * @return registered block holder.
+     * @param <T> block type.
      */
     default <T extends Block> CobwebEntry<T> registerBlock(String name, Function<Block.Properties, T> supplier) {
-      return register(name, () -> supplier.apply(Block.Properties.of().setId(ResourceKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(namespace(), name)))));
+      return register(name, () -> supplier.apply(Block.Properties.of().setId(ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(namespace(), name)))));
     }
   }
 }

@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.pack.dynamic;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Available resource types for a dynamic resource pack.
@@ -33,7 +33,7 @@ public enum DynamicResourceType {
    * @param id resource ID.
    * @return complete path for this resource.
    */
-  public ResourceLocation getPath(ResourceLocation id) {
-    return ResourceLocation.fromNamespaceAndPath(id.getNamespace(), String.format(path, id.getPath()));
+  public Identifier getPath(Identifier id) {
+    return Identifier.fromNamespaceAndPath(id.getNamespace(), String.format(path, id.getPath()));
   }
 }

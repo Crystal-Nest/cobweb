@@ -8,7 +8,7 @@ import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
@@ -49,7 +49,7 @@ public abstract class DynamicResourcePack implements PackResources {
   /**
    * Pack name.
    */
-  private final ResourceLocation name;
+  private final Identifier name;
 
   /**
    * Pack namespace.
@@ -69,14 +69,14 @@ public abstract class DynamicResourcePack implements PackResources {
   /**
    * Pack resources.
    */
-  private final Map<ResourceLocation, Supplier<byte[]>> resources = new ConcurrentHashMap<>();
+  private final Map<Identifier, Supplier<byte[]>> resources = new ConcurrentHashMap<>();
 
   /**
    * @param name {@link #name}.
    * @param type {@link #type}.
    * @param formats {@link InclusiveRange} of supported {@link PackFormat}s.
    */
-  protected DynamicResourcePack(ResourceLocation name, PackType type, InclusiveRange<PackFormat> formats) {
+  protected DynamicResourcePack(Identifier name, PackType type, InclusiveRange<@NotNull PackFormat> formats) {
     this.location = new PackLocationInfo(name.toString(), Component.translatable(name.toString()), PackSource.BUILT_IN, Optional.empty());
     this.type = type;
     this.name = name;
@@ -89,7 +89,7 @@ public abstract class DynamicResourcePack implements PackResources {
    * @param name {@link #name}.
    * @param type {@link #type}.
    */
-  protected DynamicResourcePack(ResourceLocation name, PackType type) {
+  protected DynamicResourcePack(Identifier name, PackType type) {
     this(name, type, new InclusiveRange<>(SharedConstants.getCurrentVersion().packVersion(type), SharedConstants.getCurrentVersion().packVersion(type)));
   }
 
@@ -124,7 +124,7 @@ public abstract class DynamicResourcePack implements PackResources {
   }
 
   @Override
-  public IoSupplier<InputStream> getResource(@NotNull PackType type, @NotNull ResourceLocation id) {
+  public IoSupplier<InputStream> getResource(@NotNull PackType type, @NotNull Identifier id) {
     if (resources.containsKey(id)) {
       return () -> {
         if (this.type == type) {
@@ -163,10 +163,10 @@ public abstract class DynamicResourcePack implements PackResources {
   /**
    * Builds the provided bytes to the given path.
    *
-   * @param path data location.
+   * @param path data identifier.
    * @param bytes raw data.
    */
-  private void build(ResourceLocation path, Supplier<byte[]> bytes) {
+  private void build(Identifier path, Supplier<byte[]> bytes) {
     namespaces.add(path.getNamespace());
     resources.put(path, Suppliers.memoize(bytes::get));
   }
@@ -174,11 +174,11 @@ public abstract class DynamicResourcePack implements PackResources {
   /**
    * Builds the provided {@link JsonElement}s to the given paths.
    *
-   * @param paths data locations.
+   * @param paths data identifiers.
    * @param json {@link JsonElement}s.
    */
-  protected void build(List<ResourceLocation> paths, Supplier<JsonElement> json) {
-    for (ResourceLocation path : paths) {
+  protected void build(List<Identifier> paths, Supplier<JsonElement> json) {
+    for (Identifier path : paths) {
       JsonElement element = json.get();
       build(DynamicResourceType.GENERAL.getPath(path), () -> {
         try (StringWriter stringWriter = new StringWriter(); JsonWriter jsonWriter = new JsonWriter(stringWriter)) {

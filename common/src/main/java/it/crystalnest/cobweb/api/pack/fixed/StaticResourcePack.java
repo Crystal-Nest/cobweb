@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.api.pack.fixed;
 
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
@@ -21,9 +21,9 @@ import java.util.Optional;
  */
 public abstract class StaticResourcePack {
   /**
-   * Pack location.
+   * Pack identifier.
    */
-  private final ResourceLocation location;
+  private final Identifier identifier;
 
   /**
    * Pack type.
@@ -51,28 +51,28 @@ public abstract class StaticResourcePack {
   private final boolean alwaysActive;
 
   /**
-   * @param location {@link #location}.
+   * @param identifier {@link #identifier}.
    * @param type {@link #type}.
    * @param source {@link #source}.
    * @param position {@link #position}.
    * @param alwaysActive {@link #alwaysActive}.
    */
-  protected StaticResourcePack(ResourceLocation location, PackType type, PackSource source, Pack.Position position, boolean alwaysActive) {
-    this.location = ResourceLocation.fromNamespaceAndPath(location.getNamespace(), directory() + "/" + location.getPath());
+  protected StaticResourcePack(Identifier identifier, PackType type, PackSource source, Pack.Position position, boolean alwaysActive) {
+    this.identifier = Identifier.fromNamespaceAndPath(identifier.getNamespace(), directory() + "/" + identifier.getPath());
     this.type = type;
-    this.name = Component.translatable(directory() + "." + location.getNamespace() + "." + location.getPath());
+    this.name = Component.translatable(directory() + "." + identifier.getNamespace() + "." + identifier.getPath());
     this.source = source;
     this.position = position;
     this.alwaysActive = alwaysActive;
   }
 
   /**
-   * @param location {@link #location}.
+   * @param identifier {@link #identifier}.
    * @param type {@link #type}.
    * @param position {@link #position}.
    */
-  protected StaticResourcePack(ResourceLocation location, PackType type, Pack.Position position) {
-    this(location, type, PackSource.BUILT_IN, position, false);
+  protected StaticResourcePack(Identifier identifier, PackType type, Pack.Position position) {
+    this(identifier, type, PackSource.BUILT_IN, position, false);
   }
 
   /**
@@ -81,24 +81,24 @@ public abstract class StaticResourcePack {
    * @return this pack as a {@link Pack}.
    */
   public Pack toPack() {
-    if (Services.PLATFORM.isModLoaded(location.getNamespace())) {
+    if (Services.PLATFORM.isModLoaded(identifier.getNamespace())) {
       return Pack.readMetaAndCreate(
-        new PackLocationInfo("mod/" + location, name, source, Optional.of(new KnownPack("cobweb", "mod/" + location, version()))),
-        new StaticResourcesSupplier(Services.PLATFORM.getResourcePath(location.getNamespace(), location.getPath())),
+        new PackLocationInfo("mod/" + identifier, name, source, Optional.of(new KnownPack("cobweb", "mod/" + identifier, version()))),
+        new StaticResourcesSupplier(Services.PLATFORM.getResourcePath(identifier.getNamespace(), identifier.getPath())),
         type,
         new PackSelectionConfig(alwaysActive, position, false)
       );
     }
-    throw new IllegalArgumentException("Mod not found: " + location.getNamespace());
+    throw new IllegalArgumentException("Mod not found: " + identifier.getNamespace());
   }
 
   /**
-   * Returns this {@link #location}.
+   * Returns this {@link #identifier}.
    *
-   * @return {@link #location}.
+   * @return {@link #identifier}.
    */
-  public ResourceLocation location() {
-    return location;
+  public Identifier identifier() {
+    return identifier;
   }
 
   /**
@@ -152,7 +152,7 @@ public abstract class StaticResourcePack {
    * @return pack version.
    */
   public String version() {
-    return Services.PLATFORM.getModVersion(location.getNamespace());
+    return Services.PLATFORM.getModVersion(identifier.getNamespace());
   }
 
   /**

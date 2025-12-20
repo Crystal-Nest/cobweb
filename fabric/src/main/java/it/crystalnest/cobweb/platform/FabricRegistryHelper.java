@@ -146,7 +146,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    */
   @SuppressWarnings("unchecked")
   private <R, T extends DeferredRegister<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.location(), key -> constructor.apply(namespace));
+    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> constructor.apply(namespace));
   }
 
   /**
