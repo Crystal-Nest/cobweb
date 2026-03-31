@@ -3,10 +3,12 @@ package it.crystalnest.cobweb.api.registry;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderOwner;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -35,6 +37,11 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
   @Override
   public boolean isBound() {
     return holder.isBound();
+  }
+
+  @Override
+  public boolean areComponentsBound() {
+    return holder.areComponentsBound();
   }
 
   @Override
@@ -67,6 +74,11 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
   @Override
   public Stream<TagKey<T>> tags() {
     return holder.tags();
+  }
+
+  @Override
+  public @NonNull DataComponentMap components() {
+    return holder.components();
   }
 
   @NotNull

@@ -31,19 +31,6 @@ repositories {
     }
     filter { includeGroupAndSubgroups("org.spongepowered") }
   }
-  exclusiveContent {
-    forRepositories(
-      maven {
-        name = "ParchmentMC"
-        url = "https://maven.parchmentmc.org/"
-      },
-      maven {
-        name = "NeoForge"
-        url = "https://maven.neoforged.net/releases"
-      }
-    )
-    filter { includeGroup("org.parchmentmc.data") }
-  }
   maven {
     name = "Crystal Nest"
     url = "https://maven.crystalnest.it"
@@ -51,17 +38,6 @@ repositories {
   maven {
     name = "Fuzs Mod Resources"
     url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/"
-  }
-}
-
-["apiElements", "runtimeElements", "sourcesElements", "javadocElements"].each { variant ->
-  configurations."$variant".outgoing {
-    capability("$group:${base.archivesName.get()}:$version")
-    capability("$group:$mod_id-${project.name}-$minecraft_version:$version")
-    capability("$group:$mod_id:$version")
-  }
-  publishing.publications.configureEach {
-    suppressPomMetadataWarningsFor(variant)
   }
 }
 
@@ -111,7 +87,6 @@ processResources {
     "fabric_version"               : fabric_version,
     "fabric_loader_version"        : fabric_loader_version,
     "neoforge_version"             : neoforge_version,
-    "neoforge_loader_version_range": neoforge_loader_version_range,
     "fcap_version"                 : fcap_version,
   ]
   filesMatching(["**/pack.mcmeta", "fabric.mod.json", "META-INF/neoforge.mods.toml", "*.mixins.json"]) {
@@ -197,7 +172,7 @@ publisher {
   }
   setGameVersions(minecraft_version)
   setDisplayName("[$loader - $minecraft_version] $mod_title v$mod_version")
-  setJavaVersions([JavaVersion.VERSION_21]) // Remember to update this to match java_version gradle property.
+  setJavaVersions([JavaVersion.VERSION_25]) // Remember to update this to match java_version gradle property.
   setCurseEnvironment("both") // "server", "client" or "both".
   github {
     repo = "$github_user/$mod_id_kebab"
@@ -223,7 +198,7 @@ publisher {
     switch (loader) {
       case "Fabric":
         required "fabric-api"
-        optional "forge-config-api-port-fabric"
+        optional "forge-config-api-port"
         break
       case "NeoForge":
         break
