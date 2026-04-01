@@ -1,7 +1,10 @@
 buildscript {
-  dependencies {
-    classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:5.1.4.4882"
-  }
+    configurations.all {
+        resolutionStrategy {
+            force 'commons-io:commons-io:2.16.1'
+            force 'org.apache.commons:commons-compress:1.26.2'
+        }
+    }
 }
 
 plugins {
