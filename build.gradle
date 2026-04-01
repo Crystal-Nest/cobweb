@@ -1,3 +1,11 @@
+buildscript {
+  configurations.classpath {
+    resolutionStrategy {
+      force "commons-io:commons-io:2.15.1"
+    }
+  }
+}
+
 plugins {
   id "org.sonarqube" version "7.2.3.7755"
   id "com.hypherionmc.modutils.modpublisher" version "2.2.1" apply false
