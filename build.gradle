@@ -1,5 +1,5 @@
 plugins {
-  id "org.sonarqube" version "4.4.1.3373"
+  id "org.sonarqube" version "7.2.3.7755"
   id "com.hypherionmc.modutils.modpublisher" version "2.2.1" apply false
   // https://projects.neoforged.net/neoforged/moddevgradle
   id "net.neoforged.moddev" version "2.0.141" apply false
