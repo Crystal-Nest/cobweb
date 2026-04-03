@@ -128,7 +128,7 @@ publishing {
       version = project.version
       from components.java
       pom {
-        name = "[$loader - $minecraft_target] $mod_title v$mod_version"
+        name = "[$loader - $minecraft_version] $mod_title v$mod_version"
         description = "$description"
         url = "https://github.com/$github_user/$mod_id_kebab/tree/$minecraft_version"
         issueManagement {
