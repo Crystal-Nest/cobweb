@@ -8,7 +8,7 @@ def minecraft_target = minecraft_version + minecraft_patch_version
 
 base {
   archivesName = "$mod_id_kebab-$name"
-  version = "$minecraft_target-$mod_version"
+  version = "$minecraft_version-$mod_version"
 }
 
 java {
@@ -130,7 +130,7 @@ publishing {
       pom {
         name = "[$loader - $minecraft_target] $mod_title v$mod_version"
         description = "$description"
-        url = "https://github.com/$github_user/$mod_id_kebab/tree/$minecraft_target"
+        url = "https://github.com/$github_user/$mod_id_kebab/tree/$minecraft_version"
         issueManagement {
           system = "github"
           url = "https://github.com/$github_user/$mod_id_kebab/issues"
