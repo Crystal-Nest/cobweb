@@ -20,7 +20,7 @@ It provides a **Unified Configuration System** and a **Unified Registering Syste
 Cobweb is the shared modding API used across all **Crystal Nest** projects.  
 📚 Want to dive deeper? Check out the full [Wiki](https://github.com/Crystal-Nest/cobweb/wiki).
 
-[![Minecraft Storage](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/cobweb/minecraft-storage-banner.png "Minecraft Storage")](https://minecraftstorage.com/mods/cobweb)
+[![Minecraft Storage](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/cobweb/minecraft-storage-banner.png "Minecraft Storage")](https://minecraftstorage.com/mods/cobweb?ref=crystal-nest)
 
 ## ✨ **Features**
 
