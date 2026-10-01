@@ -1,3 +1,5 @@
+import it.crystalnest.cobweb.gradle.UnsealHolder
+
 plugins {
   id "multiloader-common"
   id "net.neoforged.moddev"
@@ -11,10 +13,38 @@ neoForge {
   }
 }
 
+def minecraftArtifacts = tasks.named("createMinecraftArtifacts")
+def minecraftJarFiles = files(
+  minecraftArtifacts.flatMap { it.gameJarArtifact },
+  minecraftArtifacts.flatMap { it.gameJarWithSourcesArtifact.orElse(it.gameJarArtifact) }
+)
+
+def unsealHolder = tasks.register("unsealHolder", UnsealHolder) {
+  group = "build setup"
+  description = "Unseals vanilla Holder for common compilation without adding loader APIs"
+  inputJar.set(minecraftArtifacts.flatMap { it.gameJarWithSourcesArtifact.orElse(it.gameJarArtifact) })
+  outputJar.set(layout.buildDirectory.file("moddev/unsealed/minecraft.jar"))
+}
+
+// ModDevGradle supplies Minecraft as a file dependency on this development-only configuration.
+// Replace that dependency (including IntelliJ's combined jar), preserving the game libraries.
+configurations.named("modDevCompileDependencies") {
+  def minecraftDependencies = dependencies.toList().findAll { it instanceof FileCollectionDependency && it.files.files.size() == 1 && minecraftJarFiles.files.containsAll(it.files.files) }
+  if (minecraftDependencies.size() != 1) {
+    throw new GradleException("Expected one Minecraft compile dependency; check ModDevGradle's configuration")
+  }
+  dependencies.removeAll(minecraftDependencies)
+  dependencies.add(project.dependencies.create(project.files(unsealHolder.flatMap { it.outputJar })))
+}
+
+tasks.named("neoForgeIdeSync") {
+  dependsOn(unsealHolder)
+}
+
 dependencies {
-  compileOnly group: "org.spongepowered", name: "mixin", version: "0.8.7"
-  compileOnly group: "io.github.llamalad7", name: "mixinextras-common", version: "0.5.3"
-  annotationProcessor group: "io.github.llamalad7", name: "mixinextras-common", version: "0.5.3"
+  compileOnly "org.spongepowered:mixin:0.8.7"
+  compileOnly "io.github.llamalad7:mixinextras-common:0.5.3"
+  annotationProcessor "io.github.llamalad7:mixinextras-common:0.5.3"
   compileOnly "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:$fcap_version"
 }
 
