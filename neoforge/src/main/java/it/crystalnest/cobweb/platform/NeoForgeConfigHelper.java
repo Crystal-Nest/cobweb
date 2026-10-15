@@ -11,7 +11,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public final class NeoForgeConfigHelper implements ConfigHelper {
   @Override
   public void registerCommonConfig(String modId, ModConfigSpec spec) {
-    ModLoadingContext.get().getActiveContainer().registerConfig(ModConfig.Type.COMMON, spec);
+    ModLoadingContext.get().getActiveContainer().registerConfig(ModConfig.Type.LOCAL, spec);
   }
 
   @Override
@@ -21,6 +21,6 @@ public final class NeoForgeConfigHelper implements ConfigHelper {
 
   @Override
   public void registerServerConfig(String modId, ModConfigSpec spec) {
-    ModLoadingContext.get().getActiveContainer().registerConfig(ModConfig.Type.SERVER, spec);
+    ModLoadingContext.get().getActiveContainer().registerConfig(ModConfig.Type.SYNCED, spec);
   }
 }

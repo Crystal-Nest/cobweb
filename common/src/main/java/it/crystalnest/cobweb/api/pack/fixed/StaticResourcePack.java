@@ -4,6 +4,7 @@ import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
+import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
@@ -15,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Resource pack built-in within a mod.
@@ -187,14 +189,14 @@ public abstract class StaticResourcePack {
 
     @NotNull
     @Override
-    public PackResources openPrimary(@NotNull PackLocationInfo info) {
+    public PackMetadataResources openMetadata(@NotNull PackLocationInfo info) {
       return openInfo(info);
     }
 
     @NotNull
     @Override
-    public PackResources openFull(@NotNull PackLocationInfo info, @NotNull Pack.Metadata metadata) {
-      return openInfo(info);
+    public Stream<PackResources> openResources(@NotNull PackLocationInfo info, @NotNull Pack.Metadata metadata) {
+      return Stream.of(openInfo(info));
     }
 
     /**

@@ -5,6 +5,7 @@ import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.function.Function;
@@ -128,7 +130,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     @Override
     @SuppressWarnings("unchecked")
     public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
-      return new CobwebEntry<>((Holder<T>) register.register(name, supplier));
+      return new Entry<>((Holder<T>) register.register(name, supplier));
     }
 
     /**
@@ -153,6 +155,33 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
       private Blocks(String namespace) {
         super(Registries.BLOCK, namespace);
       }
+    }
+  }
+
+  /**
+   * Delegates NeoForge's registry lookup and nullable key access to the registered holder.
+   * This also keeps inherited data-map access working for deferred registrations.
+   *
+   * @param <T> game object type.
+   */
+  private static final class Entry<T> extends CobwebEntry<T> {
+    private Entry(Holder<T> holder) {
+      super(holder);
+    }
+
+    @Override
+    public HolderLookup.@Nullable RegistryLookup<T> unwrapLookup() {
+      return holder().unwrapLookup();
+    }
+
+    @Override
+    public @Nullable ResourceKey<T> keyOrNull() {
+      return holder().keyOrNull();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return holder().equals(other instanceof CobwebEntry<?> entry ? entry.holder() : other);
     }
   }
 }

@@ -10,6 +10,7 @@ import net.minecraft.tags.TagKey;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -18,10 +19,62 @@ import java.util.stream.Stream;
 /**
  * Wrapper around {@link Holder} to implement {@link Supplier}.
  *
- * @param holder wrapped instance of {@link Holder}.
  * @param <T> game object type.
  */
-public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T> {
+public class CobwebEntry<T> extends Holder.Reference<T> implements Supplier<T> {
+  /**
+   * Wrapped holder. Its value may still be awaiting registration.
+   */
+  private final Holder<T> holder;
+
+  /**
+   * @param holder wrapped instance of {@link Holder}.
+   */
+  public CobwebEntry(Holder<T> holder) {
+    // All holder operations delegate, so constructing an entry does not resolve an unbound holder.
+    super(Type.STAND_ALONE, null, null, null);
+    this.holder = Objects.requireNonNull(holder);
+  }
+
+  /**
+   * Returns the wrapped holder.
+   *
+   * @return wrapped holder.
+   */
+  public Holder<T> holder() {
+    return holder;
+  }
+
+  /**
+   * Exposes the underlying holder to NeoForge's delegating-holder lookup without a common loader dependency.
+   *
+   * @return wrapped holder.
+   */
+  public Holder<T> getDelegate() {
+    return holder;
+  }
+
+  @NotNull
+  @Override
+  public ResourceKey<T> key() {
+    return holder.unwrapKey().orElseThrow();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return this == other || other instanceof CobwebEntry<?> entry && holder.equals(entry.holder);
+  }
+
+  @Override
+  public int hashCode() {
+    return holder.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return "CobwebEntry[holder=" + holder + "]";
+  }
+
   @NotNull
   @Override
   public T get() {
@@ -79,6 +132,15 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
   @Override
   public @NonNull DataComponentMap components() {
     return holder.components();
+  }
+
+  @Override
+  public void bindComponents(DataComponentMap components) {
+    if (holder instanceof Holder.Reference<T> reference) {
+      reference.bindComponents(components);
+    } else {
+      throw new UnsupportedOperationException("Cannot bind components to a direct holder");
+    }
   }
 
   @NotNull

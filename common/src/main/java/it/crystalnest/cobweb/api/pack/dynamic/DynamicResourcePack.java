@@ -10,6 +10,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
+import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
@@ -34,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Dynamic resource pack.
@@ -216,14 +218,14 @@ public abstract class DynamicResourcePack implements PackResources {
 
     @NotNull
     @Override
-    public PackResources openPrimary(@NotNull PackLocationInfo name) {
+    public PackMetadataResources openMetadata(@NotNull PackLocationInfo name) {
       return instance;
     }
 
     @NotNull
     @Override
-    public PackResources openFull(@NotNull PackLocationInfo name, @NotNull Pack.Metadata info) {
-      return instance;
+    public Stream<PackResources> openResources(@NotNull PackLocationInfo name, @NotNull Pack.Metadata info) {
+      return Stream.of(instance);
     }
   }
 }
