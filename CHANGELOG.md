@@ -7,7 +7,19 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 ## [Unreleased]
 
-- Nothing new.
+- Ported to 26.3.
+- Changed `CobwebEntry` from a record to an abstract class. Obtain entries through `CobwebRegistry` instead of constructing them directly.
+- Custom `Holder` implementations must follow vanilla's sealed hierarchy; Cobweb no longer unseals it.
+- Updated public resource pack suppliers to use `openMetadata()` and `openResources()`, with the latter returning a stream of pack resources.
+- NeoForge common and server configuration files now use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`.
+- Fabric entries now behave as registered reference holders, exposing their registry keys, names, tags, and components.
+- Fixed NeoForge entry support for registry codecs and data maps.
+- Corrected entry equality and hashing to follow each loader's reference holder behavior.
+
+## [v1.4.0] - 2026/10/02
+
+- Ported to 26.2.
+- Unsealed vanilla `Holder`.
 
 ## [v1.4.0] - 2026/04/03
 

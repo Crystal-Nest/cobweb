@@ -7,6 +7,7 @@ import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
@@ -17,23 +18,27 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * Wrapper around {@link Holder} to implement {@link Supplier}.
+ * Loader agnostic handle for a registered game object, backed by a native reference holder.
+ * Obtain entries through {@link CobwebRegister}; use vanilla holders for objects outside registration.
  *
  * @param <T> game object type.
  */
-public class CobwebEntry<T> extends Holder.Reference<T> implements Supplier<T> {
+public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supplier<T> {
   /**
    * Wrapped holder. Its value may still be awaiting registration.
    */
-  private final Holder<T> holder;
+  private final Holder.Reference<T> holder;
 
   /**
-   * @param holder wrapped instance of {@link Holder}.
+   * The registration key must already be bound, but the value may still be awaiting registration.
+   *
+   * @param holder native reference holder for the registration.
    */
-  public CobwebEntry(Holder<T> holder) {
-    // All holder operations delegate, so constructing an entry does not resolve an unbound holder.
-    super(Type.STAND_ALONE, null, null, null);
-    this.holder = Objects.requireNonNull(holder);
+  @ApiStatus.Internal
+  protected CobwebEntry(Holder.Reference<T> holder) {
+    // Keep the registration key without resolving the value or replacing the native holder's owner.
+    super(Type.STAND_ALONE, null, Objects.requireNonNull(holder).key(), null);
+    this.holder = holder;
   }
 
   /**
@@ -57,7 +62,7 @@ public class CobwebEntry<T> extends Holder.Reference<T> implements Supplier<T> {
   @NotNull
   @Override
   public ResourceKey<T> key() {
-    return holder.unwrapKey().orElseThrow();
+    return holder.key();
   }
 
   @Override
@@ -136,11 +141,7 @@ public class CobwebEntry<T> extends Holder.Reference<T> implements Supplier<T> {
 
   @Override
   public void bindComponents(DataComponentMap components) {
-    if (holder instanceof Holder.Reference<T> reference) {
-      reference.bindComponents(components);
-    } else {
-      throw new UnsupportedOperationException("Cannot bind components to a direct holder");
-    }
+    holder.bindComponents(components);
   }
 
   @NotNull

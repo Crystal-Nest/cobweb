@@ -4,12 +4,12 @@ import it.crystalnest.cobweb.api.pack.PackSources;
 import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
-import it.crystalnest.cobweb.api.registry.Register;
-import it.crystalnest.cobweb.api.registry.RegisterProvider;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
@@ -156,9 +156,9 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    */
   public static class DeferredRegister<R> implements CobwebRegister<R> {
     /**
-     * {@link Register}.
+     * Native registry.
      */
-    private final Register<R> register;
+    private final Registry<R> registry;
 
     /**
      * Namespace.
@@ -169,8 +169,9 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      * @param registryKey Minecraft {@link Registry} key.
      * @param namespace {@link #namespace}.
      */
+    @SuppressWarnings("unchecked")
     private DeferredRegister(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-      this.register = new RegisterProvider(namespace).of(registryKey);
+      this.registry = (Registry<R>) BuiltInRegistries.REGISTRY.get(registryKey.identifier()).orElseThrow().value();
       this.namespace = namespace;
     }
 
@@ -180,9 +181,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
-      return new CobwebEntry<>(Holder.direct((T) this.register.apply(name, supplier.get())));
+      return new Entry<>(Registry.registerForHolder(registry, Identifier.fromNamespaceAndPath(namespace, name), supplier.get()));
     }
 
     /**
@@ -207,6 +207,17 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
       private Blocks(String namespace) {
         super(Registries.BLOCK, namespace);
       }
+    }
+  }
+
+  /**
+   * Handle retaining Fabric's native registered reference and its identity-based equality.
+   *
+   * @param <T> game object type.
+   */
+  private static final class Entry<T> extends CobwebEntry<T> {
+    private Entry(Holder.Reference<T> holder) {
+      super(holder);
     }
   }
 }
