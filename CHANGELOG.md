@@ -7,14 +7,34 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 ## [Unreleased]
 
-- Ported to 26.3.
-- Changed `CobwebEntry` from a record to an abstract class. Obtain entries through `CobwebRegistry` instead of constructing them directly.
-- Custom `Holder` implementations must follow vanilla's sealed hierarchy; Cobweb no longer unseals it.
-- Updated public resource pack suppliers to use `openMetadata()` and `openResources()`, with the latter returning a stream of pack resources.
-- NeoForge common and server configuration files now use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`.
-- Fabric entries now behave as registered reference holders, exposing their registry keys, names, tags, and components.
-- Fixed NeoForge entry support for registry codecs and data maps.
-- Corrected entry equality and hashing to follow each loader's reference holder behavior.
+- **Miscellaneous changes**
+  - Ported to 26.3
+
+- **Registry changes**
+  - Removed the Fabric-only `Register` and `RegisterProvider` API. Use `CobwebRegistry` on all platforms.
+  - Changed `CobwebEntry` from a record to an abstract class extending `Holder.Reference` and implementing `Supplier`.
+  - Removed vanilla `Holder` unsealing.
+  - Fabric entries now retain native registered references, exposing registry keys, names, tags, components, and ownership.
+  - Fixed NeoForge entry support for native holder delegation, registry codecs, and data maps.
+  - Corrected entry equality and hashing to follow each loader's native reference-holder behavior.
+  - Added identifier-aware registration factories.
+  - Added item/block property suppliers and transformations, plus simple item/block helpers.
+  - Added lazy block-item properties, custom block-item constructor overloads, and keyed-holder shortcuts.
+  - `CobwebRegistry.ofEntityTypes()` now returns a specialized register with entity builder helpers.
+  - Added `CobwebRegistry.ofDataComponents()` and a typed component builder helper for the standard data component registry.
+  - Added registry-key access, tag-key creation helpers, and an unmodifiable live view of each register's declared entries, including unbound NeoForge entries.
+  - Fixed generic and specialized registry factories returning incompatible cached instances when requested in a different order.
+  - Added native registry aliases with namespaced-path and full-identifier overloads. Aliases retain loader-native declaration timing and conflict handling.
+  - Added Java-created custom registries with optional native numeric-ID synchronization and a default entry, duplicate-creation protection, and registration from multiple namespaces.
+  - Added `registry()` access to the full native static registry. NeoForge custom registries can be unavailable before its new-registry event; the creating register exposes its registry immediately.
+  - Added explicit-key data component factories, including enchantment effect components and custom component registries. Specialized custom views share generic registrations and entry inspection.
+  - Custom `CobwebRegister` implementations must now implement `registryKey()`, `registry()`, `addAlias(Identifier, Identifier)`, and `entries()`.
+
+- **Resource pack changes**
+  - Updated static and dynamic pack suppliers to use `openMetadata()` and `openResources()`, with the latter returning a stream of pack resources.
+
+- **Configuration changes**
+  - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge and FCAPI).
 
 ## [v1.4.0] - 2026/10/02
 

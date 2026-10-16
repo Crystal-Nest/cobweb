@@ -3,14 +3,18 @@ package it.crystalnest.cobweb.platform;
 import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
+import it.crystalnest.cobweb.api.registry.CobwebRegistry;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
@@ -19,8 +23,11 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.datamaps.DataMapType;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.function.Function;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -33,18 +40,36 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   private IEventBus bus = null;
 
   @Override
+  protected <R> CobwebRegister<R> createRegistry(ResourceKey<Registry<R>> registryKey, String namespace, CobwebRegistry.Settings settings) {
+    Register<R> register = of(registryKey, namespace);
+    register.register.makeRegistry(builder -> {
+      builder.sync(settings.synced());
+      if (settings.defaultKey() != null) {
+        builder.defaultKey(settings.defaultKey());
+      }
+    });
+    return register;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
   public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return of(id -> new Register<>(registryKey, id), registryKey, namespace);
-  }
-
-  @Override
-  public CobwebRegister.Items ofItems(String namespace) {
-    return of(Register.Items::new, Registries.ITEM, namespace);
-  }
-
-  @Override
-  public CobwebRegister.Blocks ofBlocks(String namespace) {
-    return of(Register.Blocks::new, Registries.BLOCK, namespace);
+    return (Register<R>) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
+      Register<?> register;
+      if (registryKey.equals(Registries.ITEM)) {
+        register = new Register.Items(namespace);
+      } else if (registryKey.equals(Registries.BLOCK)) {
+        register = new Register.Blocks(namespace);
+      } else if (registryKey.equals(Registries.ENTITY_TYPE)) {
+        register = new Register.Entities(namespace);
+      } else if (registryKey.equals(Registries.DATA_COMPONENT_TYPE) || registryKey.equals(Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE)) {
+        register = new Register.DataComponents(registryKey.equals(Registries.DATA_COMPONENT_TYPE) ? Registries.DATA_COMPONENT_TYPE : Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE, namespace);
+      } else {
+        register = new Register<>(registryKey, namespace);
+      }
+      register.register(bus);
+      return register;
+    });
   }
 
   @Override
@@ -62,25 +87,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   }
 
   /**
-   * Provides a {@link Register} for the specified mod and {@link Registry}.
-   *
-   * @param constructor {@link Register} subclass constructor.
-   * @param registryKey Minecraft {@link Registry} key.
-   * @param namespace mod ID.
-   * @param <R> register type.
-   * @param <T> {@link Register} type.
-   * @return {@link Register}.
-   */
-  @SuppressWarnings("unchecked")
-  private <R, T extends Register<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
-      T register = constructor.apply(namespace);
-      register.register(bus);
-      return register;
-    });
-  }
-
-  /**
    * Saves the given event bus to register game objects.
    *
    * @param bus {@link IEventBus}.
@@ -95,6 +101,12 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
    * @param <R> registry type.
    */
   public static class Register<R> implements CobwebRegister<R> {
+    /** Declared handles; native registration timing is unaffected. */
+    private final List<CobwebEntry<? extends R>> entries = new ArrayList<>();
+
+    /** Unmodifiable live view, avoiding a new copy on each inspection. */
+    private final Collection<CobwebEntry<? extends R>> entriesView = Collections.unmodifiableList(entries);
+
     /**
      * Wrapped instance of {@link DeferredRegister}.
      */
@@ -129,9 +141,31 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     }
 
     @Override
+    public ResourceKey<? extends Registry<R>> registryKey() {
+      return register.getRegistryKey();
+    }
+
+    @Override
+    public Registry<R> registry() {
+      return register.getRegistry().get();
+    }
+
+    @Override
+    public void addAlias(Identifier from, Identifier to) {
+      register.addAlias(from, to);
+    }
+
+    @Override
+    public Collection<CobwebEntry<? extends R>> entries() {
+      return entriesView;
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
-      return new Entry<>((Holder.Reference<T>) (Holder<?>) register.register(name, supplier));
+      CobwebEntry<T> entry = new Entry<>((Holder.Reference<T>) (Holder<?>) register.register(name, supplier));
+      entries.add(entry);
+      return entry;
     }
 
     /**
@@ -155,6 +189,20 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
        */
       private Blocks(String namespace) {
         super(Registries.BLOCK, namespace);
+      }
+    }
+
+    /** Specialized register for entity types. */
+    public static final class Entities extends Register<EntityType<?>> implements CobwebRegister.Entities {
+      private Entities(String namespace) {
+        super(Registries.ENTITY_TYPE, namespace);
+      }
+    }
+
+    /** Specialized register for data component types. */
+    public static final class DataComponents extends Register<DataComponentType<?>> implements CobwebRegister.DataComponents {
+      private DataComponents(ResourceKey<Registry<DataComponentType<?>>> registryKey, String namespace) {
+        super(registryKey, namespace);
       }
     }
   }

@@ -4,9 +4,14 @@ import it.crystalnest.cobweb.api.pack.PackSources;
 import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
+import it.crystalnest.cobweb.api.registry.CobwebRegistry;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
+import net.fabricmc.fabric.api.event.registry.FabricRegistry;
+import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
+import net.fabricmc.fabric.api.event.registry.RegistryAttribute;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -14,10 +19,13 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
@@ -104,18 +112,40 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   }
 
   @Override
+  protected <R> CobwebRegister<R> createRegistry(ResourceKey<Registry<R>> registryKey, String namespace, CobwebRegistry.Settings settings) {
+    // Validate the entry namespace before mutating the root registry.
+    Identifier.fromNamespaceAndPath(namespace, "validation");
+    if (BuiltInRegistries.REGISTRY.containsKey(registryKey.identifier())) {
+      throw new IllegalStateException("Registry already exists: " + registryKey.identifier());
+    }
+    FabricRegistryBuilder<R, ?> builder = settings.defaultKey() == null
+      ? FabricRegistryBuilder.create(registryKey)
+      : FabricRegistryBuilder.createDefaulted(registryKey, settings.defaultKey());
+    if (settings.synced()) {
+      builder.attribute(RegistryAttribute.SYNCED);
+    }
+    builder.buildAndRegister();
+    return of(registryKey, namespace);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
   public <R> DeferredRegister<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return of(id -> new DeferredRegister<>(registryKey, id), registryKey, namespace);
-  }
-
-  @Override
-  public CobwebRegister.Items ofItems(String namespace) {
-    return of(DeferredRegister.Items::new, Registries.ITEM, namespace);
-  }
-
-  @Override
-  public CobwebRegister.Blocks ofBlocks(String namespace) {
-    return of(DeferredRegister.Blocks::new, Registries.BLOCK, namespace);
+    return (DeferredRegister<R>) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
+      DeferredRegister<?> register;
+      if (registryKey.equals(Registries.ITEM)) {
+        register = new DeferredRegister.Items(namespace);
+      } else if (registryKey.equals(Registries.BLOCK)) {
+        register = new DeferredRegister.Blocks(namespace);
+      } else if (registryKey.equals(Registries.ENTITY_TYPE)) {
+        register = new DeferredRegister.Entities(namespace);
+      } else if (registryKey.equals(Registries.DATA_COMPONENT_TYPE) || registryKey.equals(Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE)) {
+        register = new DeferredRegister.DataComponents(registryKey.equals(Registries.DATA_COMPONENT_TYPE) ? Registries.DATA_COMPONENT_TYPE : Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE, namespace);
+      } else {
+        register = new DeferredRegister<>(registryKey, namespace);
+      }
+      return register;
+    });
   }
 
   @Override
@@ -135,26 +165,17 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   }
 
   /**
-   * Provides a {@link DeferredRegister} for the specified mod and {@link Registry}.
-   *
-   * @param constructor {@link DeferredRegister} subclass constructor.
-   * @param registryKey Minecraft {@link Registry} key.
-   * @param namespace mod ID.
-   * @param <R> register type.
-   * @param <T> {@link DeferredRegister} type.
-   * @return {@link DeferredRegister}.
-   */
-  @SuppressWarnings("unchecked")
-  private <R, T extends DeferredRegister<R>> T of(Function<String, T> constructor, ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (T) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> constructor.apply(namespace));
-  }
-
-  /**
    * Deferred register.
    *
    * @param <R> registry type.
    */
   public static class DeferredRegister<R> implements CobwebRegister<R> {
+    /** Declared handles; native registration timing is unaffected. */
+    private final List<CobwebEntry<? extends R>> entries = new ArrayList<>();
+
+    /** Unmodifiable live view, avoiding a new copy on each inspection. */
+    private final Collection<CobwebEntry<? extends R>> entriesView = Collections.unmodifiableList(entries);
+
     /**
      * Native registry.
      */
@@ -181,8 +202,30 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     }
 
     @Override
+    public ResourceKey<? extends Registry<R>> registryKey() {
+      return registry.key();
+    }
+
+    @Override
+    public Registry<R> registry() {
+      return registry;
+    }
+
+    @Override
+    public void addAlias(Identifier from, Identifier to) {
+      ((FabricRegistry) registry).addAlias(from, to);
+    }
+
+    @Override
+    public Collection<CobwebEntry<? extends R>> entries() {
+      return entriesView;
+    }
+
+    @Override
     public <T extends R> CobwebEntry<T> register(String name, Supplier<? extends T> supplier) {
-      return new Entry<>(Registry.registerForHolder(registry, Identifier.fromNamespaceAndPath(namespace, name), supplier.get()));
+      CobwebEntry<T> entry = new Entry<>(Registry.registerForHolder(registry, Identifier.fromNamespaceAndPath(namespace, name), supplier.get()));
+      entries.add(entry);
+      return entry;
     }
 
     /**
@@ -206,6 +249,20 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
        */
       private Blocks(String namespace) {
         super(Registries.BLOCK, namespace);
+      }
+    }
+
+    /** Specialized register for entity types. */
+    public static final class Entities extends DeferredRegister<EntityType<?>> implements CobwebRegister.Entities {
+      private Entities(String namespace) {
+        super(Registries.ENTITY_TYPE, namespace);
+      }
+    }
+
+    /** Specialized register for data component types. */
+    public static final class DataComponents extends DeferredRegister<DataComponentType<?>> implements CobwebRegister.DataComponents {
+      private DataComponents(ResourceKey<Registry<DataComponentType<?>>> registryKey, String namespace) {
+        super(registryKey, namespace);
       }
     }
   }
