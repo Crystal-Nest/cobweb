@@ -42,6 +42,8 @@ jobs:
     uses: Crystal-Nest/.github/.github/workflows/single_release.yml@main
     with:
       java-version: '25'
+      modrinth-project-id: cobweb
+      curseforge-project-id: '968456'
       loader_fabric: ${{ inputs.loader_fabric }}
       loader_neoforge: ${{ inputs.loader_neoforge }}
       loader_common: ${{ inputs.loader_common }}
