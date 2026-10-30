@@ -32,6 +32,13 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - **Resource pack changes**
   - Updated static and dynamic pack suppliers to use `openMetadata()` and `openResources()`, with the latter returning a stream of pack resources.
+  - Replaced static pack constructors with `StaticDataPack.builder()` and `StaticAssetPack.builder()`, renaming `StaticTexturePack` to `StaticAssetPack`.
+  - Added static pack titles accepting a `Component` or a string translation key.
+  - Added disabled-by-default, enabled-by-default, and always-active modes on both loaders, independently of pack source and position. Static packs now default to disabled, top placement, and movable position.
+  - Added fixed top/bottom placement and preserved static pack selections and ordering across restarts, including optional fixed packs and packs changed from always active to optional.
+  - Fixed bundled pack overlays on Fabric and nested overlay roots on NeoForge, retaining native metadata and conditional overlay handling.
+  - Static pack metadata is now read during repository discovery; packs rejected by native metadata loading are skipped with native diagnostics.
+  - Applied static pack activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
 
 - **Configuration changes**
   - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge and FCAPI).

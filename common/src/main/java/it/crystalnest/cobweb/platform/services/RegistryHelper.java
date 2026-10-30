@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.platform.services;
 
 import it.crystalnest.cobweb.api.pack.dynamic.DynamicResourcePack;
+import it.crystalnest.cobweb.api.pack.PackActivation;
 import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
@@ -11,14 +12,21 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PackLocationInfo;
+import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackSelectionConfig;
+import net.minecraft.server.packs.repository.KnownPack;
 import net.minecraft.server.packs.repository.Pack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -27,6 +35,11 @@ import java.util.function.Supplier;
  * @param <T> actual register type.
  */
 public abstract class RegistryHelper<T extends CobwebRegister<?>> {
+  /**
+   * Registered static definitions, used only for Cobweb's selection adaptations.
+   */
+  private final Map<PackType, Map<String, StaticResourcePack>> staticPacks = new ConcurrentHashMap<>();
+
   /**
    * Map linking all mods that use the API to all the registries they use.<br>
    * Used to avoid creating and registering multiple instances of the same register.
@@ -188,5 +201,54 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    *
    * @param pack {@link StaticResourcePack}.
    */
-  public abstract void registerStaticResourcePack(StaticResourcePack pack);
+  public final void registerStaticResourcePack(StaticResourcePack pack) {
+    addStaticResourcePack(pack);
+    staticPacks.computeIfAbsent(pack.type(), type -> new ConcurrentHashMap<>()).put(pack.packId(), pack);
+  }
+
+  /**
+   * Installs a definition using the loader's normal repository lifecycle.
+   *
+   * @param pack definition.
+   */
+  protected abstract void addStaticResourcePack(StaticResourcePack pack);
+
+  /**
+   * Finds a registered static definition by native ID.
+   *
+   * @param type native pack type.
+   * @param id native pack ID.
+   * @return registered definition, if any.
+   */
+  @Nullable
+  public final StaticResourcePack staticResourcePack(PackType type, String id) {
+    return staticPacks.getOrDefault(type, Map.of()).get(id);
+  }
+
+  /**
+   * Creates a pack using native metadata and the current loader.
+   *
+   * @param pack definition.
+   * @return native pack, or null after native metadata rejection.
+   */
+  @Nullable
+  public abstract Pack createStaticResourcePack(StaticResourcePack pack);
+
+  /**
+   * Creates a native pack without replacing its source or interpreting its metadata.
+   *
+   * @param pack definition.
+   * @param resources loader-specific resource supplier.
+   * @param knownPackNamespace loader's known-pack namespace.
+   * @return native pack, or null after native metadata rejection.
+   */
+  @Nullable
+  protected final Pack createStaticResourcePack(StaticResourcePack pack, Pack.ResourcesSupplier resources, String knownPackNamespace) {
+    return Pack.readMetaAndCreate(
+      new PackLocationInfo(pack.packId(), pack.title(), pack.source(), Optional.of(new KnownPack(knownPackNamespace, pack.packId(), pack.version()))),
+      resources,
+      pack.type(),
+      new PackSelectionConfig(pack.activation() == PackActivation.ALWAYS_ACTIVE, pack.position(), pack.fixedPosition())
+    );
+  }
 }

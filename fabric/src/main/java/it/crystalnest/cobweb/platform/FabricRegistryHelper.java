@@ -9,6 +9,7 @@ import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.fabricmc.fabric.api.event.registry.FabricRegistry;
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
 import net.fabricmc.fabric.api.event.registry.RegistryAttribute;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
@@ -17,6 +18,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.entity.EntityType;
@@ -28,6 +30,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import org.jetbrains.annotations.Nullable;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -96,7 +99,14 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    * @param repository {@link PackRepository} to update.
    */
   private static void registerStaticPacks(List<StaticResourcePack> packs, PackRepository repository) {
-    registerPacks(packs, StaticResourcePack::toPack, repository);
+    for (StaticResourcePack definition : packs) {
+      ((PackSources) repository).addSource(packConsumer -> {
+        Pack pack = definition.toPack();
+        if (pack != null) {
+          packConsumer.accept(pack);
+        }
+      });
+    }
   }
 
   /**
@@ -156,12 +166,33 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     }
   }
 
+  /**
+   * Queues a static definition for Fabric's native repository creation.
+   *
+   * @param pack static definition to register.
+   */
   @Override
-  public void registerStaticResourcePack(StaticResourcePack pack) {
+  protected void addStaticResourcePack(StaticResourcePack pack) {
     switch (pack.type()) {
       case SERVER_DATA -> STATIC_DATA_PACKS.add(pack);
       case CLIENT_RESOURCES -> STATIC_TEXTURE_PACKS.add(pack);
     }
+  }
+
+  /**
+   * Reads metadata using the native path supplier, including bundled overlays.
+   *
+   * @param pack static definition.
+   * @return native pack, or null if native metadata loading rejects it.
+   */
+  @Nullable
+  @Override
+  public Pack createStaticResourcePack(StaticResourcePack pack) {
+    var container = FabricLoader.getInstance().getModContainer(pack.identifier().getNamespace())
+      .orElseThrow(() -> new IllegalArgumentException("Mod not found: " + pack.identifier().getNamespace()));
+    // A missing root is passed to native metadata loading for its normal diagnostics.
+    var root = container.findPath(pack.resourcePath()).orElseGet(() -> container.getRootPaths().getFirst().resolve(pack.resourcePath()));
+    return createStaticResourcePack(pack, new PathPackResources.PathResourcesSupplier(root), "cobweb");
   }
 
   /**

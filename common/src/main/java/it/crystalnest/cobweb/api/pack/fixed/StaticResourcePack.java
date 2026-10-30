@@ -1,212 +1,317 @@
 package it.crystalnest.cobweb.api.pack.fixed;
 
+import it.crystalnest.cobweb.api.pack.PackActivation;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PackMetadataResources;
-import net.minecraft.server.packs.PackResources;
-import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.PathPackResources;
-import net.minecraft.server.packs.repository.KnownPack;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.nio.file.Path;
-import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.Objects;
 
 /**
- * Resource pack built-in within a mod.
+ * Immutable definition of a pack bundled with the mod identified by its namespace.
+ * Build definitions during mod initialization, then explicitly {@link #register()} them.
+ * Metadata and resources are read by the native repository when it discovers packs.
  */
 public abstract class StaticResourcePack {
   /**
-   * Pack identifier.
+   * Logical identifier of the bundled pack.
    */
   private final Identifier identifier;
 
   /**
-   * Pack type.
+   * Native type of resources provided by the pack.
    */
   private final PackType type;
 
   /**
-   * Pack display name.
+   * Display title captured from the builder.
    */
-  private final Component name;
+  private final Component title;
 
   /**
-   * Pack source.
+   * Native source, independent of activation.
    */
   private final PackSource source;
 
   /**
-   * Pack position.
+   * Initial optional selection or required activation.
+   */
+  private final PackActivation activation;
+
+  /**
+   * Initial insertion side in the native selection order.
    */
   private final Pack.Position position;
 
   /**
-   * Whether the pack is always active (can't be deactivated).
+   * Whether the selection UI anchors the pack at its insertion side.
    */
-  private final boolean alwaysActive;
+  private final boolean fixedPosition;
 
   /**
-   * @param identifier {@link #identifier}.
-   * @param type {@link #type}.
-   * @param source {@link #source}.
-   * @param position {@link #position}.
-   * @param alwaysActive {@link #alwaysActive}.
+   * Captures a builder's settings without loading or registering resources.
+   *
+   * @param builder configured builder.
+   * @param type native resource type.
    */
-  protected StaticResourcePack(Identifier identifier, PackType type, PackSource source, Pack.Position position, boolean alwaysActive) {
-    this.identifier = Identifier.fromNamespaceAndPath(identifier.getNamespace(), directory() + "/" + identifier.getPath());
+  StaticResourcePack(Builder<?, ?> builder, PackType type) {
+    identifier = builder.identifier;
     this.type = type;
-    this.name = Component.translatable(directory() + "." + identifier.getNamespace() + "." + identifier.getPath());
-    this.source = source;
-    this.position = position;
-    this.alwaysActive = alwaysActive;
+    title = builder.title.copy();
+    source = builder.source;
+    activation = builder.activation;
+    position = builder.position;
+    fixedPosition = builder.fixedPosition;
   }
 
   /**
-   * @param identifier {@link #identifier}.
-   * @param type {@link #type}.
-   * @param position {@link #position}.
-   */
-  protected StaticResourcePack(Identifier identifier, PackType type, Pack.Position position) {
-    this(identifier, type, PackSource.BUILT_IN, position, false);
-  }
-
-  /**
-   * Creates a {@link Pack} from this pack.
+   * Returns the logical pack identifier.
    *
-   * @return this pack as a {@link Pack}.
+   * @return logical identifier supplied to the builder, without the bundled directory prefix.
    */
-  public Pack toPack() {
-    if (Services.PLATFORM.isModLoaded(identifier.getNamespace())) {
-      return Pack.readMetaAndCreate(
-        new PackLocationInfo("mod/" + identifier, name, source, Optional.of(new KnownPack("cobweb", "mod/" + identifier, version()))),
-        new StaticResourcesSupplier(Services.PLATFORM.getResourcePath(identifier.getNamespace(), identifier.getPath())),
-        type,
-        new PackSelectionConfig(alwaysActive, position, false)
-      );
-    }
-    throw new IllegalArgumentException("Mod not found: " + identifier.getNamespace());
-  }
-
-  /**
-   * Returns this {@link #identifier}.
-   *
-   * @return {@link #identifier}.
-   */
-  public Identifier identifier() {
+  public final Identifier identifier() {
     return identifier;
   }
 
   /**
-   * Returns this {@link #type}.
+   * Returns the native pack type.
    *
-   * @return {@link #type}.
+   * @return native resource type.
    */
-  public PackType type() {
+  public final PackType type() {
     return type;
   }
 
   /**
-   * Returns this {@link #name}.
+   * Returns a copy of the configured title.
    *
-   * @return {@link #name}.
+   * @return a copy of the configured title.
    */
-  public Component name() {
-    return name;
+  public final Component title() {
+    return title.copy();
   }
 
   /**
-   * Returns this {@link #source}.
+   * Returns the original native source.
    *
-   * @return {@link #source}.
+   * @return native source, preserved independently from activation.
    */
-  public PackSource source() {
+  public final PackSource source() {
     return source;
   }
 
   /**
-   * Returns this {@link #position}.
+   * Returns the activation mode.
    *
-   * @return {@link #position}.
+   * @return initial/default or required activation behavior.
    */
-  public Pack.Position position() {
+  public final PackActivation activation() {
+    return activation;
+  }
+
+  /**
+   * Returns the initial insertion side.
+   *
+   * @return initial insertion side; saved ordering takes precedence for movable packs.
+   */
+  public final Pack.Position position() {
     return position;
   }
 
   /**
-   * Returns this {@link #alwaysActive}.
+   * Returns whether placement is fixed in the native UI.
    *
-   * @return {@link #alwaysActive}.
+   * @return whether the native selection UI anchors the pack at its insertion side.
    */
-  public boolean alwaysActive() {
-    return alwaysActive;
+  public final boolean fixedPosition() {
+    return fixedPosition;
   }
 
   /**
-   * Pack version, equal to the owning mod's version.
+   * Returns the fixed bundled directory.
    *
-   * @return pack version.
+   * @return fixed bundled directory: {@code datapack} or {@code texturepack}.
    */
-  public String version() {
+  public final String directory() {
+    return type == PackType.SERVER_DATA ? "datapack" : "texturepack";
+  }
+
+  /**
+   * Returns the bundled resource path.
+   *
+   * @return pack root relative to the owning mod's resources.
+   */
+  public final String resourcePath() {
+    return directory() + "/" + identifier.getPath();
+  }
+
+  /**
+   * Returns the stable native pack ID.
+   *
+   * @return stable native identity used in saved selections.
+   */
+  public final String packId() {
+    return "mod/" + identifier.getNamespace() + ":" + resourcePath();
+  }
+
+  /**
+   * Returns the owning mod version.
+   *
+   * @return owning mod's version.
+   */
+  public final String version() {
     return Services.PLATFORM.getModVersion(identifier.getNamespace());
   }
 
   /**
-   * Pack directory under {@code resources}.
+   * Reads native metadata and creates a pack using the current loader's resource supplier.
    *
-   * @return pack directory.
+   * @return native pack, or {@code null} if native metadata loading rejects it (with native diagnostics).
+   * @throws IllegalArgumentException if the owning mod is not loaded.
    */
-  public abstract String directory();
+  @Nullable
+  public final Pack toPack() {
+    return Services.REGISTRY.createStaticResourcePack(this);
+  }
 
   /**
-   * Registers this resource pack to the game.
+   * Registers this definition during normal mod initialization.
    */
-  public void register() {
+  public final void register() {
     Services.REGISTRY.registerStaticResourcePack(this);
   }
 
   /**
-   * Static resources supplier.
+   * Shared typed builder. Building does not register or read the pack.
+   * Defaults are disabled, top placement, movable and built-in source. Default title keys are
+   * {@code datapack.<namespace>.<path>} or {@code texturepack.<namespace>.<path>}.
+   *
+   * @param <P> concrete pack type.
+   * @param <B> concrete builder type.
    */
-  public static class StaticResourcesSupplier implements Pack.ResourcesSupplier {
+  public abstract static class Builder<P extends StaticResourcePack, B extends Builder<P, B>> {
     /**
-     * Resource path.
+     * Owning mod namespace and pack path.
      */
-    private final Path path;
+    private final Identifier identifier;
 
     /**
-     * @param path {@link #path}.
+     * Display title, initially using the generated translation key.
      */
-    public StaticResourcesSupplier(Path path) {
-      this.path = path;
-    }
-
-    @NotNull
-    @Override
-    public PackMetadataResources openMetadata(@NotNull PackLocationInfo info) {
-      return openInfo(info);
-    }
-
-    @NotNull
-    @Override
-    public Stream<PackResources> openResources(@NotNull PackLocationInfo info, @NotNull Pack.Metadata metadata) {
-      return Stream.of(openInfo(info));
-    }
+    private Component title;
 
     /**
-     * Opens the pack resources from the given {@link PackLocationInfo}.
+     * Native source used to label the pack and retain native source semantics.
+     */
+    private PackSource source = PackSource.BUILT_IN;
+
+    /**
+     * Activation applied when the pack is first encountered or required.
+     */
+    private PackActivation activation = PackActivation.DEFAULT_DISABLED;
+
+    /**
+     * Initial top or bottom placement.
+     */
+    private Pack.Position position = Pack.Position.TOP;
+
+    /**
+     * Whether placement is fixed in the native selection UI.
+     */
+    private boolean fixedPosition;
+
+    /**
+     * Initializes default settings and the type-specific title translation key.
      *
-     * @param info {@link PackLocationInfo}.
-     * @return {@link PackResources}.
+     * @param identifier owning mod namespace and pack path.
+     * @param type native resource type.
      */
-    private PackResources openInfo(@NotNull PackLocationInfo info) {
-      return new PathPackResources(info, path);
+    Builder(Identifier identifier, PackType type) {
+      this.identifier = Objects.requireNonNull(identifier);
+      title = Component.translatable((type == PackType.SERVER_DATA ? "datapack" : "texturepack") + "." + identifier.getNamespace() + "." + identifier.getPath());
     }
+
+    /**
+     * Returns this concrete builder.
+     *
+     * @return concrete builder.
+     */
+    protected abstract B self();
+
+    /**
+     * Sets a title component, taking a native component copy.
+     *
+     * @param title title; use {@link Component#literal(String)} for literal text.
+     * @return this builder.
+     */
+    public final B title(Component title) {
+      this.title = Objects.requireNonNull(title).copy();
+      return self();
+    }
+
+    /**
+     * Sets a translatable title; strings are always translation keys.
+     *
+     * @param translationKey title translation key.
+     * @return this builder.
+     */
+    public final B title(String translationKey) {
+      return title(Component.translatable(Objects.requireNonNull(translationKey)));
+    }
+
+    /**
+     * Sets the native pack source.
+     *
+     * @param source native source, default {@link PackSource#BUILT_IN}.
+     * @return this builder.
+     */
+    public final B source(PackSource source) {
+      this.source = Objects.requireNonNull(source);
+      return self();
+    }
+
+    /**
+     * Sets the activation mode.
+     *
+     * @param activation activation mode, default {@link PackActivation#DEFAULT_DISABLED}.
+     * @return this builder.
+     */
+    public final B activation(PackActivation activation) {
+      this.activation = Objects.requireNonNull(activation);
+      return self();
+    }
+
+    /**
+     * Sets the initial insertion side.
+     *
+     * @param position initial placement, default {@link Pack.Position#TOP}.
+     * @return this builder.
+     */
+    public final B position(Pack.Position position) {
+      this.position = Objects.requireNonNull(position);
+      return self();
+    }
+
+    /**
+     * Sets whether placement is fixed in the native UI.
+     *
+     * @param fixedPosition whether the native UI fixes placement, default false.
+     * @return this builder.
+     */
+    public final B fixedPosition(boolean fixedPosition) {
+      this.fixedPosition = fixedPosition;
+      return self();
+    }
+
+    /**
+     * Creates an immutable pack definition.
+     *
+     * @return a new immutable definition; no registration or resource access occurs.
+     */
+    public abstract P build();
   }
 }

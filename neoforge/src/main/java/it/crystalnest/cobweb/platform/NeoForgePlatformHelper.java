@@ -16,6 +16,17 @@ import java.util.List;
  * NeoForge platform helper.
  */
 public final class NeoForgePlatformHelper implements PlatformHelper {
+  /**
+   * Checks NeoForge's native hidden-pack state.
+   *
+   * @param pack native pack.
+   * @return whether NeoForge hides the pack from the selection UI.
+   */
+  @Override
+  public boolean isPackHidden(Pack pack) {
+    return pack.isHidden();
+  }
+
   @Override
   public Pack.Metadata createPackMetadata(Component description) {
     return new Pack.Metadata(description, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), List.of(), true);

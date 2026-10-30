@@ -13,12 +13,18 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PackLocationInfo;
+import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.OverlayedPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.jarcontents.JarContents;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
+import net.neoforged.neoforge.resource.JarContentsPackResources;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.datamaps.DataMapType;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * NeoForge registration helper.
@@ -81,9 +88,76 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     });
   }
 
+  /**
+   * Installs a repository source through NeoForge's pack-finder event.
+   *
+   * @param pack static definition to register.
+   */
   @Override
-  public void registerStaticResourcePack(StaticResourcePack pack) {
-    bus.addListener((AddPackFindersEvent event) -> event.addPackFinders(pack.identifier(), pack.type(), pack.name(), pack.source(), pack.alwaysActive(), pack.position()));
+  protected void addStaticResourcePack(StaticResourcePack pack) {
+    bus.addListener((AddPackFindersEvent event) -> {
+      if (event.getPackType() == pack.type()) {
+        event.addRepositorySource(consumer -> {
+          Pack nativePack = pack.toPack();
+          if (nativePack != null) {
+            consumer.accept(nativePack);
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Reads native metadata from the owning mod's JAR contents.
+   *
+   * @param pack static definition.
+   * @return native pack, or null if native metadata loading rejects it.
+   */
+  @Nullable
+  @Override
+  public Pack createStaticResourcePack(StaticResourcePack pack) {
+    var container = ModList.get().getModContainerById(pack.identifier().getNamespace())
+      .orElseThrow(() -> new IllegalArgumentException("Mod not found: " + pack.identifier().getNamespace()));
+    var contents = container.getModInfo().getOwningFile().getFile().getContents();
+    return createStaticResourcePack(pack, new NestedResourcesSupplier(contents, pack.resourcePath()), "neoforge");
+  }
+
+  /**
+   * Native resource composition, with overlay directories relative to the bundled pack rather than the mod JAR.
+   *
+   * @param contents owning mod's JAR contents.
+   * @param prefix bundled pack root relative to the mod's resources.
+   */
+  private record NestedResourcesSupplier(JarContents contents, String prefix) implements Pack.ResourcesSupplier {
+    /**
+     * Opens the primary resources for native metadata loading.
+     *
+     * @param location native pack identity.
+     * @return primary pack resources.
+     */
+    @Override
+    public PackResources openMetadata(PackLocationInfo location) {
+      return new JarContentsPackResources(location, contents, prefix);
+    }
+
+    /**
+     * Composes primary resources and the overlays selected by native metadata loading.
+     *
+     * @param location native pack identity.
+     * @param metadata parsed native pack metadata.
+     * @return stream containing the primary or composed pack resources.
+     */
+    @Override
+    public Stream<PackResources> openResources(PackLocationInfo location, Pack.Metadata metadata) {
+      PackResources primary = openMetadata(location);
+      if (metadata.overlays().isEmpty()) {
+        return Stream.of(primary);
+      }
+      List<PackResources> overlays = metadata.overlays().stream()
+        .<PackResources>map(directory -> new JarContentsPackResources(location, contents, prefix + "/" + directory))
+        .toList();
+      return Stream.of(new OverlayedPackResources(primary, overlays));
+    }
   }
 
   /**

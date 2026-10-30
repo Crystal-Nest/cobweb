@@ -13,6 +13,14 @@ import java.util.NoSuchElementException;
  */
 public interface PlatformHelper {
   /**
+   * Checks native pack visibility.
+   *
+   * @param pack native pack.
+   * @return whether the loader hides this pack from the selection UI.
+   */
+  boolean isPackHidden(Pack pack);
+
+  /**
    * Creates a {@link Pack.Metadata}.
    *
    * @param description resource pack description.
