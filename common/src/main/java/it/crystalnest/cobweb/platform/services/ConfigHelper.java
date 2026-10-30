@@ -7,7 +7,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  */
 public interface ConfigHelper {
   /**
-   * Register the configuration for the common side.
+   * Registers the configuration for the common side.
    *
    * @param modId mod registering the config.
    * @param spec config specification.
@@ -15,7 +15,7 @@ public interface ConfigHelper {
   void registerCommonConfig(String modId, ModConfigSpec spec);
 
   /**
-   * Register the configuration for the client side.
+   * Registers the configuration for the client side.
    *
    * @param modId mod registering the config.
    * @param spec config specification.
@@ -23,7 +23,7 @@ public interface ConfigHelper {
   void registerClientConfig(String modId, ModConfigSpec spec);
 
   /**
-   * Register the configuration for the server side.
+   * Registers the configuration for the server side.
    *
    * @param modId mod registering the config.
    * @param spec config specification.

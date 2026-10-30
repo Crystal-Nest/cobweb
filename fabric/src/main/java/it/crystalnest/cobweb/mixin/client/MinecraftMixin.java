@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Injects into {@link Minecraft} to add dynamic and static texture packs.
+ * Injects into {@link Minecraft} to add dynamic and static asset packs before initial repository discovery.
  */
 @Mixin(Minecraft.class)
 public abstract class MinecraftMixin {
@@ -23,13 +23,13 @@ public abstract class MinecraftMixin {
   private PackRepository resourcePackRepository;
 
   /**
-   * Injects before the call to {@link PackRepository#reload()} in the constructor.<br>
-   * Registers all dynamic and static data packs to {@link Minecraft#resourcePackRepository}.
+   * Injects before the call to {@link PackRepository#reload()} in the constructor of {@link Minecraft}.<br>
+   * Registers dynamic and static asset packs in the client resource-pack repository.
    *
    * @param ci {@link CallbackInfo}.
    */
   @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackRepository;reload()V"))
-  private void beforeReload(CallbackInfo ci) {
+  private void onInit(CallbackInfo ci) {
     FabricRegistryHelper.registerTexturePacks(resourcePackRepository);
   }
 }

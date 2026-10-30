@@ -18,6 +18,8 @@ public final class DynamicDataPack extends DynamicResourcePack {
   private final List<Supplier<DynamicTagBuilder<?>>> tagBuilders = new ArrayList<>();
 
   /**
+   * Creates a dynamic server data pack with the supplied name.
+   *
    * @param name data pack name.
    */
   private DynamicDataPack(Identifier name) {

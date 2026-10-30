@@ -299,7 +299,7 @@ public abstract class StaticResourcePack {
     /**
      * Sets whether placement is fixed in the native UI.
      *
-     * @param fixedPosition whether the native UI fixes placement, default false.
+     * @param fixedPosition whether the native UI fixes placement, default {@code false}.
      * @return this builder.
      */
     public final B fixedPosition(boolean fixedPosition) {

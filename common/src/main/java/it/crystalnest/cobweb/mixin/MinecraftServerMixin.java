@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import java.util.Collection;
 
 /**
- * Applies Cobweb activation without replacing native world configuration or feature handling.
+ * Injects into {@link MinecraftServer} to apply static pack activation and initial ordering.
  */
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
@@ -31,19 +31,21 @@ public abstract class MinecraftServerMixin {
   private PackRepository packRepository;
 
   /**
-   * Applies the registered activation mode without replacing native pack sources.
+   * Wraps the call to {@link PackSource#shouldAddAutomatically()} inside the method {@link MinecraftServer#configurePackRepository}.<br>
+   * Applies registered activation modes without replacing native pack sources.
    *
-   * @param source original native source.
+   * @param instance original native source.
    * @param original native automatic-selection operation.
    * @param pack pack currently being considered.
    * @return whether the pack should be enabled automatically.
    */
   @WrapOperation(method = "configurePackRepository", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackSource;shouldAddAutomatically()Z"))
-  private static boolean cobweb$activation(PackSource source, Operation<Boolean> original, @Local Pack pack) {
-    return StaticPackSelection.addAutomatically(pack, original.call(source));
+  private static boolean wrapShouldAddAutomatically(PackSource instance, Operation<Boolean> original, @Local Pack pack) {
+    return StaticPackSelection.addAutomatically(pack, original.call(instance));
   }
 
   /**
+   * Wraps the call to {@link MinecraftServer#configureRepositoryWithSelection} inside the method {@link MinecraftServer#configurePackRepository}.<br>
    * Orders newly selected Cobweb packs while preserving saved selections and native safe mode.
    *
    * @param repository native pack repository.
@@ -55,20 +57,21 @@ public abstract class MinecraftServerMixin {
    * @return resulting native world configuration.
    */
   @WrapOperation(method = "configurePackRepository", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;configureRepositoryWithSelection(Lnet/minecraft/server/packs/repository/PackRepository;Ljava/util/Collection;Lnet/minecraft/world/flag/FeatureFlagSet;Z)Lnet/minecraft/world/level/WorldDataConfiguration;"))
-  private static WorldDataConfiguration cobweb$initialPosition(PackRepository repository, Collection<String> selected, FeatureFlagSet features, boolean disableInactive,
+  private static WorldDataConfiguration wrapConfigureRepositoryWithSelection(PackRepository repository, Collection<String> selected, FeatureFlagSet features, boolean disableInactive,
     Operation<WorldDataConfiguration> original, @Local(argsOnly = true) WorldDataConfiguration initial) {
     // The safe-mode branch passes false; leave each loader's safe-mode selection untouched.
     return original.call(repository, disableInactive ? StaticPackSelection.orderNewPacks(repository, selected, initial.dataPacks().getEnabled()) : selected, features, disableInactive);
   }
 
   /**
+   * Modifies the pack IDs passed to the method {@link MinecraftServer#reloadResources(Collection)} at its start.<br>
    * Restores required Cobweb packs before native resource loading begins.
    *
-   * @param selected requested pack IDs.
+   * @param original requested pack IDs.
    * @return selection including required Cobweb packs.
    */
   @ModifyVariable(method = "reloadResources", at = @At("HEAD"), argsOnly = true)
-  private Collection<String> cobweb$requiredResources(Collection<String> selected) {
-    return StaticPackSelection.requirePacks(packRepository, selected);
+  private Collection<String> modifyPacksToEnable(Collection<String> original) {
+    return StaticPackSelection.requirePacks(packRepository, original);
   }
 }

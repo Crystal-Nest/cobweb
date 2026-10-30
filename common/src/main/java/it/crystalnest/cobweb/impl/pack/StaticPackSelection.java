@@ -100,8 +100,8 @@ public final class StaticPackSelection {
       StaticResourcePack definition = Services.REGISTRY.staticResourcePack(PackType.SERVER_DATA, id);
       Pack pack = repository.getPack(id);
       return definition != null && !previous.contains(id) && definition.activation() != PackActivation.ALWAYS_ACTIVE
-        && (definition.activation() == PackActivation.DEFAULT_DISABLED
-        || pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
+             && (definition.activation() == PackActivation.DEFAULT_DISABLED
+                 || pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
     });
     return requirePacks(repository, orderNewPacks(repository, selected, previous));
   }

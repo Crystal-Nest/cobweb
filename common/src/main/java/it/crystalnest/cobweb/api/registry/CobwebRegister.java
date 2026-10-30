@@ -30,7 +30,7 @@ import java.util.function.UnaryOperator;
  */
 public interface CobwebRegister<R> {
   /**
-   * Register namespace (mod ID).
+   * Registers namespace (mod ID).
    *
    * @return register namespace.
    */
@@ -38,6 +38,7 @@ public interface CobwebRegister<R> {
 
   /**
    * Identifies the native registry without resolving registered values.
+   *
    * @return native registry key, available before entries are bound.
    */
   ResourceKey<? extends Registry<R>> registryKey();
@@ -48,6 +49,7 @@ public interface CobwebRegister<R> {
    * the registry is installed, unless this register created the registry itself.
    * Entry registration/binding may still be incomplete even when the registry is available.
    * World-loaded and reloadable registries must instead be obtained from the world's registry access.
+   *
    * @return native registry.
    * @throws IllegalStateException on NeoForge when the registry is not yet installed and was not created by this register.
    */
@@ -59,6 +61,7 @@ public interface CobwebRegister<R> {
    * to avoid a missing-target warning. NeoForge queues it until registration, applying aliases
    * before entries. Repeated declarations and invalid aliases follow native loader rules.
    * An alias does not create another entry or change the target's canonical identifier.
+   *
    * @param from old full identifier.
    * @param to replacement full identifier.
    */
@@ -66,6 +69,7 @@ public interface CobwebRegister<R> {
 
   /**
    * Declares an alias with both paths in this register's namespace.
+   *
    * @param from old path.
    * @param to replacement path.
    */
@@ -83,6 +87,7 @@ public interface CobwebRegister<R> {
 
   /**
    * Creates a tag key in this namespace; does not generate tag contents.
+   *
    * @param path tag path.
    * @return tag key.
    */
@@ -92,6 +97,7 @@ public interface CobwebRegister<R> {
 
   /**
    * Creates a tag key with an explicit namespace; does not generate tag contents.
+   *
    * @param id full tag identifier.
    * @return tag key.
    */
@@ -111,6 +117,7 @@ public interface CobwebRegister<R> {
 
   /**
    * Registers a value using its full identifier at native registration time.
+   *
    * @param name value path within this register's namespace.
    * @param factory identifier-aware value factory.
    * @param <T> actual value type.
@@ -132,8 +139,8 @@ public interface CobwebRegister<R> {
      *
      * @param name item name.
      * @param supplier item supplier.
-     * @return registered item holder.
      * @param <T> item type.
+     * @return registered item holder.
      */
     default <T extends Item> CobwebEntry<T> registerItem(String name, Function<Item.Properties, ? extends T> supplier) {
       return registerItem(name, supplier, Item.Properties::new);
@@ -142,6 +149,7 @@ public interface CobwebRegister<R> {
     /**
      * Registers an item with supplied properties. The registration ID is assigned after customization.
      * The properties factory runs at native registration time and must supply independent mutable properties.
+     *
      * @param name item path.
      * @param constructor item constructor.
      * @param properties properties factory.
@@ -155,6 +163,7 @@ public interface CobwebRegister<R> {
     /**
      * Registers an item by customizing fresh default properties at native registration time.
      * The transformation may return replacement properties; the registration ID is assigned afterwards.
+     *
      * @param name item path.
      * @param constructor item constructor.
      * @param properties properties transformation.
@@ -167,6 +176,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a plain item with vanilla default properties. No creative-tab entry or resources are generated.
+     *
      * @param name item path.
      * @return item entry.
      */
@@ -176,6 +186,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a plain item with lazily supplied properties.
+     *
      * @param name item path.
      * @param properties independent mutable properties factory.
      * @return plain item entry.
@@ -186,6 +197,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a plain item by customizing fresh properties.
+     *
      * @param name item path.
      * @param properties transformation of fresh default properties.
      * @return plain item entry.
@@ -202,9 +214,9 @@ public interface CobwebRegister<R> {
      * @param block block supplier.
      * @param properties item properties.
      * @param constructor custom block item constructor.
-     * @return registered item holder.
      * @param <T> block item type.
      * @param <B> block type.
+     * @return registered item holder.
      */
     default <T extends BlockItem, B extends Block> CobwebEntry<T> registerBlockItemLike(String name, Supplier<B> block, Item.Properties properties, BiFunction<B, Item.Properties, T> constructor) {
       return registerBlockItemLike(name, block, constructor, () -> properties);
@@ -213,6 +225,7 @@ public interface CobwebRegister<R> {
     /**
      * Registers a custom block item with lazy properties and the block description prefix.
      * Both suppliers are evaluated at native registration time.
+     *
      * @param name item path.
      * @param block block supplier.
      * @param constructor block item constructor.
@@ -227,6 +240,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a custom block item by transforming fresh properties at native registration time.
+     *
      * @param name item path.
      * @param block block supplier.
      * @param constructor block item constructor.
@@ -266,6 +280,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a block item with properties created at native registration time.
+     *
      * @param name item path.
      * @param block block supplier, resolved at native registration time.
      * @param properties independent mutable properties factory, evaluated at native registration time.
@@ -277,6 +292,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a block item by customizing fresh properties at native registration time.
+     *
      * @param name item path.
      * @param block block supplier, resolved at native registration time.
      * @param properties transformation of fresh properties at native registration time.
@@ -289,6 +305,7 @@ public interface CobwebRegister<R> {
     /**
      * Uses the keyed holder's path and this item register's namespace, even for a block in another namespace.
      * The block value is resolved at native registration time; the holder need not be bound yet.
+     *
      * @param block keyed block holder.
      * @return block item with vanilla default properties and the block description prefix.
      */
@@ -298,6 +315,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Uses the holder's path and this register's namespace, with lazy properties.
+     *
      * @param block keyed block holder, resolved at native registration time.
      * @param properties independent mutable properties factory, evaluated at native registration time.
      * @return block item entry.
@@ -308,6 +326,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Uses the holder's path and this register's namespace, transforming fresh properties.
+     *
      * @param block keyed block holder, resolved at native registration time.
      * @param properties properties transformation, evaluated at native registration time.
      * @return block item entry.
@@ -327,8 +346,8 @@ public interface CobwebRegister<R> {
      *
      * @param name block name.
      * @param supplier block supplier.
-     * @return registered block holder.
      * @param <T> block type.
+     * @return registered block holder.
      */
     default <T extends Block> CobwebEntry<T> registerBlock(String name, Function<BlockBehaviour.Properties, ? extends T> supplier) {
       return registerBlock(name, supplier, BlockBehaviour.Properties::of);
@@ -336,6 +355,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a block with supplied properties, assigning its ID after customization.
+     *
      * @param name block path.
      * @param constructor block constructor.
      * @param properties independent mutable properties factory, evaluated at native registration time.
@@ -348,6 +368,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a block by customizing fresh properties at native registration time.
+     *
      * @param name block path.
      * @param constructor block constructor.
      * @param properties transformation (may return replacement properties); the ID is assigned afterwards.
@@ -360,6 +381,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a plain block with vanilla default properties.
+     *
      * @param name block path.
      * @return plain block with vanilla default properties; no block item or resources are generated.
      */
@@ -369,6 +391,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a plain block with lazily supplied properties.
+     *
      * @param name block path.
      * @param properties independent mutable properties factory.
      * @return plain block entry.
@@ -379,6 +402,7 @@ public interface CobwebRegister<R> {
 
     /**
      * Registers a plain block by customizing fresh properties.
+     *
      * @param name block path.
      * @param properties transformation of fresh default properties.
      * @return plain block entry.
@@ -388,10 +412,13 @@ public interface CobwebRegister<R> {
     }
   }
 
-  /** Register for entity types using vanilla builders at native registration time. */
+  /**
+   * Register for entity types using vanilla builders at native registration time.
+   */
   interface Entities extends CobwebRegister<EntityType<?>> {
     /**
      * Registers an entity type using a default vanilla builder.
+     *
      * @param name entity path.
      * @param factory entity factory.
      * @param category entity category.
@@ -405,6 +432,7 @@ public interface CobwebRegister<R> {
     /**
      * Registers an entity type, assigning its key after customizing a fresh vanilla builder.
      * Attributes, rendering and spawn rules must be registered separately.
+     *
      * @param name entity path.
      * @param factory entity factory.
      * @param category entity category.
@@ -417,11 +445,14 @@ public interface CobwebRegister<R> {
     }
   }
 
-  /** Register for data component types using native builder validation. */
+  /**
+   * Register for data component types using native builder validation.
+   */
   interface DataComponents extends CobwebRegister<DataComponentType<?>> {
     /**
      * Registers a component type from a fresh builder at native registration time.
      * Supply a stream codec or a persistent codec from which vanilla can derive one.
+     *
      * @param name component path.
      * @param builder builder transformation.
      * @param <D> component value type.

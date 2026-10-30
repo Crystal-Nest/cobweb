@@ -49,7 +49,7 @@ public final class DefaultAssetPackStorage {
    *
    * @param tracker tracker path in the game directory.
    * @param repository discovered and selected client repository.
-   * @return new selection, or null on tracking failure (leave native selection untouched).
+   * @return new selection, or {@code null} on tracking failure (leave native selection untouched).
    */
   @Nullable
   public static List<String> process(Path tracker, PackRepository repository) {

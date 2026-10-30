@@ -23,6 +23,8 @@ public abstract class CobwebConfig {
   private static final Pair<? extends CobwebConfig, ModConfigSpec> NULL_CONFIG = Pair.of(null, null);
 
   /**
+   * Defines the configuration and builds its native specification with the supplied builder.
+   *
    * @param builder configuration builder.
    */
   protected CobwebConfig(ModConfigSpec.Builder builder) {
@@ -35,7 +37,7 @@ public abstract class CobwebConfig {
    *
    * @param modId mod ID.
    * @param type configuration type.
-   * @param constructor mod configuration constructor, should always be the calling class constructor, e.g. {@code register(MOD_ID, MyConfig::new);}
+   * @param constructor mod configuration constructor, should always be the calling class constructor, e.g. {@code register(MOD_ID, MyConfig::new);}.
    * @param <T> class calling the method.
    */
   protected static <T extends CobwebConfig> void register(String modId, ConfigType type, Function<ModConfigSpec.Builder, T> constructor) {

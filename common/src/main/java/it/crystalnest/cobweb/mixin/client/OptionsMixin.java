@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Preserves native filtering and hidden-pack hooks while persisting Cobweb selection.
+ * Injects into {@link Options} to persist static asset pack selection while preserving native filtering.
  */
 @Mixin(Options.class)
 public abstract class OptionsMixin {
@@ -27,25 +27,27 @@ public abstract class OptionsMixin {
   private Minecraft minecraft;
 
   /**
+   * Injects at the return of the method {@link Options#loadSelectedResourcePacks(PackRepository)}.<br>
    * Applies first-discovery defaults after native saved-selection filtering.
    *
    * @param repository discovered native resource-pack repository.
    * @param ci native callback.
    */
   @Inject(method = "loadSelectedResourcePacks", at = @At("RETURN"))
-  private void cobweb$defaults(PackRepository repository, CallbackInfo ci) {
+  private void onLoadSelectedResourcePacks(PackRepository repository, CallbackInfo ci) {
     ClientPackSelection.initialize((Options) (Object) this, repository, minecraft.gameDirectory.toPath());
   }
 
   /**
+   * Wraps the call to {@link Pack#isFixedPosition()} inside the method {@link Options#updateResourcePacks(PackRepository)}.<br>
    * Allows visible Cobweb packs to be saved even when their position is fixed.
    *
-   * @param pack pack being considered for saving.
+   * @param instance pack being considered for saving.
    * @param original native fixed-position operation, including other loader hooks.
    * @return whether native saving should treat the pack as fixed and exclude it.
    */
   @WrapOperation(method = "updateResourcePacks", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/Pack;isFixedPosition()Z"))
-  private boolean cobweb$saveFixed(Pack pack, Operation<Boolean> original) {
-    return original.call(pack) && !ClientPackSelection.persistFixed(pack);
+  private boolean wrapIsFixedPosition(Pack instance, Operation<Boolean> original) {
+    return original.call(instance) && !ClientPackSelection.persistFixed(instance);
   }
 }

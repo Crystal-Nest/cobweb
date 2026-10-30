@@ -12,11 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.Collection;
 
 /**
- * Keeps native /reload discovery consistent with Cobweb's initial defaults.
+ * Injects into {@link ReloadCommand} to preserve static pack activation and initial placement during discovery.
  */
 @Mixin(ReloadCommand.class)
 public abstract class ReloadCommandMixin {
   /**
+   * Injects at the return of the method {@link ReloadCommand#discoverNewPacks(PackRepository, WorldData, Collection)}.<br>
    * Applies activation and initial placement to newly discovered Cobweb data packs.
    *
    * @param repository reloaded native repository.
@@ -25,7 +26,7 @@ public abstract class ReloadCommandMixin {
    * @param cir callback containing the native discovered selection.
    */
   @Inject(method = "discoverNewPacks", at = @At("RETURN"), cancellable = true)
-  private static void cobweb$discover(PackRepository repository, WorldData world, Collection<String> previous, CallbackInfoReturnable<Collection<String>> cir) {
+  private static void onDiscoverNewPacks(PackRepository repository, WorldData world, Collection<String> previous, CallbackInfoReturnable<Collection<String>> cir) {
     cir.setReturnValue(StaticPackSelection.discover(repository, world, previous, cir.getReturnValue()));
   }
 }

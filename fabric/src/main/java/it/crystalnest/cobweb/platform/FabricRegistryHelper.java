@@ -24,13 +24,13 @@ import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import org.jetbrains.annotations.Nullable;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -183,7 +183,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    * Reads metadata using the native path supplier, including bundled overlays.
    *
    * @param pack static definition.
-   * @return native pack, or null if native metadata loading rejects it.
+   * @return native pack, or {@code null} if native metadata loading rejects it.
    */
   @Nullable
   @Override
@@ -201,10 +201,14 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    * @param <R> registry type.
    */
   public static class DeferredRegister<R> implements CobwebRegister<R> {
-    /** Declared handles; native registration timing is unaffected. */
+    /**
+     * Declared handles; native registration timing is unaffected.
+     */
     private final List<CobwebEntry<? extends R>> entries = new ArrayList<>();
 
-    /** Unmodifiable live view, avoiding a new copy on each inspection. */
+    /**
+     * Unmodifiable live view, avoiding a new copy on each inspection.
+     */
     private final Collection<CobwebEntry<? extends R>> entriesView = Collections.unmodifiableList(entries);
 
     /**
@@ -218,6 +222,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     private final String namespace;
 
     /**
+     * Creates a register backed by the native registry with the supplied key.
+     *
      * @param registryKey Minecraft {@link Registry} key.
      * @param namespace {@link #namespace}.
      */
@@ -264,6 +270,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      */
     public static final class Items extends DeferredRegister<Item> implements CobwebRegister.Items {
       /**
+       * Creates an item register for the supplied namespace.
+       *
        * @param namespace {@link #namespace}.
        */
       private Items(String namespace) {
@@ -276,6 +284,8 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      */
     public static final class Blocks extends DeferredRegister<Block> implements CobwebRegister.Blocks {
       /**
+       * Creates a block register for the supplied namespace.
+       *
        * @param namespace {@link #namespace}.
        */
       private Blocks(String namespace) {
@@ -283,14 +293,18 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
       }
     }
 
-    /** Specialized register for entity types. */
+    /**
+     * Specialized register for entity types.
+     */
     public static final class Entities extends DeferredRegister<EntityType<?>> implements CobwebRegister.Entities {
       private Entities(String namespace) {
         super(Registries.ENTITY_TYPE, namespace);
       }
     }
 
-    /** Specialized register for data component types. */
+    /**
+     * Specialized register for data component types.
+     */
     public static final class DataComponents extends DeferredRegister<DataComponentType<?>> implements CobwebRegister.DataComponents {
       private DataComponents(ResourceKey<Registry<DataComponentType<?>>> registryKey, String namespace) {
         super(registryKey, namespace);

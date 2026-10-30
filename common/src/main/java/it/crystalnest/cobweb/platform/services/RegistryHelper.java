@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.platform.services;
 
-import it.crystalnest.cobweb.api.pack.dynamic.DynamicResourcePack;
 import it.crystalnest.cobweb.api.pack.PackActivation;
+import it.crystalnest.cobweb.api.pack.dynamic.DynamicResourcePack;
 import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
@@ -11,10 +11,10 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.KnownPack;
 import net.minecraft.server.packs.repository.Pack;
 import org.jetbrains.annotations.Nullable;
@@ -46,14 +46,19 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    */
   protected final Map<String, Map<Identifier, T>> registries = new HashMap<>();
 
-  /** Keys created through this service, including registries not yet installed on NeoForge. */
+  /**
+   * Keys created through this service, including registries not yet installed on NeoForge.
+   */
   private final Set<Identifier> createdRegistries = new HashSet<>();
 
-  /** Specialized views for custom component registries, sharing the canonical native register. */
+  /**
+   * Specialized views for custom component registries, sharing the canonical native register.
+   */
   private final Map<String, Map<Identifier, CobwebRegister.DataComponents>> componentRegisters = new HashMap<>();
 
   /**
    * Creates a static registry once, preserving native installation timing.
+   *
    * @param registryKey new registry key.
    * @param namespace entry namespace.
    * @param settings native builder settings.
@@ -72,6 +77,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
 
   /**
    * Creates a registry using the native builder and obtains its register.
+   *
    * @param registryKey new registry key.
    * @param namespace entry namespace.
    * @param settings native builder settings.
@@ -124,6 +130,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
 
   /**
    * Provides the specialized entity type register.
+   *
    * @param namespace mod ID.
    * @return specialized entity type register.
    */
@@ -133,6 +140,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
 
   /**
    * Provides the specialized standard data component register.
+   *
    * @param namespace mod ID.
    * @return specialized data component register.
    */
@@ -142,6 +150,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
 
   /**
    * Obtains a specialized component register, sharing registrations with generic access.
+   *
    * @param registryKey component-type registry key.
    * @param namespace mod ID.
    * @return specialized register or a cached view over the native register.
@@ -151,11 +160,12 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
     if (register instanceof CobwebRegister.DataComponents components) {
       return components;
     }
-    return componentRegisters.computeIfAbsent(namespace, key -> new HashMap<>())
-      .computeIfAbsent(registryKey.identifier(), key -> new ComponentRegister(register));
+    return componentRegisters.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> new ComponentRegister(register));
   }
 
-  /** A builder-convenience view; does not subscribe or queue another native register. */
+  /**
+   * A builder-convenience view; does not subscribe or queue another native register.
+   */
   private record ComponentRegister(CobwebRegister<DataComponentType<?>> delegate) implements CobwebRegister.DataComponents {
     @Override
     public String namespace() {
@@ -229,7 +239,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * Creates a pack using native metadata and the current loader.
    *
    * @param pack definition.
-   * @return native pack, or null after native metadata rejection.
+   * @return native pack, or {@code null} after native metadata rejection.
    */
   @Nullable
   public abstract Pack createStaticResourcePack(StaticResourcePack pack);
@@ -240,7 +250,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * @param pack definition.
    * @param resources loader-specific resource supplier.
    * @param knownPackNamespace loader's known-pack namespace.
-   * @return native pack, or null after native metadata rejection.
+   * @return native pack, or {@code null} after native metadata rejection.
    */
   @Nullable
   protected final Pack createStaticResourcePack(StaticResourcePack pack, Pack.ResourcesSupplier resources, String knownPackNamespace) {

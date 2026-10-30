@@ -2,8 +2,8 @@ package it.crystalnest.cobweb.platform;
 
 import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
-import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.impl.resource.pack.FabricPack;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;

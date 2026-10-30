@@ -23,7 +23,7 @@ public abstract class PackRepositoryMixin implements PackSources {
   public Set<RepositorySource> sources;
 
   /**
-   * Safe add of new {@link RepositorySource}s.
+   * Safely adds a {@link RepositorySource} to the native repository.
    *
    * @param source {@link RepositorySource}.
    */

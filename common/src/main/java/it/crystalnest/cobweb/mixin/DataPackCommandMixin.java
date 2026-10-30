@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Prevents commands from reporting a required Cobweb pack as disabled.
+ * Injects into {@link DataPackCommand} to prevent disabling required Cobweb data packs.
  */
 @Mixin(DataPackCommand.class)
 public abstract class DataPackCommandMixin {
@@ -23,10 +23,11 @@ public abstract class DataPackCommandMixin {
    * Localized error for attempts to disable an always-active Cobweb data pack.
    */
   @Unique
-  private static final DynamicCommandExceptionType cobweb$required = new DynamicCommandExceptionType(id -> Component.translatable("commands.cobweb.datapack.disable.required", id));
+  private static final DynamicCommandExceptionType ERROR_REQUIRED_PACK = new DynamicCommandExceptionType(id -> Component.translatable("commands.cobweb.datapack.disable.required", id));
 
   /**
-   * Rejects disabling required Cobweb data packs before the native command reports success.
+   * Injects at the start of the method {@link DataPackCommand#disablePack(CommandSourceStack, Pack)}.<br>
+   * Rejects disabling always-active Cobweb packs before the native command reports success.
    *
    * @param source command source.
    * @param pack data pack being disabled.
@@ -34,9 +35,9 @@ public abstract class DataPackCommandMixin {
    * @throws CommandSyntaxException if the pack is always active.
    */
   @Inject(method = "disablePack", at = @At("HEAD"))
-  private static void cobweb$cannotDisable(CommandSourceStack source, Pack pack, CallbackInfoReturnable<Integer> cir) throws CommandSyntaxException {
+  private static void onDisablePack(CommandSourceStack source, Pack pack, CallbackInfoReturnable<Integer> cir) throws CommandSyntaxException {
     if (StaticPackSelection.isAlwaysActive(PackType.SERVER_DATA, pack)) {
-      throw cobweb$required.create(pack.getId());
+      throw ERROR_REQUIRED_PACK.create(pack.getId());
     }
   }
 }

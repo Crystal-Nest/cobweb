@@ -41,7 +41,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Applied static pack activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
 
 - **Configuration changes**
-  - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge and FCAPI).
+  - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge
+    and FCAPI).
 
 ## [v1.4.0] - 2026/10/02
 
@@ -213,148 +214,195 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 ## Legacy
 
 <details>
- <summary>Click to expand</summary>
+  <summary>Click to expand</summary>
 
-  ### [1.18.2-0.0.3.7-beta] - 2024/05/30
-  
-  - Backport to 1.18.2.
-  
-  ### [1.19.2-0.0.3.7-beta] - 2024/05/29
-  
-  - Fix missing nightconfig dependency on dependants.
-  
-  ### [1.19.2-0.0.3.6-beta] - 2024/05/29
-  
-  - Backport to 1.19.2.
-  
-  ### [1.19.4-0.0.3.6-beta] - 2024/05/28
-  
-  - Backport to 1.19.4.
-  
-  ### [1.20.2-0.0.3.6-beta] - 2024/05/28
-  
-  - Fix NeoForge build.
-  
-  ### [1.20.2-0.0.3.5-beta] - 2024/05/27
-  
-  - Fix Forge distribution.
-  
-  ### [1.20.4-0.0.3.5-beta] - 2024/05/26
-  
-  - Improve Forge distribution.
-  
-  ### [1.20.4-0.0.3.4-beta] - 2024/05/26
-  
-  - Fix Forge distribution.
-  
-  ### [1.20.4-0.0.3.3-beta] - 2024/05/26
-  
-  - Nothing new, just a test.
-  
-  ### [1.20.4-0.0.3.2-beta] - 2024/05/26
-  
-  - Revert to working version.
-  
-  ### [1.20.4-0.0.3.1-beta] - 2024/05/26
-  
-  - Attempt to fix Forge distribution, but instead broke everything.
-  
-  ### [1.20.4-0.0.3.0-beta] - 2024/05/18
-  
-  - Fixed declared related dependencies on CurseForge.
-  
-  ### [1.20.4-0.0.2.6-alpha] - 2024/05/16
-  
-  - Changed declared related dependencies.
-  
-  ### [1.20.4-0.0.2.5-alpha] - 2024/05/08
-  
-  - Fixed NPE when using config with NeoForge.
-  
-  ### [1.20.4-0.0.2.4-alpha] - 2024/05/06
-  
-  - Made FCAP an optional dependency in development environments too.
-  
-  ### [1.20.4-0.0.2.3-alpha] - 2024/05/06
-  
-  - Moved the services into a more proper class.
-  
-  ### [1.20.4-0.0.2.2-alpha] - 2024/05/04
+### [1.18.2-0.0.3.7-beta] - 2024/05/30
 
-  - Improved tool tiers API.
-  - Fixed rare NPE.
-  
-  ### [1.20.4-0.0.2.1-alpha] - 2024/05/04
-  
-  - Improved tool tiers API.
-  
-  ### [1.20.4-0.0.2.0-alpha] - 2024/05/04
-  
-  - Added tool tiers API.
-  
-  ### [1.20.4-0.0.1.1-alpha] - 2024/05/01
+- Backport to 1.18.2.
 
-  - Fixed Fabric jar.
-  - Updated in-game icons and readme.
-  - Made FCAP an actual optional dependency at runtime.
+### [1.19.2-0.0.3.7-beta] - 2024/05/29
 
-  ### [1.20.4-0.0.1.0-alpha] - 2024/04/30
-  
-  - Added utility to retrieve in-game IDs.
-  - Added first draft of a unified configuration system.
-  - Added Fabric specific registering system.
+- Fix missing nightconfig dependency on dependants.
+
+### [1.19.2-0.0.3.6-beta] - 2024/05/29
+
+- Backport to 1.19.2.
+
+### [1.19.4-0.0.3.6-beta] - 2024/05/28
+
+- Backport to 1.19.4.
+
+### [1.20.2-0.0.3.6-beta] - 2024/05/28
+
+- Fix NeoForge build.
+
+### [1.20.2-0.0.3.5-beta] - 2024/05/27
+
+- Fix Forge distribution.
+
+### [1.20.4-0.0.3.5-beta] - 2024/05/26
+
+- Improve Forge distribution.
+
+### [1.20.4-0.0.3.4-beta] - 2024/05/26
+
+- Fix Forge distribution.
+
+### [1.20.4-0.0.3.3-beta] - 2024/05/26
+
+- Nothing new, just a test.
+
+### [1.20.4-0.0.3.2-beta] - 2024/05/26
+
+- Revert to working version.
+
+### [1.20.4-0.0.3.1-beta] - 2024/05/26
+
+- Attempt to fix Forge distribution, but instead broke everything.
+
+### [1.20.4-0.0.3.0-beta] - 2024/05/18
+
+- Fixed declared related dependencies on CurseForge.
+
+### [1.20.4-0.0.2.6-alpha] - 2024/05/16
+
+- Changed declared related dependencies.
+
+### [1.20.4-0.0.2.5-alpha] - 2024/05/08
+
+- Fixed NPE when using config with NeoForge.
+
+### [1.20.4-0.0.2.4-alpha] - 2024/05/06
+
+- Made FCAP an optional dependency in development environments too.
+
+### [1.20.4-0.0.2.3-alpha] - 2024/05/06
+
+- Moved the services into a more proper class.
+
+### [1.20.4-0.0.2.2-alpha] - 2024/05/04
+
+- Improved tool tiers API.
+- Fixed rare NPE.
+
+### [1.20.4-0.0.2.1-alpha] - 2024/05/04
+
+- Improved tool tiers API.
+
+### [1.20.4-0.0.2.0-alpha] - 2024/05/04
+
+- Added tool tiers API.
+
+### [1.20.4-0.0.1.1-alpha] - 2024/05/01
+
+- Fixed Fabric jar.
+- Updated in-game icons and readme.
+- Made FCAP an actual optional dependency at runtime.
+
+### [1.20.4-0.0.1.0-alpha] - 2024/04/30
+
+- Added utility to retrieve in-game IDs.
+- Added first draft of a unified configuration system.
+- Added Fabric specific registering system.
+
 </details>
 
 [Unreleased]: https://github.com/crystal-nest/cobweb
+
 [README]: https://github.com/crystal-nest/cobweb#readme
 
 [v1.4.0]: https://github.com/crystal-nest/cobweb/releases?q=1.4.0
+
 [v1.3.4]: https://github.com/crystal-nest/cobweb/releases?q=1.3.4
+
 [v1.3.3]: https://github.com/crystal-nest/cobweb/releases?q=1.3.3
+
 [v1.3.2]: https://github.com/crystal-nest/cobweb/releases?q=1.3.2
+
 [v1.3.1]: https://github.com/crystal-nest/cobweb/releases?q=1.3.1
+
 [v1.3.0]: https://github.com/crystal-nest/cobweb/releases?q=1.3.0
+
 [v1.2.2]: https://github.com/crystal-nest/cobweb/releases?q=1.2.2
+
 [v1.2.1]: https://github.com/crystal-nest/cobweb/releases?q=1.2.1
+
 [v1.2.0]: https://github.com/crystal-nest/cobweb/releases?q=1.2.0
+
 [v1.1.4]: https://github.com/crystal-nest/cobweb/releases?q=1.1.4
+
 [v1.1.3]: https://github.com/crystal-nest/cobweb/releases?q=1.1.3
+
 [v1.1.2]: https://github.com/crystal-nest/cobweb/releases?q=1.1.2
+
 [v1.1.1]: https://github.com/crystal-nest/cobweb/releases?q=1.1.1
+
 [v1.1.0]: https://github.com/crystal-nest/cobweb/releases?q=1.1.0
+
 [v1.0.1]: https://github.com/crystal-nest/cobweb/releases?q=1.0.1
+
 [v1.0.0]: https://github.com/crystal-nest/cobweb/releases?q=1.0.0
 
 [v0.5.9-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.9-beta
+
 [v0.5.8-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.8-beta
+
 [v0.5.7-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.7-beta
+
 [v0.5.6-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.6-beta
+
 [v0.5.5-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.5-beta
+
 [v0.5.4-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.4-beta
+
 [v0.5.3-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.3-beta
+
 [v0.5.2-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.2-beta
+
 [v0.5.1-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.1-beta
+
 [v0.5.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.5.0-beta
+
 [v0.4.0-beta]: https://github.com/crystal-nest/cobweb/releases?q=0.4.0-beta
 
 [1.18.2-0.0.3.7-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.18.2-0.0.3.7-beta
+
 [1.19.2-0.0.3.7-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-0.0.3.7-beta
+
 [1.19.2-0.0.3.6-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.2-0.0.3.6-beta
+
 [1.19.4-0.0.3.6-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.19.4-0.0.3.6-beta
+
 [1.20.2-0.0.3.6-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.2-0.0.3.6-beta
+
 [1.20.2-0.0.3.5-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.2-0.0.3.5-beta
+
 [1.20.4-0.0.3.5-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.5-beta
+
 [1.20.4-0.0.3.4-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.4-beta
+
 [1.20.4-0.0.3.3-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.3-beta
+
 [1.20.4-0.0.3.2-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.2-beta
+
 [1.20.4-0.0.3.1-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.1-beta
+
 [1.20.4-0.0.3.0-beta]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.3.0-beta
+
 [1.20.4-0.0.2.6-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.6-alpha
+
 [1.20.4-0.0.2.5-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.5-alpha
+
 [1.20.4-0.0.2.4-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.4-alpha
+
 [1.20.4-0.0.2.3-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.3-alpha
+
 [1.20.4-0.0.2.2-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.2-alpha
+
 [1.20.4-0.0.2.1-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.1-alpha
+
 [1.20.4-0.0.2.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.2.0-alpha
+
 [1.20.4-0.0.1.1-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.1-alpha
+
 [1.20.4-0.0.1.0-alpha]: https://github.com/crystal-nest/cobweb/releases/tag/v1.20.4-0.0.1.0-alpha

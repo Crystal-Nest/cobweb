@@ -21,6 +21,8 @@ public enum DynamicResourceType {
   private final String path;
 
   /**
+   * Creates a resource type with the supplied path pattern.
+   *
    * @param path {@link #path}.
    */
   DynamicResourceType(String path) {

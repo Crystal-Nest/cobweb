@@ -74,6 +74,8 @@ public abstract class DynamicResourcePack implements PackResources {
   private final Map<Identifier, Supplier<byte[]>> resources = new ConcurrentHashMap<>();
 
   /**
+   * Creates a dynamic pack with the supplied name, resource type, and supported formats.
+   *
    * @param name {@link #name}.
    * @param type {@link #type}.
    * @param formats {@link InclusiveRange} of supported {@link PackFormat}s.
@@ -88,6 +90,8 @@ public abstract class DynamicResourcePack implements PackResources {
   }
 
   /**
+   * Creates a dynamic pack using the current native format for its resource type.
+   *
    * @param name {@link #name}.
    * @param type {@link #type}.
    */
@@ -96,7 +100,7 @@ public abstract class DynamicResourcePack implements PackResources {
   }
 
   /**
-   * Register the {@link Pack} instance of this dynamic resource pack.
+   * Registers the {@link Pack} instance of this dynamic resource pack.
    */
   public void register() {
     Services.REGISTRY.registerDynamicResourcePack(
@@ -210,6 +214,8 @@ public abstract class DynamicResourcePack implements PackResources {
     private final PackResources instance;
 
     /**
+     * Creates a supplier that exposes the supplied dynamic pack resources.
+     *
      * @param instance {@link #instance}.
      */
     DynamicResourcesSupplier(PackResources instance) {

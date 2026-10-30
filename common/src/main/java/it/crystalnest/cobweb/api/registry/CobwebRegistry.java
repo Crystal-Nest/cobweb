@@ -19,6 +19,7 @@ public final class CobwebRegistry {
 
   /**
    * Creates a Java-populated static registry with unsynced IDs and no default entry.
+   *
    * @param registryKey new registry key.
    * @param namespace namespace for this register's entries.
    * @param <R> value type.
@@ -36,6 +37,7 @@ public final class CobwebRegistry {
    * Duplicate creation fails; obtaining an existing register does not create a registry.
    * Fabric installs the registry immediately. NeoForge creates it now and installs it at its event.
    * This does not declare a JSON/data-pack registry.
+   *
    * @param registryKey new registry key.
    * @param namespace namespace for this register's entries; independent of the registry key's namespace.
    * @param settings native ID synchronization and default-entry settings.
@@ -48,18 +50,22 @@ public final class CobwebRegistry {
 
   /**
    * Immutable settings for a Java-populated static registry. Native defaults are used for other options.
+   *
    * @param synced whether native numeric registry IDs should be synchronized to clients.
-   *               This does not transmit arbitrary entry definitions or Java behavior.
+   * This does not transmit arbitrary entry definitions or Java behavior.
    * @param defaultKey optional fallback entry identifier; that entry must be registered separately.
    */
   public record Settings(boolean synced, @Nullable Identifier defaultKey) {
-    /** Creates unsynced settings without a fallback entry. */
+    /**
+     * Creates unsynced settings without a fallback entry.
+     */
     public Settings() {
       this(false, null);
     }
 
     /**
      * Copies these settings with native ID synchronization enabled or disabled.
+     *
      * @param synced whether to synchronize IDs.
      * @return updated settings.
      */
@@ -69,7 +75,8 @@ public final class CobwebRegistry {
 
     /**
      * Copies these settings with a fallback entry.
-     * @param defaultKey full fallback identifier, or null for no fallback.
+     *
+     * @param defaultKey full fallback identifier, or {@code null} for no fallback.
      * @return updated settings.
      */
     public Settings defaultKey(@Nullable Identifier defaultKey) {
@@ -146,6 +153,7 @@ public final class CobwebRegistry {
    * {@link Registries#ENCHANTMENT_EFFECT_COMPONENT_TYPE} or a Java-created custom registry.
    * Custom keys may return a specialized view of an already obtained generic register;
    * both share the native register, aliases and declared-entry view.
+   *
    * @param registryKey component-type registry key.
    * @param namespace mod ID.
    * @return specialized component register.

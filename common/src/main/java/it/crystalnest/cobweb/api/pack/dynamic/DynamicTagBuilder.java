@@ -42,6 +42,8 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   private final Registry<T> registry;
 
   /**
+   * Creates a builder for tags in the supplied registry.
+   *
    * @param registry {@link #registry}.
    * @param tags {@link #tags}.
    */
@@ -95,7 +97,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   }
 
   /**
-   * Add a new unique {@link TagEntry}.
+   * Adds a new unique {@link TagEntry}.
    *
    * @param entry new unique {@link TagEntry}.
    * @return this builder.
@@ -110,7 +112,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   }
 
   /**
-   * Add a new tag to build.
+   * Adds a new tag to build.
    *
    * @param tagKey new tag.
    * @return this builder.
@@ -120,7 +122,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   }
 
   /**
-   * Add a new element to which apply the tags.
+   * Adds a new element to which apply the tags.
    *
    * @param element new element.
    * @return this builder.
@@ -130,7 +132,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   }
 
   /**
-   * Add a list of elements to which apply the tags.
+   * Adds a list of elements to which apply the tags.
    *
    * @param elements list of elements.
    * @return this builder.
@@ -143,7 +145,7 @@ public final class DynamicTagBuilder<T> extends TagBuilder {
   }
 
   /**
-   * Add a list of elements to which apply the tags.
+   * Adds a list of elements to which apply the tags.
    *
    * @param elements list of elements.
    * @return this builder.

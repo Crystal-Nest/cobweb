@@ -15,7 +15,8 @@
 ## 📝 **Description**
 
 **Cobweb** is a lightweight, modular API designed to simplify Minecraft mod development across multiple loaders.  
-It provides a **Unified Configuration System** and a **Unified Registering System**, both available directly in the common module. These systems help you abstract away the differences between loaders, so you can focus on writing clean, maintainable, and reusable code — not boilerplate.
+It provides a **Unified Configuration System** and a **Unified Registering System**, both available directly in the common module. These systems help you abstract away the differences between loaders, so you can focus on writing clean, maintainable, and
+reusable code — not boilerplate.
 
 Cobweb is the shared modding API used across all **Crystal Nest** projects.  
 📚 Want to dive deeper? Check out the full [Wiki](https://github.com/Crystal-Nest/cobweb/wiki).

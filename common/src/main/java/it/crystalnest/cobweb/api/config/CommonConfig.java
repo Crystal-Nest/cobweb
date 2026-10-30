@@ -11,6 +11,8 @@ import java.util.function.Function;
  */
 public abstract class CommonConfig extends CobwebConfig {
   /**
+   * Defines a common configuration and builds its specification with the supplied builder.
+   *
    * @param builder configuration builder.
    */
   protected CommonConfig(ModConfigSpec.Builder builder) {
@@ -21,7 +23,7 @@ public abstract class CommonConfig extends CobwebConfig {
    * Instantiates and registers for the mod with the specified mod ID a new common configuration using the given constructor.
    *
    * @param modId mod ID.
-   * @param constructor mod configuration constructor, should always be the calling class constructor, e.g. {@code register(MOD_ID, MyConfig::new);}
+   * @param constructor mod configuration constructor, should always be the calling class constructor, e.g. {@code register(MOD_ID, MyConfig::new);}.
    * @param <T> class calling the method.
    * @return the new common configuration.
    */
