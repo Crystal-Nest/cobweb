@@ -1,11 +1,13 @@
 package it.crystalnest.cobweb.platform;
 
+import com.mojang.serialization.Codec;
 import it.crystalnest.cobweb.api.pack.PackSources;
-import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
+import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.CobwebRegistry;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
+import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 import net.fabricmc.fabric.api.event.registry.FabricRegistry;
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
 import net.fabricmc.fabric.api.event.registry.RegistryAttribute;
@@ -16,9 +18,12 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PathPackResources;
+import it.crystalnest.cobweb.platform.services.BundledPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.entity.EntityType;
@@ -31,94 +36,83 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
  * Fabric registration helper.
  */
 public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHelper.DeferredRegister<?>> {
+  @Override
+  protected <T> void addDataPackRegistry(CobwebDataPackRegistry<T> definition, @Nullable Codec<T> networkCodec) {
+    if (BuiltInRegistries.REGISTRY.containsKey(definition.key().identifier())) {
+      throw new IllegalStateException("Registry already exists: " + definition.key().identifier());
+    }
+    if (definition.lifetime() == CobwebDataPackRegistry.Lifetime.RELOADABLE) {
+      DynamicRegistries.registerReloadable(definition.key(), definition.codec());
+    } else if (networkCodec != null) {
+      DynamicRegistries.registerSynced(definition.key(), definition.codec(), networkCodec);
+    } else {
+      DynamicRegistries.register(definition.key(), definition.codec());
+    }
+  }
+
+  @Override
+  public List<RegistryDataLoader.RegistryData<?>> worldRegistries() {
+    return DynamicRegistries.getWorldRegistries();
+  }
+
+  @Override
+  public List<RegistryDataLoader.RegistryData<?>> reloadableRegistries() {
+    return DynamicRegistries.getReloadableRegistries();
+  }
+
   /**
    * Internal list of {@link Pack data pack}s to register.
    */
-  private static final List<Supplier<Pack>> DYNAMIC_DATA_PACKS = new ArrayList<>();
+  private static final List<Supplier<Pack>> DATA_PACKS = new ArrayList<>();
 
   /**
    * Internal list of {@link Pack texture pack}s to register.
    */
-  private static final List<Supplier<Pack>> DYNAMIC_TEXTURE_PACKS = new ArrayList<>();
+  private static final List<Supplier<Pack>> ASSET_PACKS = new ArrayList<>();
 
   /**
-   * Internal list of {@link StaticResourcePack} of type {@link PackType#SERVER_DATA}.
-   */
-  private static final List<StaticResourcePack> STATIC_DATA_PACKS = new ArrayList<>();
-
-  /**
-   * Internal list of {@link StaticResourcePack} of type {@link PackType#CLIENT_RESOURCES}.
-   */
-  private static final List<StaticResourcePack> STATIC_TEXTURE_PACKS = new ArrayList<>();
-
-  /**
-   * Registers all data packs, dynamic and static, to the given repository.
+   * Registers all Cobweb data packs with the given repository.
    *
    * @param repository {@link PackRepository}.
    * @return updated repository.
    */
   public static PackRepository registerDataPacks(PackRepository repository) {
-    registerDynamicPacks(DYNAMIC_DATA_PACKS, repository);
-    registerStaticPacks(STATIC_DATA_PACKS, repository);
+    registerPacks(DATA_PACKS, repository);
     return repository;
   }
 
   /**
-   * Registers all texture packs, dynamic and static, to the given repository.
+   * Registers all Cobweb asset packs with the given repository.
    *
    * @param repository {@link PackRepository}.
    * @return updated repository.
    */
   public static PackRepository registerTexturePacks(PackRepository repository) {
-    registerDynamicPacks(DYNAMIC_TEXTURE_PACKS, repository);
-    registerStaticPacks(STATIC_TEXTURE_PACKS, repository);
+    registerPacks(ASSET_PACKS, repository);
     return repository;
-  }
-
-  /**
-   * Registers the provided list of dynamic resource packs to the given repository.
-   *
-   * @param packs list of dynamic packs.
-   * @param repository {@link PackRepository} to update.
-   */
-  private static void registerDynamicPacks(List<Supplier<Pack>> packs, PackRepository repository) {
-    registerPacks(packs, Supplier::get, repository);
-  }
-
-  /**
-   * Registers the provided list of static resource packs to the given repository.
-   *
-   * @param packs list of static packs.
-   * @param repository {@link PackRepository} to update.
-   */
-  private static void registerStaticPacks(List<StaticResourcePack> packs, PackRepository repository) {
-    for (StaticResourcePack definition : packs) {
-      ((PackSources) repository).addSource(packConsumer -> {
-        Pack pack = definition.toPack();
-        if (pack != null) {
-          packConsumer.accept(pack);
-        }
-      });
-    }
   }
 
   /**
    * Registers the provided list of resource packs to the given repository.
    *
    * @param packs resource packs.
-   * @param toPack function to map a resource pack into a {@link Pack}.
    * @param repository {@link PackRepository}.
-   * @param <T> resource pack type.
    */
-  private static <T> void registerPacks(List<T> packs, Function<T, Pack> toPack, PackRepository repository) {
-    packs.stream().map(toPack).forEach(pack -> ((PackSources) repository).addSource(packConsumer -> packConsumer.accept(pack)));
+  private static void registerPacks(List<Supplier<Pack>> packs, PackRepository repository) {
+    for (var definition : packs) {
+      ((PackSources) repository).addSource(consumer -> {
+        Pack pack = definition.get();
+        if (pack != null) {
+          consumer.accept(pack);
+        }
+      });
+    }
   }
 
   @Override
@@ -159,40 +153,26 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   }
 
   @Override
-  public void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier) {
+  protected void addPackSource(PackType type, Supplier<Pack> supplier) {
     switch (type) {
-      case SERVER_DATA -> DYNAMIC_DATA_PACKS.add(supplier);
-      case CLIENT_RESOURCES -> DYNAMIC_TEXTURE_PACKS.add(supplier);
+      case SERVER_DATA -> DATA_PACKS.add(supplier);
+      case CLIENT_RESOURCES -> ASSET_PACKS.add(supplier);
     }
   }
 
-  /**
-   * Queues a static definition for Fabric's native repository creation.
-   *
-   * @param pack static definition to register.
-   */
   @Override
-  protected void addStaticResourcePack(StaticResourcePack pack) {
-    switch (pack.type()) {
-      case SERVER_DATA -> STATIC_DATA_PACKS.add(pack);
-      case CLIENT_RESOURCES -> STATIC_TEXTURE_PACKS.add(pack);
-    }
+  public String bundledKnownPackNamespace() {
+    return "cobweb";
   }
 
-  /**
-   * Reads metadata using the native path supplier, including bundled overlays.
-   *
-   * @param pack static definition.
-   * @return native pack, or {@code null} if native metadata loading rejects it.
-   */
+  @Override
   @Nullable
-  @Override
-  public Pack createStaticResourcePack(StaticResourcePack pack) {
-    var container = FabricLoader.getInstance().getModContainer(pack.identifier().getNamespace())
-      .orElseThrow(() -> new IllegalArgumentException("Mod not found: " + pack.identifier().getNamespace()));
-    // A missing root is passed to native metadata loading for its normal diagnostics.
-    var root = container.findPath(pack.resourcePath()).orElseGet(() -> container.getRootPaths().getFirst().resolve(pack.resourcePath()));
-    return createStaticResourcePack(pack, new PathPackResources.PathResourcesSupplier(root), "cobweb");
+  public BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root) {
+    return FabricLoader.getInstance().getModContainer(owner).map(container -> {
+      var path = container.findPath(root).orElseGet(() -> container.getRootPaths().getFirst().resolve(root));
+      return new BundledPackResources(new PathPackResources(location, path),
+        (type, namespace, output) -> PathPackResources.listPath(namespace, path.resolve(type.getDirectory()).resolve(namespace), List.of(), output));
+    }).orElse(null);
   }
 
   /**

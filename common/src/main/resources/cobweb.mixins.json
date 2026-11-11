@@ -6,10 +6,20 @@
   "mixins": [
     "DataPackCommandMixin",
     "MinecraftServerMixin",
-    "ReloadCommandMixin"
+    "RegistryDataLoaderMixin",
+    "ReloadableServerResourcesMixin",
+    "ReloadCommandMixin",
+    "ServerPacksSourceWorldMixin",
+    "TagLoaderMixin",
+    "WorldLoaderMixin"
   ],
   "client": [
-    "client.OptionsMixin"
+    "client.NativeImageMixin",
+    "client.OptionsMixin",
+    "client.PackSelectionModelEntryBaseMixin",
+    "client.PackSelectionModelMixin",
+    "client.PackSelectionScreenMixin",
+    "client.ReloadableResourceManagerMixin"
   ],
   "server": [],
   "injectors": {

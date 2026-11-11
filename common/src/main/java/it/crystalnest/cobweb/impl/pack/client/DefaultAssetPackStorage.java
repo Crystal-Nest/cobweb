@@ -5,7 +5,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.PackActivation;
-import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.impl.pack.StaticPackSelection;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.packs.PackType;
@@ -66,12 +65,12 @@ public final class DefaultAssetPackStorage {
     Set<String> seen = new HashSet<>();
     List<Pack> selected = new ArrayList<>(repository.getSelectedPacks());
     for (Pack pack : repository.getAvailablePacks()) {
-      StaticResourcePack definition = StaticPackSelection.definition(PackType.CLIENT_RESOURCES, pack);
-      if (definition == null || Services.PLATFORM.isPackHidden(pack)) {
+      PackActivation activation = StaticPackSelection.activation(PackType.CLIENT_RESOURCES, pack);
+      if (activation == null || Services.PLATFORM.isPackHidden(pack)) {
         continue;
       }
       seen.add(pack.getId());
-      if (!previous.contains(pack.getId()) && definition.activation() == PackActivation.DEFAULT_ENABLED && pack.getCompatibility().isCompatible() && !selected.contains(pack)) {
+      if (!previous.contains(pack.getId()) && activation == PackActivation.DEFAULT_ENABLED && pack.getCompatibility().isCompatible() && !selected.contains(pack)) {
         pack.getDefaultPosition().insert(selected, pack, Pack::selectionConfig, false);
       }
     }

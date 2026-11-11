@@ -16,6 +16,9 @@
   "icon": "${mod_id_kebab}.png",
   "environment": "*",
   "entrypoints": {
+    "client": [
+      "${group}.${mod_id}.ClientModLoader"
+    ],
     "main": [
       "${group}.${mod_id}.ModLoader"
     ]

@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.impl.pack;
 
 import it.crystalnest.cobweb.api.pack.PackActivation;
-import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
@@ -35,8 +34,8 @@ public final class StaticPackSelection {
    * @return registered definition, if managed by Cobweb.
    */
   @Nullable
-  public static StaticResourcePack definition(PackType type, Pack pack) {
-    return Services.REGISTRY.staticResourcePack(type, pack.getId());
+  public static PackActivation activation(PackType type, Pack pack) {
+    return Services.REGISTRY.activation(type, pack.getId());
   }
 
   /**
@@ -47,9 +46,9 @@ public final class StaticPackSelection {
    * @return initial auto-add decision.
    */
   public static boolean addAutomatically(Pack pack, boolean nativeDefault) {
-    StaticResourcePack definition = definition(PackType.SERVER_DATA, pack);
+    PackActivation activation = activation(PackType.SERVER_DATA, pack);
     // Required packs are inserted by the repository, preserving their native position rules.
-    return definition == null ? nativeDefault : definition.activation() == PackActivation.DEFAULT_ENABLED;
+    return activation == null ? nativeDefault : activation == PackActivation.DEFAULT_ENABLED;
   }
 
   /**
@@ -60,8 +59,8 @@ public final class StaticPackSelection {
    * @return whether this is an always-active Cobweb definition.
    */
   public static boolean isAlwaysActive(PackType type, Pack pack) {
-    StaticResourcePack definition = definition(type, pack);
-    return definition != null && definition.activation() == PackActivation.ALWAYS_ACTIVE;
+    PackActivation activation = activation(type, pack);
+    return activation != null && activation == PackActivation.ALWAYS_ACTIVE;
   }
 
   /**
@@ -76,7 +75,7 @@ public final class StaticPackSelection {
     Set<String> old = new HashSet<>(previous);
     List<Pack> ordered = packs(repository, selected);
     List<Pack> added = ordered.stream()
-      .filter(pack -> !old.contains(pack.getId()) && definition(PackType.SERVER_DATA, pack) != null)
+      .filter(pack -> !old.contains(pack.getId()) && activation(PackType.SERVER_DATA, pack) != null)
       .toList();
     ordered.removeAll(added);
     for (Pack pack : added) {
@@ -97,10 +96,10 @@ public final class StaticPackSelection {
   public static List<String> discover(PackRepository repository, WorldData world, Collection<String> previous, Collection<String> discovered) {
     List<String> selected = new ArrayList<>(discovered);
     selected.removeIf(id -> {
-      StaticResourcePack definition = Services.REGISTRY.staticResourcePack(PackType.SERVER_DATA, id);
+      PackActivation activation = Services.REGISTRY.activation(PackType.SERVER_DATA, id);
       Pack pack = repository.getPack(id);
-      return definition != null && !previous.contains(id) && definition.activation() != PackActivation.ALWAYS_ACTIVE
-             && (definition.activation() == PackActivation.DEFAULT_DISABLED
+      return activation != null && !previous.contains(id) && activation != PackActivation.ALWAYS_ACTIVE
+             && (activation == PackActivation.DEFAULT_DISABLED
                  || pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
     });
     return requirePacks(repository, orderNewPacks(repository, selected, previous));

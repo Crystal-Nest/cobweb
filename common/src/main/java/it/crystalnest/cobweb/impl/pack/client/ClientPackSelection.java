@@ -28,7 +28,7 @@ public final class ClientPackSelection {
    * @return whether a visible Cobweb pack should be persisted even if fixed.
    */
   public static boolean persistFixed(Pack pack) {
-    return StaticPackSelection.definition(PackType.CLIENT_RESOURCES, pack) != null && !Services.PLATFORM.isPackHidden(pack);
+    return StaticPackSelection.activation(PackType.CLIENT_RESOURCES, pack) != null && !Services.PLATFORM.isPackHidden(pack);
   }
 
   /**

@@ -1,6 +1,8 @@
 package it.crystalnest.cobweb.mixin.client;
 
+import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
 import it.crystalnest.cobweb.platform.FabricRegistryHelper;
+import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.repository.PackRepository;
 import org.spongepowered.asm.mixin.Final;
@@ -21,6 +23,18 @@ public abstract class MinecraftMixin {
   @Final
   @Shadow
   private PackRepository resourcePackRepository;
+
+  /**
+   * Injects before the call to {@link Thread#currentThread()} in the constructor of {@link Minecraft}.<br>
+   * Closes registry declarations after Fabric invokes the client mod entrypoints.
+   *
+   * @param ci callback information.
+   */
+  @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Ljava/lang/Thread;currentThread()Ljava/lang/Thread;"))
+  private void onModInitialization(CallbackInfo ci) {
+    Services.REGISTRY.closeDataPackRegistries();
+    DynamicPackLoads.closeDeclarations();
+  }
 
   /**
    * Injects before the call to {@link PackRepository#reload()} in the constructor of {@link Minecraft}.<br>

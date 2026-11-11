@@ -1,11 +1,16 @@
 package it.crystalnest.cobweb.platform.services;
 
+import it.crystalnest.cobweb.api.pack.VersionRange;
 import it.crystalnest.cobweb.platform.model.Environment;
 import it.crystalnest.cobweb.platform.model.Platform;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.resources.IoSupplier;
+import org.jetbrains.annotations.Nullable;
 
+import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
@@ -21,14 +26,6 @@ public interface PlatformHelper {
   boolean isPackHidden(Pack pack);
 
   /**
-   * Creates a {@link Pack.Metadata}.
-   *
-   * @param description resource pack description.
-   * @return {@link Pack.Metadata}.
-   */
-  Pack.Metadata createPackMetadata(Component description);
-
-  /**
    * Gets the name of the current platform
    *
    * @return name of the current platform.
@@ -42,6 +39,58 @@ public interface PlatformHelper {
    * @return whether the mod is loaded.
    */
   boolean isModLoaded(String modId);
+
+  /**
+   * Returns the IDs of loaded mods.
+   *
+   * @return installed mod IDs.
+   */
+  List<String> loadedModIds();
+
+  /**
+   * Returns the loaded artifacts or content roots used to validate persistent generated data.
+   *
+   * @return loader-owned source paths.
+   */
+  List<Path> modContentPaths();
+
+  /**
+   * Finds metadata physically stored at the root of a mod.
+   *
+   * @param modId loaded mod ID.
+   * @return metadata source, if present.
+   */
+  @Nullable
+  default ModResource modRootPackMetadata(String modId) {
+    return modResource(modId, "pack.mcmeta");
+  }
+
+  /**
+   * Finds one file physically stored in the specified mod.
+   *
+   * @param modId loaded mod ID.
+   * @param path relative path within the mod.
+   * @return bundled file source, if present.
+   */
+  @Nullable
+  ModResource modResource(String modId, String path);
+
+  /**
+   * Metadata in a loaded mod's actual content container.
+   *
+   * @param location physical resource identity.
+   * @param stream supplier of a fresh stream for the metadata.
+   */
+  record ModResource(URI location, IoSupplier<InputStream> stream) {}
+
+  /**
+   * Checks a dependency constraint using the loader's own mod version rules.
+   *
+   * @param modId loaded mod ID.
+   * @param range requested version constraint.
+   * @return whether the installed mod satisfies the constraint.
+   */
+  boolean matchesModVersion(String modId, VersionRange range);
 
   /**
    * Returns the version of the specified mod.

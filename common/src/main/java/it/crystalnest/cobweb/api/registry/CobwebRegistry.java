@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.api.registry;
 
+import com.mojang.serialization.Codec;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
@@ -10,6 +11,8 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.alchemy.Potion;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * Cobweb unified registering API.
@@ -46,6 +49,52 @@ public final class CobwebRegistry {
    */
   public static <R> CobwebRegister<R> create(ResourceKey<Registry<R>> registryKey, String namespace, Settings settings) {
     return Services.REGISTRY.create(registryKey, namespace, settings);
+  }
+
+  /**
+   * Declares a registry loaded from data packs when opening a world. Call during mod initialization.
+   *
+   * @param key native registry key.
+   * @param codec codec for complete entries in data packs.
+   * @param <T> entry type.
+   * @return registered world registry definition.
+   * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
+   */
+  public static <T> CobwebDataPackRegistry<T> createWorld(ResourceKey<Registry<T>> key, Codec<T> codec) {
+    return createDataPack(key, codec, CobwebDataPackRegistry.Lifetime.WORLD, null);
+  }
+
+  /**
+   * Declares a world registry with native entry synchronization to clients. Call during mod initialization.
+   *
+   * @param key native registry key.
+   * @param codec codec for complete entries in data packs.
+   * @param networkCodec codec for entries synchronized to clients.
+   * @param <T> entry type.
+   * @return registered world registry definition.
+   * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
+   */
+  public static <T> CobwebDataPackRegistry<T> createWorld(ResourceKey<Registry<T>> key, Codec<T> codec, Codec<T> networkCodec) {
+    return createDataPack(key, codec, CobwebDataPackRegistry.Lifetime.WORLD, Objects.requireNonNull(networkCodec));
+  }
+
+  /**
+   * Declares a registry loaded from data packs when opening or reloading a world. Call during mod initialization.
+   *
+   * @param key native registry key.
+   * @param codec codec for complete entries in data packs.
+   * @param <T> entry type.
+   * @return registered reloadable registry definition.
+   * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
+   */
+  public static <T> CobwebDataPackRegistry<T> createReloadable(ResourceKey<Registry<T>> key, Codec<T> codec) {
+    return createDataPack(key, codec, CobwebDataPackRegistry.Lifetime.RELOADABLE, null);
+  }
+
+  private static <T> CobwebDataPackRegistry<T> createDataPack(ResourceKey<Registry<T>> key, Codec<T> codec, CobwebDataPackRegistry.Lifetime lifetime, @Nullable Codec<T> networkCodec) {
+    var definition = new CobwebDataPackRegistry<>(key, codec, lifetime);
+    Services.REGISTRY.registerDataPackRegistry(definition, networkCodec);
+    return definition;
   }
 
   /**

@@ -26,19 +26,23 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Fixed generic and specialized registry factories returning incompatible cached instances when requested in a different order.
   - Added native registry aliases with namespaced-path and full-identifier overloads. Aliases retain loader-native declaration timing and conflict handling.
   - Added Java-created custom registries with optional native numeric-ID synchronization and a default entry, duplicate-creation protection, and registration from multiple namespaces.
+  - Added common declarations for world-loaded and reloadable data-pack registries, with optional native network codecs for world registries.
   - Added `registry()` access to the full native static registry. NeoForge custom registries can be unavailable before its new-registry event; the creating register exposes its registry immediately.
   - Added explicit-key data component factories, including enchantment effect components and custom component registries. Specialized custom views share generic registrations and entry inspection.
   - Custom `CobwebRegister` implementations must now implement `registryKey()`, `registry()`, `addAlias(Identifier, Identifier)`, and `entries()`.
 
 - **Resource pack changes**
-  - Updated static and dynamic pack suppliers to use `openMetadata()` and `openResources()`, with the latter returning a stream of pack resources.
-  - Replaced static pack constructors with `StaticDataPack.builder()` and `StaticAssetPack.builder()`, renaming `StaticTexturePack` to `StaticAssetPack`.
-  - Added static pack titles accepting a `Component` or a string translation key.
-  - Added disabled-by-default, enabled-by-default, and always-active modes on both loaders, independently of pack source and position. Static packs now default to disabled, top placement, and movable position.
-  - Added fixed top/bottom placement and preserved static pack selections and ordering across restarts, including optional fixed packs and packs changed from always active to optional.
+  - Replaced the static and dynamic pack APIs with `DataPack.registrar()` and `AssetPack.registrar()`. Both support bundled files, generation callbacks, and stable selection IDs.
+  - Added pack titles accepting a `Component` or a string translation key.
+  - Added disabled-by-default, enabled-by-default, and always-active modes on both loaders, independently of pack source and position. Packs default to disabled, top placement, and movable position.
+  - Added fixed top/bottom placement and preserved pack selections and ordering across restarts, including optional fixed packs and packs changed from always active to optional.
   - Fixed bundled pack overlays on Fabric and nested overlay roots on NeoForge, retaining native metadata and conditional overlay handling.
-  - Static pack metadata is now read during repository discovery; packs rejected by native metadata loading are skipped with native diagnostics.
-  - Applied static pack activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
+  - Pack metadata is read during native discovery, with Java overrides for description and formats. Generated files can override bundled base files while active overlays retain their native precedence.
+  - Applied activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
+  - Added native generation phases and stages, asynchronous callbacks, typed data and asset views, grouped sprites, and keyed sound definitions.
+  - Added pack and mod requirements, optional pack dependency versions, and ordering between packs with generation callbacks.
+  - Added selection-dependent titles, descriptions and icons, and native load completion observers.
+  - Added opt-in callback caching, disk-backed streaming for large generated files, and inspection export for applied Cobweb packs.
 
 - **Configuration changes**
   - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge

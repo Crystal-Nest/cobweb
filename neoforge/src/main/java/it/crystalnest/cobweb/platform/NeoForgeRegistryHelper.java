@@ -1,6 +1,8 @@
 package it.crystalnest.cobweb.platform;
 
-import it.crystalnest.cobweb.api.pack.fixed.StaticResourcePack;
+import com.mojang.serialization.Codec;
+import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
+import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.CobwebRegistry;
@@ -9,12 +11,13 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.packs.OverlayedPackResources;
+import it.crystalnest.cobweb.platform.services.BundledPackResources;
 import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.world.entity.EntityType;
@@ -22,9 +25,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.jarcontents.JarContents;
+import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DataPackRegistriesHooks;
+import net.neoforged.neoforge.registries.NewDatapackRegistryEvent;
 import net.neoforged.neoforge.registries.datamaps.DataMapType;
 import net.neoforged.neoforge.resource.JarContentsPackResources;
 import org.jetbrains.annotations.Nullable;
@@ -34,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -45,6 +51,38 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
    * NeoForge event bus.
    */
   private IEventBus bus = null;
+
+  /**
+   * Declarations gathered from mod constructors before the shared native registry event.
+   */
+  private final List<Consumer<NewDatapackRegistryEvent>> dataPackRegistries = new ArrayList<>();
+
+  @Override
+  protected <T> void addDataPackRegistry(CobwebDataPackRegistry<T> definition, @Nullable Codec<T> networkCodec) {
+    dataPackRegistries.add(event -> {
+      var key = definition.key();
+      if (BuiltInRegistries.REGISTRY.containsKey(key.identifier()) || Stream.of(RegistryDataLoader.WORLD_REGISTRIES, RegistryDataLoader.DIMENSION_REGISTRIES, RegistryDataLoader.RELOADABLE_REGISTRIES)
+        .flatMap(Collection::stream)
+        .anyMatch(registry -> registry.key().equals(key))) {
+        throw new IllegalStateException("Registry already exists: " + key.identifier());
+      }
+      if (definition.lifetime() == CobwebDataPackRegistry.Lifetime.RELOADABLE) {
+        event.reloadableRegistry(key, definition.codec());
+      } else {
+        event.worldRegistry(key, definition.codec(), networkCodec);
+      }
+    });
+  }
+
+  @Override
+  public List<RegistryDataLoader.RegistryData<?>> worldRegistries() {
+    return DataPackRegistriesHooks.getWorldRegistries();
+  }
+
+  @Override
+  public List<RegistryDataLoader.RegistryData<?>> reloadableRegistries() {
+    return DataPackRegistriesHooks.getReloadableRegistries();
+  }
 
   @Override
   protected <R> CobwebRegister<R> createRegistry(ResourceKey<Registry<R>> registryKey, String namespace, CobwebRegistry.Settings settings) {
@@ -80,84 +118,39 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   }
 
   @Override
-  public void registerDynamicResourcePack(PackType type, Supplier<Pack> supplier) {
+  protected void addPackSource(PackType type, Supplier<Pack> supplier) {
     bus.addListener((AddPackFindersEvent event) -> {
       if (event.getPackType() == type) {
-        event.addRepositorySource(consumer -> consumer.accept(supplier.get()));
-      }
-    });
-  }
-
-  /**
-   * Installs a repository source through NeoForge's pack-finder event.
-   *
-   * @param pack static definition to register.
-   */
-  @Override
-  protected void addStaticResourcePack(StaticResourcePack pack) {
-    bus.addListener((AddPackFindersEvent event) -> {
-      if (event.getPackType() == pack.type()) {
         event.addRepositorySource(consumer -> {
-          Pack nativePack = pack.toPack();
-          if (nativePack != null) {
-            consumer.accept(nativePack);
+          Pack pack = supplier.get();
+          if (pack != null) {
+            consumer.accept(pack);
           }
         });
       }
     });
   }
 
-  /**
-   * Reads native metadata from the owning mod's JAR contents.
-   *
-   * @param pack static definition.
-   * @return native pack, or {@code null} if native metadata loading rejects it.
-   */
-  @Nullable
   @Override
-  public Pack createStaticResourcePack(StaticResourcePack pack) {
-    var container = ModList.get().getModContainerById(pack.identifier().getNamespace())
-      .orElseThrow(() -> new IllegalArgumentException("Mod not found: " + pack.identifier().getNamespace()));
-    var contents = container.getModInfo().getOwningFile().getFile().getContents();
-    return createStaticResourcePack(pack, new NestedResourcesSupplier(contents, pack.resourcePath()), "neoforge");
+  public String bundledKnownPackNamespace() {
+    return "neoforge";
   }
 
-  /**
-   * Native resource composition, with overlay directories relative to the bundled pack rather than the mod JAR.
-   *
-   * @param contents owning mod's JAR contents.
-   * @param prefix bundled pack root relative to the mod's resources.
-   */
-  private record NestedResourcesSupplier(JarContents contents, String prefix) implements Pack.ResourcesSupplier {
-    /**
-     * Opens the primary resources for native metadata loading.
-     *
-     * @param location native pack identity.
-     * @return primary pack resources.
-     */
-    @Override
-    public PackResources openMetadata(PackLocationInfo location) {
-      return new JarContentsPackResources(location, contents, prefix);
-    }
-
-    /**
-     * Composes primary resources and the overlays selected by native metadata loading.
-     *
-     * @param location native pack identity.
-     * @param metadata parsed native pack metadata.
-     * @return stream containing the primary or composed pack resources.
-     */
-    @Override
-    public Stream<PackResources> openResources(PackLocationInfo location, Pack.Metadata metadata) {
-      PackResources primary = openMetadata(location);
-      if (metadata.overlays().isEmpty()) {
-        return Stream.of(primary);
-      }
-      List<PackResources> overlays = metadata.overlays().stream()
-        .<PackResources>map(directory -> new JarContentsPackResources(location, contents, prefix + "/" + directory))
-        .toList();
-      return Stream.of(new OverlayedPackResources(primary, overlays));
-    }
+  @Override
+  @Nullable
+  public BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root) {
+    return ModList.get().getModContainerById(owner).map(container -> {
+      var contents = container.getModInfo().getOwningFile().getFile().getContents();
+      return new BundledPackResources(new JarContentsPackResources(location, contents, root), (type, namespace, output) -> {
+        var prefix = root + "/" + type.getDirectory() + "/" + namespace + "/";
+        contents.visitContent(prefix, (path, resource) -> {
+          var id = Identifier.tryBuild(namespace, path.substring(prefix.length()));
+          if (id != null) {
+            output.accept(id, resource.retain()::open);
+          }
+        });
+      });
+    }).orElse(null);
   }
 
   /**
@@ -167,6 +160,12 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
    */
   public void register(IEventBus bus) {
     this.bus = bus;
+    bus.addListener((NewDatapackRegistryEvent event) -> {
+      closeDataPackRegistries();
+      dataPackRegistries.forEach(registry -> registry.accept(event));
+      dataPackRegistries.clear();
+    });
+    bus.addListener((FMLLoadCompleteEvent event) -> DynamicPackLoads.closeDeclarations());
   }
 
   /**
