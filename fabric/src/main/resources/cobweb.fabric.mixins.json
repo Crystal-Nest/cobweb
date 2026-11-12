@@ -4,6 +4,7 @@
   "package": "${group}.${mod_id}.mixin",
   "compatibilityLevel": "JAVA_${java_version}",
   "mixins": [
+    "HolderReferenceMixin",
     "PackRepositoryMixin",
     "ServerPacksSourceMixin"
   ],

@@ -25,7 +25,6 @@ import net.minecraft.server.packs.repository.Pack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +50,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * Map linking all mods that use the API to all the registries they use.<br>
    * Used to avoid creating and registering multiple instances of the same register.
    */
-  protected final Map<String, Map<Identifier, T>> registries = new HashMap<>();
+  protected final Map<String, Map<Identifier, T>> registries = new ConcurrentHashMap<>();
 
   /**
    * Keys created through this service, including registries not yet installed on NeoForge.
@@ -66,7 +65,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   /**
    * Specialized views for custom component registries, sharing the canonical native register.
    */
-  private final Map<String, Map<Identifier, CobwebRegister.DataComponents>> componentRegisters = new HashMap<>();
+  private final Map<String, Map<Identifier, CobwebRegister.DataComponents>> componentRegisters = new ConcurrentHashMap<>();
 
   /**
    * Creates a static registry once, preserving native installation timing.
@@ -225,7 +224,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
     if (register instanceof CobwebRegister.DataComponents components) {
       return components;
     }
-    return componentRegisters.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> new ComponentRegister(register));
+    return componentRegisters.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> new ComponentRegister(register));
   }
 
   /**

@@ -20,6 +20,7 @@ import java.util.stream.Stream;
 /**
  * Loader agnostic handle for a registered game object, backed by a native reference holder.
  * Obtain entries through {@link CobwebRegister}; use vanilla holders for objects outside registration.
+ * Compare holders with {@link #equals(Object)}, not {@code ==}.
  *
  * @param <T> game object type.
  */
@@ -67,7 +68,7 @@ public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supp
 
   @Override
   public boolean equals(Object other) {
-    return this == other || other instanceof CobwebEntry<?> entry && holder.equals(entry.holder);
+    return this == other || holder.equals(other instanceof CobwebEntry<?> entry ? entry.holder : other);
   }
 
   @Override

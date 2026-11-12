@@ -34,8 +34,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -135,7 +135,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   @Override
   @SuppressWarnings("unchecked")
   public <R> DeferredRegister<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (DeferredRegister<R>) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
+    return (DeferredRegister<R>) registries.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
       DeferredRegister<?> register;
       if (registryKey.equals(Registries.ITEM)) {
         register = new DeferredRegister.Items(namespace);

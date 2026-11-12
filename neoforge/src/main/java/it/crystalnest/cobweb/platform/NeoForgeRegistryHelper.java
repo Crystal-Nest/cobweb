@@ -37,8 +37,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -99,7 +99,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   @Override
   @SuppressWarnings("unchecked")
   public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
-    return (Register<R>) registries.computeIfAbsent(namespace, key -> new HashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
+    return (Register<R>) registries.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
       Register<?> register;
       if (registryKey.equals(Registries.ITEM)) {
         register = new Register.Items(namespace);
@@ -328,11 +328,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     @Override
     public <A> @Nullable A getData(DataMapType<T, A> type) {
       return holder().getData(type);
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      return this == other || holder().equals(other instanceof CobwebEntry<?> entry ? entry.holder() : other);
     }
   }
 }

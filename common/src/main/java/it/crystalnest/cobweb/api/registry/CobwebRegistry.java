@@ -52,7 +52,8 @@ public final class CobwebRegistry {
   }
 
   /**
-   * Declares a registry loaded from data packs when opening a world. Call during mod initialization.
+   * Declares a registry loaded from data packs when opening a world, without synchronizing its entries to clients.
+   * Call during mod initialization. Use {@link #createWorld(ResourceKey, Codec, Codec)} to enable synchronization.
    *
    * @param key native registry key.
    * @param codec codec for complete entries in data packs.
@@ -66,10 +67,14 @@ public final class CobwebRegistry {
 
   /**
    * Declares a world registry with native entry synchronization to clients. Call during mod initialization.
+   * Pass the same codec twice to synchronize complete entries, or supply a network codec that omits fields unnecessary to clients.
+   * The network codec encodes on the server and decodes on clients; it must not depend on client-only classes.
+   * It must also decode complete data-pack JSON when Minecraft loads an entry from a matching known pack on the client.
+   * Clients must support the registry and its network codec.
    *
    * @param key native registry key.
    * @param codec codec for complete entries in data packs.
-   * @param networkCodec codec for entries synchronized to clients.
+   * @param networkCodec non-null codec enabling entry synchronization; may be the same as {@code codec}.
    * @param <T> entry type.
    * @return registered world registry definition.
    * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
@@ -79,7 +84,8 @@ public final class CobwebRegistry {
   }
 
   /**
-   * Declares a registry loaded from data packs when opening or reloading a world. Call during mod initialization.
+   * Declares a registry loaded from data packs when opening or reloading a world, without synchronizing its entries to clients.
+   * Call during mod initialization.
    *
    * @param key native registry key.
    * @param codec codec for complete entries in data packs.

@@ -16,7 +16,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Removed vanilla `Holder` unsealing.
   - Fabric entries now retain native registered references, exposing registry keys, names, tags, components, and ownership.
   - Fixed NeoForge entry support for native holder delegation, registry codecs, and data maps.
-  - Corrected entry equality and hashing to follow each loader's native reference-holder behavior.
+  - Corrected entry equality and hashing to follow each loader's native reference-holder behavior, including symmetric comparisons between Fabric entries and their wrapped native holders.
   - Added identifier-aware registration factories.
   - Added item/block property suppliers and transformations, plus simple item/block helpers.
   - Added lazy block-item properties, custom block-item constructor overloads, and keyed-holder shortcuts.
@@ -24,9 +24,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Added `CobwebRegistry.ofDataComponents()` and a typed component builder helper for the standard data component registry.
   - Added registry-key access, tag-key creation helpers, and an unmodifiable live view of each register's declared entries, including unbound NeoForge entries.
   - Fixed generic and specialized registry factories returning incompatible cached instances when requested in a different order.
+  - Fixed register-cache races during parallel NeoForge mod initialization.
   - Added native registry aliases with namespaced-path and full-identifier overloads. Aliases retain loader-native declaration timing and conflict handling.
   - Added Java-created custom registries with optional native numeric-ID synchronization and a default entry, duplicate-creation protection, and registration from multiple namespaces.
-  - Added common declarations for world-loaded and reloadable data-pack registries, with optional native network codecs for world registries.
+  - Added common declarations for world-loaded and reloadable data-pack registries, with optional native network codecs for world registries. Clarified synchronization opt-in, codec reuse, and client decoding requirements.
   - Added `registry()` access to the full native static registry. NeoForge custom registries can be unavailable before its new-registry event; the creating register exposes its registry immediately.
   - Added explicit-key data component factories, including enchantment effect components and custom component registries. Specialized custom views share generic registrations and entry inspection.
   - Custom `CobwebRegister` implementations must now implement `registryKey()`, `registry()`, `addAlias(Identifier, Identifier)`, and `entries()`.
