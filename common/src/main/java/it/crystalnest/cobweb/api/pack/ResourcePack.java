@@ -8,8 +8,8 @@ import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackFormat;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.KnownPack;
+import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.util.FileUtil;
 import net.minecraft.util.InclusiveRange;
@@ -562,7 +562,7 @@ public abstract class ResourcePack {
       phases.put(kind, selected);
     }
     var registration = new CallbackRegistration();
-    tasks.add(new Task(Map.copyOf(phases), stage, lifetime, inputs, outputs, callback, registration, tasks.size(), null));
+    tasks.add(new Task(Map.copyOf(phases), stage, lifetime, inputs, outputs, callback, registration, tasks.size(), TaskOrigin.JAVA, null));
     return registration;
   }
 
@@ -658,10 +658,15 @@ public abstract class ResourcePack {
     return presentation;
   }
 
+  enum TaskOrigin {
+    JAVA,
+    FILE_RULE
+  }
+
   record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index,
-              @Nullable String fileRuleFingerprint) {
+    TaskOrigin origin, @Nullable String fileRuleFingerprint) {
     boolean fileRule() {
-      return fileRuleFingerprint != null;
+      return origin == TaskOrigin.FILE_RULE;
     }
   }
 

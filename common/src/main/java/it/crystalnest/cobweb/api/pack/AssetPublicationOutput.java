@@ -8,7 +8,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +18,8 @@ public final class AssetPublicationOutput {
   private final GeneratedPackResources resources;
 
   private final Map<Identifier, GeneratedPackResources.File> files = new HashMap<>();
+
+  private final PackFileOwner owned = new PackFileOwner();
 
   private boolean open = true;
 
@@ -56,11 +57,12 @@ public final class AssetPublicationOutput {
    */
   public void write(Identifier id, GenerationOutput.FileWriter writer) throws IOException {
     checkOpen();
-    GeneratedPackExport.resourcePath(PackType.CLIENT_RESOURCES, id);
+    PackPaths.resourcePath(PackType.CLIENT_RESOURCES, id);
     var file = PackFile.write(writer);
+    owned.adopt(file);
     var previous = files.put(id, new GeneratedPackResources.File(file, ResourceLifetime.RELOADABLE));
     if (previous != null) {
-      previous.content().release();
+      owned.release(previous.content());
     }
   }
 
@@ -72,7 +74,7 @@ public final class AssetPublicationOutput {
    * @throws IOException if writing the file fails.
    */
   public void putJson(Identifier id, JsonElement value) throws IOException {
-    byte[] bytes = value.toString().getBytes(StandardCharsets.UTF_8);
+    byte[] bytes = PackIO.json(value);
     write(id, stream -> stream.write(bytes));
   }
 
@@ -98,7 +100,7 @@ public final class AssetPublicationOutput {
    * @throws IOException if writing the file fails.
    */
   public void putTexture(Identifier texture, GenerationOutput.FileWriter writer) throws IOException {
-    write(texture.withPath(path -> "textures/" + path + ".png"), writer);
+    write(PackPaths.texture(texture), writer);
   }
 
   /**
@@ -109,18 +111,18 @@ public final class AssetPublicationOutput {
    * @throws IOException if writing the file fails.
    */
   public void putSound(Identifier sound, GenerationOutput.FileWriter writer) throws IOException {
-    write(sound.withPath(path -> "sounds/" + path + ".ogg"), writer);
+    write(PackPaths.sound(sound), writer);
   }
 
   void finish() {
-    files.values().forEach(file -> resources.own(file.content()));
+    resources.adopt(owned);
     resources.publish(files);
     files.clear();
   }
 
   void close() {
     open = false;
-    files.values().forEach(file -> file.content().release());
+    owned.close();
     files.clear();
   }
 

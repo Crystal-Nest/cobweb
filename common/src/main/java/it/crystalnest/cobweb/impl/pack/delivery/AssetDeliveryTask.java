@@ -15,6 +15,7 @@ import net.minecraft.util.Util;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,7 +51,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
 
   private final Map<UUID, String> pending = new LinkedHashMap<>();
 
-  private Map<ClientboundResourcePackPushPacket, String> batch = Map.of();
+  private List<Offer> batch = List.of();
 
   @Nullable
   private String retryableFailure;
@@ -61,9 +62,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
 
   private long deadline;
 
-  private boolean offered;
-
-  private boolean rejected;
+  private Phase phase = Phase.PREPARING;
 
   /**
    * Creates a task for one connection.
@@ -98,10 +97,10 @@ public final class AssetDeliveryTask implements ConfigurationTask {
 
   @Override
   public boolean tick() {
-    if (rejected) {
-      return false;
+    if (phase == Phase.REJECTED || phase == Phase.COMPLETE) {
+      return phase == Phase.COMPLETE;
     }
-    if (!offered) {
+    if (phase == Phase.PREPARING) {
       var publication = delivery.publication();
       if (publication == null && !delivery.unavailable() && Util.getMillis() < deadline) {
         return false;
@@ -132,7 +131,10 @@ public final class AssetDeliveryTask implements ConfigurationTask {
         reject(packFailure(retryableFailure));
       }
     }
-    return !rejected && pending.isEmpty();
+    if (phase != Phase.REJECTED && pending.isEmpty()) {
+      phase = Phase.COMPLETE;
+    }
+    return phase == Phase.COMPLETE;
   }
 
   /**
@@ -177,63 +179,72 @@ public final class AssetDeliveryTask implements ConfigurationTask {
 
   private void offer(List<AssetPackArchives.Archive> archives) {
     var base = delivery.baseUrl(channel);
-    var packets = new LinkedHashMap<ClientboundResourcePackPushPacket, String>();
-    configured.ifPresent(info -> packets.put(configuredPacket(info), "server.properties"));
+    var offers = new ArrayList<Offer>();
+    configured.ifPresent(info -> offers.add(configuredOffer(info)));
     for (var archive : archives) {
       if (configured.isPresent() && configured.get().id().equals(archive.uuid())) {
         throw new IllegalArgumentException("Duplicate native offer UUID for " + archive.id());
       }
       String url = base.resolve(archive.address() + ".zip").toASCIIString();
-      packets.put(new ClientboundResourcePackPushPacket(archive.uuid(), url, archive.sha1(), required, prompt), archive.id().toString());
+      offers.add(new Offer(archive.uuid(), url, archive.sha1(), required, prompt, archive.id().toString()));
     }
-    startOffers(packets);
+    startOffers(offers);
   }
 
   private void publicationUnavailable() {
-    offered = true;
+    phase = Phase.APPLYING;
     if (required) {
       reject(Component.literal("The server's required resource packs are unavailable. Try again later or contact the server operator."));
     } else {
       Constants.LOGGER.debug("No Cobweb asset publication was available for an optional offer");
-      configured.ifPresent(info -> startOffers(Map.of(configuredPacket(info), "server.properties")));
+      configured.ifPresent(info -> startOffers(List.of(configuredOffer(info))));
     }
   }
 
-  private ClientboundResourcePackPushPacket configuredPacket(MinecraftServer.ServerResourcePackInfo info) {
-    return new ClientboundResourcePackPushPacket(info.id(), info.url(), info.hash(), required, Optional.ofNullable(info.prompt()));
+  private Offer configuredOffer(MinecraftServer.ServerResourcePackInfo info) {
+    return new Offer(info.id(), info.url(), info.hash(), required, Optional.ofNullable(info.prompt()), "server.properties");
   }
 
-  private void startOffers(Map<ClientboundResourcePackPushPacket, String> packets) {
-    offered = true;
+  private void startOffers(List<Offer> offers) {
+    phase = Phase.APPLYING;
     deadline = Util.getMillis() + APPLICATION_TIMEOUT;
-    packets.keySet().forEach(packet -> sent.add(packet.id()));
-    sendBatch(packets);
+    offers.forEach(offer -> sent.add(offer.id()));
+    sendBatch(offers);
   }
 
   private void retry() {
     Constants.LOGGER.info("Retrying server resource pack batch after {}", retryableFailure);
     retryAllowed = false;
     retryableFailure = null;
-    var packets = new LinkedHashMap<ClientboundResourcePackPushPacket, String>();
-    batch.forEach((packet, label) -> {
-      send.accept(new ClientboundResourcePackPopPacket(Optional.of(packet.id())));
+    var offers = new ArrayList<Offer>();
+    batch.forEach(offer -> {
+      send.accept(new ClientboundResourcePackPopPacket(Optional.of(offer.id())));
       UUID id;
       do {
         id = UUID.randomUUID();
       } while (!sent.add(id));
-      packets.put(new ClientboundResourcePackPushPacket(id, packet.url(), packet.hash(), packet.required(), packet.prompt()), label);
+      offers.add(new Offer(id, offer.url(), offer.hash(), offer.required(), offer.prompt(), offer.label()));
     });
-    sendBatch(packets);
+    sendBatch(offers);
   }
 
-  private void sendBatch(Map<ClientboundResourcePackPushPacket, String> packets) {
-    batch = packets;
-    packets.forEach((packet, label) -> pending.put(packet.id(), label));
-    packets.keySet().forEach(send);
+  private void sendBatch(List<Offer> offers) {
+    batch = List.copyOf(offers);
+    offers.forEach(offer -> pending.put(offer.id(), offer.label()));
+    offers.forEach(offer -> send.accept(new ClientboundResourcePackPushPacket(offer.id(), offer.url(), offer.hash(), offer.required(), offer.prompt())));
   }
 
   private void reject(Component message) {
-    rejected = true;
+    phase = Phase.REJECTED;
     disconnect.accept(message);
   }
+
+  private enum Phase {
+    PREPARING,
+    APPLYING,
+    COMPLETE,
+    REJECTED
+  }
+
+  private record Offer(UUID id, String url, String hash, boolean required, Optional<Component> prompt, String label) {}
 }

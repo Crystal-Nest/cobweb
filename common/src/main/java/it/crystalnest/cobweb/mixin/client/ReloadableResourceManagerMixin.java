@@ -2,9 +2,9 @@ package it.crystalnest.cobweb.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import it.crystalnest.cobweb.api.pack.PackQueries;
 import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
 import it.crystalnest.cobweb.api.pack.LoadKind;
+import it.crystalnest.cobweb.api.pack.PackQueries;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.server.packs.PackResources;
@@ -56,7 +56,7 @@ public abstract class ReloadableResourceManagerMixin {
     }
     List<PackResources> prepared;
     try {
-      prepared = DynamicPackLoads.prepare(type, packs, null);
+      prepared = DynamicPackLoads.prepare(type, packs, kind, null);
     } catch (RuntimeException | Error failure) {
       return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), null);
     }
@@ -74,7 +74,7 @@ public abstract class ReloadableResourceManagerMixin {
     }
     nativeReload.whenComplete((reload, failure) -> {
       if (failure != null) {
-        prepared.forEach(PackResources::close);
+        DynamicPackLoads.closeAfterFailure(prepared, failure);
       }
     });
     return DynamicPackLoads.gatedReload(nativeReload, opened);

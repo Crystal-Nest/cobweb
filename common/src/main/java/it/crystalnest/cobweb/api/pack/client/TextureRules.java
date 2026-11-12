@@ -79,7 +79,7 @@ public final class TextureRules {
   }
 
   private static NativeImage read(GenerationResources.File file) throws IOException {
-    try (var input = file.open()) {
+    try (var input = file.open(MAX_PNG_BYTES)) {
       byte[] png = input.readNBytes(MAX_PNG_BYTES + 1);
       if (png.length < 24 || png.length > MAX_PNG_BYTES) {
         throw new IOException("Incomplete PNG header or PNG exceeds the encoded byte limit of " + MAX_PNG_BYTES);

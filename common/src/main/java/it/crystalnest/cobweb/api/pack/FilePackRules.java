@@ -105,7 +105,7 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
     }
     Identifier id = Identifier.parse(text);
     try {
-      GeneratedPackExport.resourcePath(PackType.CLIENT_RESOURCES, id);
+      PackPaths.resourcePath(PackType.CLIENT_RESOURCES, id);
     } catch (IOException failure) {
       throw new IllegalArgumentException(failure.getMessage(), failure);
     }
@@ -120,7 +120,6 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
     return StrictJsonParser.parse(StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString());
   }
 
-
   enum Operation {
     COPY,
     PATCH_JSON,
@@ -129,8 +128,7 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
     WRITE
   }
 
-  record Rule(Operation operation, @Nullable Identifier from, Identifier to, Stage stage, @Nullable Phase phase, boolean skipMissing,
-              @Nullable Identifier secondary, @Nullable Identifier mask, List<JsonEdits.Edit> edits, @Nullable InlineWrite inline, boolean withMetadata, int index, String fingerprint) {
+  record Rule(Payload payload, Identifier to, Stage stage, @Nullable Phase phase, boolean skipMissing, int index, String fingerprint) {
     static Rule read(JsonObject object, PackType type, int index) {
       Operation operation = Operation.valueOf(string(object.get("op")).toUpperCase(Locale.ROOT));
       if (operation != Operation.WRITE && (object.has("if_destination") || object.has("on_mismatch"))) {
@@ -196,15 +194,25 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
       }
       var digest = CacheObservations.digest();
       CacheObservations.text(digest, object.toString());
-      return new Rule(operation, from, to, stage, phase, skip, secondary, mask, List.copyOf(edits), inline, withMetadata, index, CacheObservations.hex(digest));
+      Payload payload = switch (operation) {
+        case COPY -> new Copy(from, withMetadata);
+        case PATCH_JSON -> new Patch(from, List.copyOf(edits));
+        case RECOLOR_TEXTURE -> new Recolor(from, secondary, mask);
+        case OVERLAY_TEXTURE -> new Overlay(from, secondary);
+        case WRITE -> inline;
+      };
+      return new Rule(payload, to, stage, phase, skip, index, CacheObservations.hex(digest));
+    }
+
+    @Nullable
+    Identifier from() {
+      var inputs = payload.inputs();
+      return inputs.isEmpty() ? null : inputs.getFirst();
     }
 
     void generate(GenerationContext context, GenerationOutput output) throws IOException {
       Map<Identifier, GenerationResources.File> inputs = new HashMap<>();
-      for (Identifier id : new Identifier[]{from, secondary, mask}) {
-        if (id == null) {
-          continue;
-        }
+      for (Identifier id : payload.inputs()) {
         var source = context.resources().get(id);
         if (source.isEmpty()) {
           if (skipMissing) {
@@ -214,24 +222,46 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
         }
         inputs.put(id, source.get());
       }
-      var source = inputs.get(from);
-      switch (operation) {
-        case COPY -> output.copy(to, source, withMetadata, MAX_COPY);
-        case PATCH_JSON -> {
-          try (var input = source.open()) {
-            var patched = JsonEdits.apply(readJson(input, MAX_JSON), edits);
-            byte[] result = patched.toString().getBytes(StandardCharsets.UTF_8);
+      switch (payload) {
+        case Copy copy -> output.copy(to, inputs.get(copy.from()), copy.withMetadata(), MAX_COPY);
+        case Patch patch -> {
+          try (var input = inputs.get(patch.from()).open(MAX_JSON)) {
+            byte[] result = PackIO.json(JsonEdits.apply(readJson(input, MAX_JSON), patch.edits()));
             if (result.length > MAX_JSON) {
               throw new IOException("Patched JSON exceeds " + MAX_JSON + " bytes");
             }
             output.write(to, stream -> stream.write(result));
           }
         }
-        case RECOLOR_TEXTURE -> TextureRules.recolor(output, to, source, inputs.get(secondary), inputs.get(mask));
-        case OVERLAY_TEXTURE -> TextureRules.overlay(output, to, source, inputs.get(secondary));
-        case WRITE -> inline.generate(context, output, to);
+        case Recolor recolor -> TextureRules.recolor(output, to, inputs.get(recolor.from()), inputs.get(recolor.palette()), inputs.get(recolor.mask()));
+        case Overlay overlay -> TextureRules.overlay(output, to, inputs.get(overlay.from()), inputs.get(overlay.overlay()));
+        case InlineWrite inline -> inline.generate(context, output, to);
       }
     }
+  }
+
+  private sealed interface Payload {
+    List<Identifier> inputs();
+  }
+
+  private record Copy(Identifier from, boolean withMetadata) implements Payload {
+    @Override
+    public List<Identifier> inputs() { return List.of(from); }
+  }
+
+  private record Patch(Identifier from, List<JsonEdits.Edit> edits) implements Payload {
+    @Override
+    public List<Identifier> inputs() { return List.of(from); }
+  }
+
+  private record Recolor(Identifier from, Identifier palette, @Nullable Identifier mask) implements Payload {
+    @Override
+    public List<Identifier> inputs() { return mask == null ? List.of(from, palette) : List.of(from, palette, mask); }
+  }
+
+  private record Overlay(Identifier from, Identifier overlay) implements Payload {
+    @Override
+    public List<Identifier> inputs() { return List.of(from, overlay); }
   }
 
   private enum Destination {
@@ -239,7 +269,10 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
     ABSENT
   }
 
-  private record InlineWrite(String contents, @Nullable Destination destination, boolean failOnMismatch) {
+  private record InlineWrite(String contents, @Nullable Destination destination, boolean failOnMismatch) implements Payload {
+    @Override
+    public List<Identifier> inputs() { return List.of(); }
+
     private static InlineWrite read(JsonObject object) {
       if (object.has("from") || object.has("on_missing")) {
         throw new IllegalArgumentException("A write rule supplies its contents inline and cannot specify from or on_missing");

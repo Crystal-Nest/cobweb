@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.pack;
 
-import com.google.gson.JsonParser;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import net.minecraft.locale.Language;
 import net.minecraft.resources.Identifier;
@@ -137,7 +137,7 @@ public final class GenerationResources {
   public Set<String> namespaces() {
     context.checkOpen();
     var namespaces = new LinkedHashSet<>(manager.getNamespaces());
-    observations.observe(CacheObservations.Kind.NAMESPACES, "", digest -> namespaces.forEach(namespace -> CacheObservations.text(digest, namespace)));
+    observations.observe(CacheObservations.Kind.NAMESPACES, "", digest -> namespaces.stream().sorted().forEach(namespace -> CacheObservations.text(digest, namespace)));
     return Collections.unmodifiableSet(namespaces);
   }
 
@@ -197,12 +197,36 @@ public final class GenerationResources {
      * @throws IOException if the file cannot be opened.
      */
     public InputStream open() throws IOException {
+      return open(Long.MAX_VALUE);
+    }
+
+    /**
+     * Opens a resource with a capture limit. An oversized first capture fails this stage's shared input.
+     *
+     * @param maxBytes maximum captured bytes.
+     * @return callback-scoped stream.
+     * @throws IOException if the resource exceeds the limit or cannot be opened.
+     * @throws IllegalArgumentException if the limit is negative.
+     */
+    public InputStream open(long maxBytes) throws IOException {
+      if (maxBytes < 0) {
+        throw new IllegalArgumentException("Resource size limit must be nonnegative");
+      }
       context.checkOpen();
       try {
         var input = resource.open();
-        var scoped = context.stream(input);
-        observations.observeContent(id, directory, stackIndex, resource, input);
-        return scoped;
+        try {
+          PackIO.checkLimit(input, maxBytes);
+          observations.observeContent(id, directory, stackIndex, maxBytes, resource, input);
+          return context.stream(input);
+        } catch (IOException | RuntimeException | Error failure) {
+          try {
+            input.close();
+          } catch (IOException cleanup) {
+            failure.addSuppressed(cleanup);
+          }
+          throw failure;
+        }
       } catch (IOException | RuntimeException failure) {
         observations.unsupported();
         throw failure;

@@ -31,7 +31,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -129,12 +128,12 @@ public abstract class MinecraftServerMixin {
       try {
         fullLoadFiles.capture(server.getResourceManager());
       } catch (RuntimeException | Error failure) {
-        packs.forEach(PackResources::close);
+        DynamicPackLoads.closeAfterFailure(packs, failure);
         return CompletableFuture.failedFuture(failure);
       }
       ImmutableList<PackResources> prepared;
       try {
-        prepared = ImmutableList.copyOf(DynamicPackLoads.prepare(PackType.SERVER_DATA, packs, fullLoadFiles));
+        prepared = ImmutableList.copyOf(DynamicPackLoads.prepare(PackType.SERVER_DATA, packs, LoadKind.RELOAD, fullLoadFiles));
       } catch (RuntimeException | Error failure) {
         return CompletableFuture.failedFuture(failure);
       }
@@ -142,13 +141,13 @@ public abstract class MinecraftServerMixin {
       try {
         attempt = DynamicPackLoads.open(PackType.SERVER_DATA, prepared, LoadKind.RELOAD, server.getWorldPath(LevelResource.ROOT).resolve("cobweb/cache/data"), server.getPackRepository());
       } catch (RuntimeException | Error failure) {
-        prepared.forEach(PackResources::close);
+        DynamicPackLoads.closeAfterFailure(prepared, failure);
         return CompletableFuture.failedFuture(failure);
       }
       tracker.bind(attempt);
       return attempt.begin(server.registryAccess(), server.getWorldData().enabledFeatures()).thenCompose(ignored -> continuation.apply(prepared)).whenComplete((result, failure) -> {
         if (failure != null && attempt.hasRegisteredPacks() && !attempt.closed()) {
-          prepared.forEach(PackResources::close);
+          DynamicPackLoads.closeAfterFailure(prepared, failure);
         }
       });
     });
@@ -164,11 +163,9 @@ public abstract class MinecraftServerMixin {
   @Inject(method = "reloadResources", at = @At("RETURN"), cancellable = true)
   private void onReloadResources(CallbackInfoReturnable<CompletableFuture<Void>> cir, @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
     var tracker = shared.get();
-    var reload = tracker == null ? cir.getReturnValue() : tracker.watch(cir.getReturnValue());
     var server = (MinecraftServer) (Object) this;
-    if (AssetDelivery.get(server) != null) {
-      reload = reload.thenRun(() -> AssetDelivery.reload(server));
-    }
+    Runnable applied = () -> AssetDelivery.reload(server);
+    var reload = tracker == null ? cir.getReturnValue().thenRun(applied) : tracker.watch(cir.getReturnValue(), applied);
     cir.setReturnValue(reload);
   }
 

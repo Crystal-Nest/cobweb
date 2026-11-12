@@ -36,7 +36,7 @@ public final class CallbackRegistration {
   /**
    * Enables caching with an additional fingerprint derived from captured inputs.
    *
-   * @param fingerprint returns a stable value describing additional dependencies.
+   * @param fingerprint returns a stable string, primitive wrapper or enum describing additional dependencies; other values disable caching with a warning.
    * @return this registration.
    */
   public CallbackRegistration cache(Function<CapturedValues, ?> fingerprint) {
@@ -47,7 +47,7 @@ public final class CallbackRegistration {
    * Enables caching with an explicit callback key and additional fingerprint.
    *
    * @param key pack-local callback identity.
-   * @param fingerprint returns a stable value describing additional dependencies.
+   * @param fingerprint returns a stable string, primitive wrapper or enum describing additional dependencies; other values disable caching with a warning.
    * @return this registration.
    */
   public CallbackRegistration cache(String key, Function<CapturedValues, ?> fingerprint) {

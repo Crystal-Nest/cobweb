@@ -9,7 +9,6 @@ import net.minecraft.server.packs.repository.KnownPack;
 import net.minecraft.server.packs.resources.IoSupplier;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.DigestOutputStream;
@@ -43,7 +42,7 @@ final class StageResourceSnapshots implements AutoCloseable {
 
   @Nullable
   IoSupplier<InputStream> wrap(PackResources source, PackType type, Identifier id, @Nullable IoSupplier<InputStream> original) {
-    return original == null || type != this.type ? original : () -> capture(source, id).open(original);
+    return original == null || type != this.type ? original : () -> new SnapshotStream(capture(source, id), original);
   }
 
   private synchronized Capture capture(PackResources source, Identifier id) throws IOException {
@@ -119,13 +118,13 @@ final class StageResourceSnapshots implements AutoCloseable {
 
     private final CompletableFuture<Captured> result = new CompletableFuture<>();
 
-    private InputStream open(IoSupplier<InputStream> source) throws IOException {
+    private Captured open(IoSupplier<InputStream> source, long limit) throws IOException {
       if (started.compareAndSet(false, true)) {
         try {
           var digest = CacheObservations.digest();
           var content = PackFile.write(output -> {
             try (var input = source.get()) {
-              input.transferTo(new DigestOutputStream(output, digest));
+              PackIO.copy(input, new DigestOutputStream(output, digest), limit);
             }
           });
           result.complete(new Captured(content, CacheObservations.hex(digest)));
@@ -136,7 +135,10 @@ final class StageResourceSnapshots implements AutoCloseable {
       }
       try {
         var captured = result.join();
-        return new SnapshotStream(captured.content.open(), captured.digest);
+        if (captured.content.size() > limit) {
+          throw new IOException("Resource exceeds " + limit + " bytes");
+        }
+        return captured;
       } catch (CompletionException failure) {
         if (failure.getCause() instanceof IOException io) {
           throw io;
@@ -148,12 +150,72 @@ final class StageResourceSnapshots implements AutoCloseable {
 
   private record Captured(PackFile content, String digest) {}
 
-  static final class SnapshotStream extends FilterInputStream {
-    final String digest;
+  static final class SnapshotStream extends InputStream implements PackFile.CapturedStream {
+    private final Capture capture;
 
-    private SnapshotStream(InputStream input, String digest) {
-      super(input);
-      this.digest = digest;
+    private final IoSupplier<InputStream> source;
+
+    private Captured captured;
+
+    private InputStream input;
+
+    private boolean closed;
+
+    private SnapshotStream(Capture capture, IoSupplier<InputStream> source) {
+      this.capture = capture;
+      this.source = source;
+    }
+
+    void initialize(long limit) throws IOException {
+      if (closed) {
+        throw new IOException("Snapshot stream has closed");
+      }
+      if (input == null) {
+        captured = capture.open(source, limit);
+        input = captured.content.open();
+      } else if (captured.content.size() > limit) {
+        throw new IOException("Resource exceeds " + limit + " bytes");
+      }
+    }
+
+    @Override
+    public String digest() throws IOException {
+      initialize(Long.MAX_VALUE);
+      return captured.digest;
+    }
+
+    @Override
+    public long size() throws IOException {
+      initialize(Long.MAX_VALUE);
+      return captured.content.size();
+    }
+
+    @Override
+    public int read() throws IOException {
+      initialize(Long.MAX_VALUE);
+      return input.read();
+    }
+
+    @Override
+    public int read(byte[] bytes, int offset, int length) throws IOException {
+      initialize(Long.MAX_VALUE);
+      return input.read(bytes, offset, length);
+    }
+
+    @Override
+    public long skip(long size) throws IOException {
+      initialize(Long.MAX_VALUE);
+      return input.skip(size);
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (!closed) {
+        closed = true;
+        if (input != null) {
+          input.close();
+        }
+      }
     }
   }
 }

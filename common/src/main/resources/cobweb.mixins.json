@@ -9,6 +9,7 @@
     "DedicatedServerMixin",
     "DedicatedServerPropertiesAccessor",
     "MinecraftServerMixin",
+    "PackRepositoryDiscoveryMixin",
     "OverlayedPackResourcesAccessor",
     "RegistryDataLoaderMixin",
     "ReloadableServerResourcesMixin",

@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -22,9 +23,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
+import java.util.function.BooleanSupplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -52,6 +57,20 @@ public final class AssetPackArchives {
    * @return detached publication job.
    */
   public static Build capture(MinecraftServer server, List<AssetPack> packs, boolean warnClientCallbacks) {
+    return capture(server, packs, warnClientCallbacks, new Reuse(), () -> true);
+  }
+
+  /**
+   * Captures a cancellable publication with reusable static archives.
+   *
+   * @param server server on its main thread after a successful load.
+   * @param packs selected packs in increasing priority.
+   * @param warnClientCallbacks whether to report client-only output.
+   * @param reuse archive records owned by this publisher.
+   * @param current whether the requested revision is still current.
+   * @return detached publication job.
+   */
+  public static Build capture(MinecraftServer server, List<AssetPack> packs, boolean warnClientCallbacks, Reuse reuse, BooleanSupplier current) {
     var captures = new ArrayList<Captured>();
     for (AssetPack pack : packs) {
       var publication = pack.capturePublication(server);
@@ -60,15 +79,16 @@ public final class AssetPackArchives {
       }
       captures.add(new Captured(pack, publication));
     }
-    return (directory, staging) -> write(directory, staging, captures);
+    return (directory, staging) -> write(directory, staging, captures, reuse, current);
   }
 
-  private static List<Archive> write(Path directory, Path staging, List<Captured> captures) throws IOException {
+  private static List<Archive> write(Path directory, Path staging, List<Captured> captures, Reuse reuse, BooleanSupplier current) throws IOException {
     Files.createDirectories(directory);
     Files.createDirectories(staging);
     var resources = new ArrayList<PackResources>();
     try {
       for (var capture : captures) {
+        checkCurrent(current);
         var nativePack = capture.pack.toPack();
         if (nativePack == null || !nativePack.getCompatibility().isCompatible()) {
           throw new IOException("Invalid or incompatible asset pack metadata for " + capture.pack.identifier());
@@ -80,6 +100,7 @@ public final class AssetPackArchives {
       NativePackDependencies.validatePublication(resources);
       var archives = new ArrayList<Archive>();
       for (int index = 0; index < resources.size(); index++) {
+        checkCurrent(current);
         var capture = captures.get(index);
         var pack = (GeneratedPackResources) resources.get(index);
         if (capture.publication != null) {
@@ -91,7 +112,16 @@ public final class AssetPackArchives {
             output.close();
           }
         }
-        archives.add(writeArchive(directory, staging, pack));
+        var previous = capture.publication == null ? reuse.staticArchives.get(capture.pack.identifier()) : null;
+        if (previous != null && previous.contents.equals(fingerprint(pack, current)) && intact(previous.archive, current)) {
+          archives.add(previous.archive);
+        } else {
+          var written = writeArchive(directory, staging, pack, current);
+          archives.add(written.archive);
+          if (capture.publication == null) {
+            reuse.staticArchives.put(capture.pack.identifier(), written);
+          }
+        }
       }
       return List.copyOf(archives);
     } finally {
@@ -99,7 +129,9 @@ public final class AssetPackArchives {
     }
   }
 
-  private static Archive writeArchive(Path directory, Path scratch, GeneratedPackResources pack) throws IOException {
+  private static CachedArchive writeArchive(Path directory, Path scratch, GeneratedPackResources pack, BooleanSupplier current) throws IOException {
+    checkCurrent(current);
+    var contentHash = CacheObservations.digest();
     Path staging = Files.createTempFile(scratch, ".pending-", ".zip");
     var sha1 = digest("SHA-1");
     var sha256 = digest("SHA-256");
@@ -118,10 +150,14 @@ public final class AssetPackArchives {
           var entry = new ZipEntry(name);
           entry.setTimeLocal(ZIP_TIME);
           zip.putNextEntry(entry);
-          input.transferTo(contents);
+          CacheObservations.text(contentHash, name);
+          var entryHash = CacheObservations.digest();
+          copy(input, new DigestOutputStream(contents, entryHash), current);
+          CacheObservations.text(contentHash, CacheObservations.hex(entryHash));
           zip.closeEntry();
         });
       }
+      checkCurrent(current);
       String address = HexFormat.of().formatHex(sha256.digest());
       Path destination = directory.resolve(address + ".zip");
       long size = Files.size(staging);
@@ -134,11 +170,70 @@ public final class AssetPackArchives {
       }
       var id = pack.definition.identifier();
       var uuid = UUID.nameUUIDFromBytes(("cobweb:published-assets/" + id).getBytes(StandardCharsets.UTF_8));
-      return new Archive(id, uuid, address, HexFormat.of().formatHex(sha1.digest()), destination, size);
+      return new CachedArchive(CacheObservations.hex(contentHash), new Archive(id, uuid, address, HexFormat.of().formatHex(sha1.digest()), destination, size));
     } finally {
       Files.deleteIfExists(staging);
     }
   }
+
+  private static String fingerprint(GeneratedPackResources pack, BooleanSupplier current) throws IOException {
+    var digest = CacheObservations.digest();
+    var bounded = new LimitedOutput(OutputStream.nullOutputStream(), MAX_CONTENT_BYTES);
+    int[] entries = {0};
+    GeneratedPackExport.writeContents(pack, false, (name, input) -> {
+      if (++entries[0] > MAX_ENTRIES) {
+        throw new IOException("Too many files in published asset pack " + pack.packId());
+      }
+      CacheObservations.text(digest, name);
+      var content = CacheObservations.digest();
+      copy(input, new DigestOutputStream(bounded, content), current);
+      CacheObservations.text(digest, CacheObservations.hex(content));
+    });
+    return CacheObservations.hex(digest);
+  }
+
+  private static boolean intact(Archive archive, BooleanSupplier current) throws IOException {
+    if (!Files.isRegularFile(archive.path(), LinkOption.NOFOLLOW_LINKS) || Files.size(archive.path()) != archive.size()) {
+      return false;
+    }
+    var digest = CacheObservations.digest();
+    try (var input = Files.newInputStream(archive.path(), LinkOption.NOFOLLOW_LINKS)) {
+      copy(input, new DigestOutputStream(OutputStream.nullOutputStream(), digest), current);
+    }
+    return archive.address().equals(CacheObservations.hex(digest));
+  }
+
+  private static void copy(InputStream input, OutputStream output, BooleanSupplier current) throws IOException {
+    byte[] buffer = new byte[8192];
+    while (true) {
+      checkCurrent(current);
+      int count = input.read(buffer);
+      if (count < 0) {
+        return;
+      }
+      output.write(buffer, 0, count);
+    }
+  }
+
+  private static void checkCurrent(BooleanSupplier current) {
+    if (!current.getAsBoolean() || Thread.currentThread().isInterrupted()) {
+      throw new CancellationException("Asset publication superseded or stopped");
+    }
+  }
+
+  /**
+   * Retains static archive fingerprints for one serial publication worker.
+   */
+  public static final class Reuse {
+    private final Map<Identifier, CachedArchive> staticArchives = new HashMap<>();
+
+    /**
+     * Creates an empty publisher-owned archive index.
+     */
+    public Reuse() {}
+  }
+
+  private record CachedArchive(String contents, Archive archive) {}
 
   private static MessageDigest digest(String algorithm) {
     try {

@@ -7,6 +7,7 @@ import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.client.AssetGenerationResources;
 import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.Identifier;
@@ -16,13 +17,13 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.flag.FeatureFlagSet;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -229,7 +230,14 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
 
   DynamicOps<JsonElement> jsonOps() {
     checkOpen();
-    return phase.type() == PackType.CLIENT_RESOURCES ? JsonOps.INSTANCE : RegistryOps.create(JsonOps.INSTANCE, registries());
+    return phase.type() == PackType.CLIENT_RESOURCES ? JsonOps.INSTANCE : RegistryOps.create(JsonOps.INSTANCE, new RegistryOps.RegistryInfoLookup() {
+      @Override
+      public <T> Optional<HolderGetter<T>> lookup(ResourceKey<? extends Registry<? extends T>> key) {
+        checkOpen();
+        observations.unsupported();
+        return registries.lookup(key).map(value -> value);
+      }
+    });
   }
 
   void observe(CacheObservations.Kind kind, String key) {

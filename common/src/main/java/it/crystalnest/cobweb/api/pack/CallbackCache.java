@@ -44,7 +44,7 @@ import java.util.zip.ZipFile;
  * Stores one validated contribution batch per cached callback or file rule and cache scope.
  */
 final class CallbackCache {
-  private static final int FORMAT = 3;
+  private static final int FORMAT = 4;
 
   private static final int ENTRY_LIMIT = 32_768;
 
@@ -124,8 +124,12 @@ final class CallbackCache {
         return null;
       }
     }
-    if (callbackPolicy.fingerprint() != null && !value(digest, callbackPolicy.fingerprint().apply(context))) {
-      return null;
+    if (callbackPolicy.fingerprint() != null) {
+      Object extra = callbackPolicy.fingerprint().apply(context);
+      if (!value(digest, extra)) {
+        Constants.LOGGER.warn("Unsupported pack cache fingerprint type {} for callback {} in {}; return a string, primitive wrapper or enum", extra == null ? "null" : extra.getClass().getName(), task.index(), context.pack());
+        return null;
+      }
     }
     return CacheObservations.hex(digest);
   }
@@ -216,7 +220,7 @@ final class CallbackCache {
         if (!fingerprint.equals(current.fingerprint())) {
           return null;
         }
-        current.values().forEach(Contribution::retain);
+        current.values().forEach(PackContribution::retain);
       }
     }
     if (current != null) {
@@ -226,14 +230,14 @@ final class CallbackCache {
         return valid ? current : null;
       } finally {
         if (!valid) {
-          current.values().forEach(Contribution::release);
+          current.values().forEach(PackContribution::release);
         }
       }
     }
     if (!Files.isRegularFile(file)) {
       return null;
     }
-    List<Contribution> values = new ArrayList<>();
+    List<PackContribution> values = new ArrayList<>();
     boolean accepted = false;
     try {
       if (Files.size(file) > RECORD_LIMIT) {
@@ -254,10 +258,11 @@ final class CallbackCache {
           return null;
         }
         var observations = new LinkedHashMap<CacheObservations.Request, String>();
+        var verification = verifier.verification();
         for (int remaining = count(input); remaining > 0; remaining--) {
-          var request = new CacheObservations.Request(CacheObservations.Kind.valueOf(input.readUTF()), input.readUTF());
+          var request = readRequest(input);
           String saved = input.readUTF();
-          if (!saved.equals(verifier.fingerprint(request))) {
+          if (!saved.equals(verification.fingerprint(request))) {
             return null;
           }
           observations.put(request, saved);
@@ -266,7 +271,7 @@ final class CallbackCache {
           Identifier id = Identifier.parse(input.readUTF());
           int operation = input.readUnsignedByte();
           if (operation == 0) {
-            values.add(Contribution.file(id, readFile(input)));
+            values.add(PackContribution.file(id, readFile(input)));
           } else if (operation == 1) {
             Boolean replace = switch (input.readByte()) {
               case 0 -> null;
@@ -274,19 +279,19 @@ final class CallbackCache {
               case 2 -> true;
               default -> throw new IOException("Invalid cached tag operation");
             };
-            var tag = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(input.readUTF())).getOrThrow();
-            values.add(Contribution.tag(id, new GenerationOutput.TagAddition(tag.entries(), replace)));
+            var tag = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(readText(input))).getOrThrow();
+            values.add(PackContribution.tag(id, new GenerationOutput.TagAddition(tag.entries(), replace)));
           } else if (operation == 2) {
             var contents = readFile(input);
             try {
-              values.add(Contribution.withMetadata(id, contents, input.readBoolean() ? readFile(input) : null));
+              values.add(PackContribution.withMetadata(id, contents, input.readBoolean() ? readFile(input) : null));
             } catch (IOException | RuntimeException | Error failure) {
               contents.release();
               throw failure;
             }
           } else if (operation == 3) {
-            String member = input.readUTF();
-            values.add(Contribution.member(id, member, readFile(input)));
+            String member = readText(input);
+            values.add(PackContribution.member(id, member, readFile(input)));
           } else {
             throw new IOException("Invalid cached pack operation");
           }
@@ -303,7 +308,7 @@ final class CallbackCache {
       return null;
     } finally {
       if (!accepted) {
-        values.forEach(Contribution::release);
+        values.forEach(PackContribution::release);
       }
     }
   }
@@ -346,7 +351,7 @@ final class CallbackCache {
       if (previous != batch) {
         forget(file);
         if (batch != null && batch.bytes() <= LIVE_LIMIT) {
-          batch.values().forEach(Contribution::retain);
+          batch.values().forEach(PackContribution::retain);
           BASELINES.put(file, batch);
           baselineBytes += batch.bytes();
           while (baselineBytes > LIVE_LIMIT || BASELINES.size() > LIVE_ENTRIES) {
@@ -359,7 +364,7 @@ final class CallbackCache {
       return;
     }
     if (batch != null && !hit) {
-      batch.values().forEach(Contribution::retain);
+      batch.values().forEach(PackContribution::retain);
     }
     try {
       WRITER.execute(() -> {
@@ -380,14 +385,14 @@ final class CallbackCache {
           Constants.LOGGER.warn("Unable to persist generated pack cache {}", file, failure);
         } finally {
           if (batch != null && !hit) {
-            batch.values().forEach(Contribution::release);
+            batch.values().forEach(PackContribution::release);
           }
         }
       });
     } catch (RejectedExecutionException busy) {
       Constants.LOGGER.debug("Pack cache writer is busy, skipping persistence of {}", file);
       if (batch != null && !hit) {
-        batch.values().forEach(Contribution::release);
+        batch.values().forEach(PackContribution::release);
       }
     }
   }
@@ -412,7 +417,7 @@ final class CallbackCache {
     var old = BASELINES.remove(file);
     if (old != null) {
       baselineBytes -= old.bytes();
-      old.values().forEach(Contribution::release);
+      old.values().forEach(PackContribution::release);
     }
   }
 
@@ -433,31 +438,36 @@ final class CallbackCache {
         output.writeUTF(batch.fingerprint());
         output.writeInt(batch.observations().size());
         for (var entry : batch.observations().entrySet()) {
-          output.writeUTF(entry.getKey().kind().name());
-          output.writeUTF(entry.getKey().key());
+          writeRequest(output, entry.getKey());
           output.writeUTF(entry.getValue());
         }
         output.writeInt(batch.values().size());
-        for (Contribution entry : batch.values()) {
+        for (PackContribution entry : batch.values()) {
           output.writeUTF(entry.id().toString());
-          var tag = entry.tag();
-          if (tag != null) {
-            output.writeByte(1);
-            output.writeByte(tag.replace() == null ? 0 : tag.replace() ? 2 : 1);
-            output.writeUTF(TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(tag.entries(), false)).getOrThrow().toString());
-          } else if (entry.groupsMetadata()) {
-            output.writeByte(2);
-            writeFile(output, entry.file());
-            output.writeBoolean(entry.companion() != null);
-            if (entry.companion() != null) {
-              writeFile(output, entry.companion());
+          switch (entry) {
+            case PackContribution.File fileEntry -> {
+              output.writeByte(0);
+              writeFile(output, fileEntry.contents());
             }
-          } else {
-            output.writeByte(entry.member() == null ? 0 : 3);
-            if (entry.member() != null) {
-              output.writeUTF(entry.member());
+            case PackContribution.Tag tagEntry -> {
+              var tag = tagEntry.addition();
+              output.writeByte(1);
+              output.writeByte(tag.replace() == null ? 0 : tag.replace() ? 2 : 1);
+              writeText(output, TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(tag.entries(), false)).getOrThrow().toString());
             }
-            writeFile(output, entry.file());
+            case PackContribution.WithMetadata grouped -> {
+              output.writeByte(2);
+              writeFile(output, grouped.contents());
+              output.writeBoolean(grouped.metadata() != null);
+              if (grouped.metadata() != null) {
+                writeFile(output, grouped.metadata());
+              }
+            }
+            case PackContribution.Member member -> {
+              output.writeByte(3);
+              writeText(output, member.name());
+              writeFile(output, member.contents());
+            }
           }
         }
         destination.on(false);
@@ -479,6 +489,55 @@ final class CallbackCache {
     } finally {
       Files.deleteIfExists(temporary);
     }
+  }
+
+  private static void writeRequest(DataOutputStream output, CacheObservations.Request request) throws IOException {
+    output.writeUTF(request.kind().name());
+    if (request.file() == null) {
+      writeText(output, request.key());
+    } else {
+      var file = request.file();
+      output.writeUTF(file.id().toString());
+      output.writeInt(file.stackIndex());
+      output.writeLong(file.maxBytes());
+      output.writeBoolean(file.directory() != null);
+      if (file.directory() != null) {
+        writeText(output, file.directory());
+      }
+    }
+  }
+
+  private static CacheObservations.Request readRequest(DataInputStream input) throws IOException {
+    var kind = CacheObservations.Kind.valueOf(input.readUTF());
+    if (kind != CacheObservations.Kind.CONTENT && kind != CacheObservations.Kind.METADATA) {
+      return new CacheObservations.Request(kind, readText(input));
+    }
+    var id = Identifier.parse(input.readUTF());
+    int index = input.readInt();
+    long maxBytes = input.readLong();
+    String directory = input.readBoolean() ? readText(input) : null;
+    return new CacheObservations.Request(kind, new CacheObservations.FileAddress(id, directory, index, maxBytes));
+  }
+
+  private static void writeText(DataOutputStream output, String value) throws IOException {
+    byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    if (bytes.length > RECORD_LIMIT) {
+      throw new IOException("Cached text exceeds its size limit");
+    }
+    output.writeInt(bytes.length);
+    output.write(bytes);
+  }
+
+  private static String readText(DataInputStream input) throws IOException {
+    int length = input.readInt();
+    if (length < 0 || length > RECORD_LIMIT) {
+      throw new IOException("Invalid cached text size");
+    }
+    byte[] bytes = input.readNBytes(length);
+    if (bytes.length != length) {
+      throw new EOFException("Truncated cached text");
+    }
+    return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
   }
 
   private static void writeFile(DataOutputStream output, PackFile file) throws IOException {
@@ -516,53 +575,9 @@ final class CallbackCache {
     }
   }
 
-  record Contribution(Identifier id, @Nullable PackFile file, @Nullable GenerationOutput.TagAddition tag, boolean groupsMetadata, @Nullable PackFile companion, @Nullable String member) {
-    static Contribution file(Identifier id, PackFile file) {
-      return new Contribution(id, file, null, false, null, null);
-    }
-
-    static Contribution tag(Identifier id, GenerationOutput.TagAddition tag) {
-      return new Contribution(id, null, tag, false, null, null);
-    }
-
-    static Contribution withMetadata(Identifier id, PackFile file, @Nullable PackFile companion) {
-      return new Contribution(id, file, null, true, companion, null);
-    }
-
-    static Contribution member(Identifier id, String name, PackFile file) {
-      return new Contribution(id, file, null, false, null, name);
-    }
-
-    Identifier companionId() {
-      return id.withPath(path -> path + ".mcmeta");
-    }
-
-    void retain() {
-      if (file != null) {
-        file.retain();
-      }
-      if (companion != null) {
-        companion.retain();
-      }
-    }
-
-    void release() {
-      if (file != null) {
-        file.release();
-      }
-      if (companion != null) {
-        companion.release();
-      }
-    }
-
+  record Batch(String revision, String fingerprint, Map<CacheObservations.Request, String> observations, List<PackContribution> values) {
     long bytes() {
-      return file == null ? 256L + 96L * tag.entries().size() : file.size() + (companion == null ? 0 : companion.size());
-    }
-  }
-
-  record Batch(String revision, String fingerprint, Map<CacheObservations.Request, String> observations, List<Contribution> values) {
-    long bytes() {
-      return values.stream().mapToLong(Contribution::bytes).sum();
+      return values.stream().mapToLong(PackContribution::bytes).sum();
     }
   }
 }

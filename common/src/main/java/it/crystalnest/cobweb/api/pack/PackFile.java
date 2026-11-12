@@ -12,8 +12,8 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.util.regex.Pattern;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 /**
  * Owns the immutable bytes of one submitted file and the leases of its native readers.
@@ -40,6 +40,8 @@ final class PackFile {
   private final long size;
 
   private int leases = 1;
+
+  private String digest;
 
   private PackFile(byte[] bytes, Path path, long size) {
     this.bytes = bytes;
@@ -79,21 +81,48 @@ final class PackFile {
     }
     InputStream input = path == null ? new ByteArrayInputStream(bytes) : Files.newInputStream(path);
     leases++;
-    return new FilterInputStream(input) {
-      private boolean closed;
+    return new FileStream(input);
+  }
 
-      @Override
-      public void close() throws IOException {
-        if (!closed) {
-          closed = true;
-          try {
-            super.close();
-          } finally {
-            release();
-          }
+  private synchronized String digest() throws IOException {
+    if (digest == null) {
+      var hash = CacheObservations.digest();
+      try (var input = path == null ? new ByteArrayInputStream(bytes) : Files.newInputStream(path)) {
+        input.transferTo(new java.security.DigestOutputStream(OutputStream.nullOutputStream(), hash));
+      }
+      digest = CacheObservations.hex(hash);
+    }
+    return digest;
+  }
+
+  interface CapturedStream {
+    String digest() throws IOException;
+
+    long size() throws IOException;
+  }
+
+  private final class FileStream extends FilterInputStream implements CapturedStream {
+    private boolean closed;
+
+    private FileStream(InputStream input) { super(input); }
+
+    @Override
+    public String digest() throws IOException { return PackFile.this.digest(); }
+
+    @Override
+    public long size() { return size; }
+
+    @Override
+    public void close() throws IOException {
+      if (!closed) {
+        closed = true;
+        try {
+          super.close();
+        } finally {
+          release();
         }
       }
-    };
+    }
   }
 
   synchronized void release() {

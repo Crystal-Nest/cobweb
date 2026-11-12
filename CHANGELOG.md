@@ -50,6 +50,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Added optional copying of resource sidecars in JSON rules and Java callbacks.
   - Added automatic caching for file rules and tracked resolved resource sidecars in cached generation.
   - Shared first-read resource snapshots across Java callbacks and JSON rules in the same stage, keeping cache fingerprints consistent with the bytes used for generation.
+  - Enforced file-rule input limits during capture and cache validation, and released superseded generated backing after successful loads.
+  - Fixed large additive-tag cache records, reused directory listings and immutable file digests during validation, and kept registry-independent codecs cacheable. Documented supported fingerprint values and warned about unsupported types.
+  - Reported file-rule preparation failures to load observers and preserved reload cancellation when asset publication is enabled.
+  - Queued bounded HTTP download bursts, stopped obsolete publication work cooperatively, and reused unchanged static archives. Rejected client mod requirements for server-delivered packs.
+  - Cached discovery identities until repository refresh and separated generation planning, contribution merging, rule payloads, ownership, and delivery phases.
 
 - **Configuration changes**
   - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge

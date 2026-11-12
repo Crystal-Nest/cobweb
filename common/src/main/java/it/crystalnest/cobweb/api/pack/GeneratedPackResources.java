@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.pack;
 
-import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
+import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.mixin.OverlayedPackResourcesAccessor;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.BundledPackResources;
@@ -20,11 +20,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -57,7 +57,7 @@ final class GeneratedPackResources implements PackResources {
 
   private volatile Map<Identifier, File> files;
 
-  private final Set<PackFile> owned = Collections.newSetFromMap(new IdentityHashMap<>());
+  private final PackFileOwner owned = new PackFileOwner();
 
   private boolean closed;
 
@@ -146,11 +146,7 @@ final class GeneratedPackResources implements PackResources {
       bundles.retain();
     }
     var snapshot = copy(files, bundles, true);
-    files.values().forEach(file -> {
-      if (snapshot.owned.add(file.content)) {
-        file.content.retain();
-      }
-    });
+    files.values().forEach(file -> snapshot.owned.retain(file.content));
     return snapshot;
   }
 
@@ -158,34 +154,51 @@ final class GeneratedPackResources implements PackResources {
     Map<Identifier, File> retained = new HashMap<>();
     previous.files.forEach((id, file) -> {
       if (file.lifetime == ResourceLifetime.FULL_LOAD) {
-        if (owned.add(file.content)) {
-          file.content.retain();
-        }
+        owned.retain(file.content);
         retained.put(id, file);
       }
     });
     files = Map.copyOf(retained);
   }
 
-  synchronized void own(PackFile file) {
+  /**
+   * Adopts the caller's reference after validating the opening is live.
+   *
+   * @param file transferred backing.
+   */
+  synchronized void adopt(PackFile file) {
     if (closed) {
       throw new IllegalStateException("Resource pack opening has closed: " + packId());
     }
-    owned.add(file);
+    owned.adopt(file);
   }
 
-  synchronized void ownBatch(List<CallbackCache.Contribution> files) {
+  /**
+   * Adopts submitted references or independently retained cache references as one batch.
+   *
+   * @param files contributions transferred together.
+   */
+  synchronized void adoptBatch(List<PackContribution> files) {
     if (closed) {
       throw new IllegalStateException("Resource pack opening has closed: " + packId());
     }
-    for (var entry : files) {
-      if (entry.file() != null) {
-        owned.add(entry.file());
-      }
-      if (entry.companion() != null) {
-        owned.add(entry.companion());
-      }
+    files.forEach(entry -> entry.backing().forEach(owned::adopt));
+  }
+
+  synchronized void adopt(PackFileOwner owner) {
+    if (closed) {
+      throw new IllegalStateException("Resource pack opening has closed: " + packId());
     }
+    owner.transferTo(owned);
+  }
+
+  /**
+   * Releases superseded ownership after readers have finished and cache owners have retained their batches.
+   */
+  synchronized void releaseSuperseded() {
+    var visible = Collections.newSetFromMap(new IdentityHashMap<PackFile, Boolean>());
+    files.values().forEach(file -> visible.add(file.content));
+    owned.keep(visible);
   }
 
   synchronized void publish(Map<Identifier, File> additions) {
@@ -266,8 +279,7 @@ final class GeneratedPackResources implements PackResources {
     }
     closed = true;
     files = Map.of();
-    owned.forEach(PackFile::release);
-    owned.clear();
+    owned.close();
     if (ownsBundles && bundles != null) {
       bundles.release();
     }

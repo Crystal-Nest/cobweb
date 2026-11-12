@@ -1,9 +1,5 @@
 package it.crystalnest.cobweb.api.pack;
 
-import com.google.gson.JsonParser;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonElement;
-import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
 import it.crystalnest.cobweb.platform.Services;
@@ -12,11 +8,9 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.LayeredRegistryAccess;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.RegistryDataLoader;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.RegistryLayer;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
@@ -26,18 +20,12 @@ import net.minecraft.server.packs.resources.MultiPackResourceManager;
 import net.minecraft.server.packs.resources.ReloadInstance;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.tags.TagKey;
-import net.minecraft.tags.TagEntry;
-import net.minecraft.tags.TagFile;
 import net.minecraft.tags.TagLoader;
 import net.minecraft.util.Util;
 import net.minecraft.world.flag.FeatureFlagSet;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,20 +34,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 /**
@@ -78,11 +65,12 @@ public final class DynamicPackLoads {
    *
    * @param type native pack side.
    * @param packs selected openings whose ownership transfers to the result.
+   * @param kind current load kind.
    * @param fullLoadFiles retained world output for a server reload, if applicable.
    * @return openings in unchanged native priority order.
    * @throws IllegalArgumentException if a selected file rule manifest is invalid.
    */
-  public static List<PackResources> prepare(PackType type, List<PackResources> packs, @Nullable FullLoadFiles fullLoadFiles) {
+  public static List<PackResources> prepare(PackType type, List<PackResources> packs, LoadKind kind, @Nullable FullLoadFiles fullLoadFiles) {
     var prepared = new ArrayList<>(packs);
     try {
       for (int index = 0; index < prepared.size(); index++) {
@@ -106,8 +94,35 @@ public final class DynamicPackLoads {
       }
       return List.copyOf(prepared);
     } catch (RuntimeException | Error failure) {
-      prepared.forEach(PackResources::close);
+      notifyObservers(type, prepared, kind, failure);
+      closeAfterFailure(prepared, failure);
       throw failure;
+    }
+  }
+
+  /**
+   * Closes candidate openings while preserving the original load failure.
+   *
+   * @param packs candidate resources to release.
+   * @param failure original failure receiving any cleanup errors.
+   */
+  public static void closeAfterFailure(List<PackResources> packs, Throwable failure) {
+    packs.forEach(pack -> closeAfterFailure(pack::close, failure));
+  }
+
+  /**
+   * Runs native cleanup without replacing the original load failure.
+   *
+   * @param cleanup native owner cleanup.
+   * @param failure original failure receiving any cleanup error.
+   */
+  public static void closeAfterFailure(Runnable cleanup, Throwable failure) {
+    try {
+      cleanup.run();
+    } catch (RuntimeException | Error closeFailure) {
+      if (closeFailure != failure) {
+        failure.addSuppressed(closeFailure);
+      }
     }
   }
 
@@ -206,6 +221,18 @@ public final class DynamicPackLoads {
      * @return observed result.
      */
     public <T> CompletableFuture<T> watch(CompletableFuture<T> nativeResult) {
+      return watch(nativeResult, () -> {});
+    }
+
+    /**
+     * Runs a successful-load action without losing cancellation forwarding.
+     *
+     * @param nativeResult native load completion.
+     * @param applied action after generation is committed.
+     * @param <T> native result type.
+     * @return observed result including the action's failure, if any.
+     */
+    public <T> CompletableFuture<T> watch(CompletableFuture<T> nativeResult, Runnable applied) {
       var result = new CompletableFuture<T>() {
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
@@ -228,7 +255,12 @@ public final class DynamicPackLoads {
               attempt.finish(failure);
             }
             if (failure == null) {
-              result.complete(value);
+              try {
+                applied.run();
+                result.complete(value);
+              } catch (RuntimeException | Error actionFailure) {
+                result.completeExceptionally(actionFailure);
+              }
             } else {
               result.completeExceptionally(failure);
             }
@@ -431,11 +463,9 @@ public final class DynamicPackLoads {
 
     private final PackQueries.Request request;
 
-    private final Map<GeneratedPackResources, List<GeneratedPackResources>> order = new LinkedHashMap<>();
+    private final GenerationPlan plan;
 
     private final Map<TagKey<?>, List<? extends Holder<?>>> tags = new HashMap<>();
-
-    private final Map<CapturedInput<?>, Object> captured = new IdentityHashMap<>();
 
     private final AtomicLong sequence = new AtomicLong();
 
@@ -445,10 +475,6 @@ public final class DynamicPackLoads {
     private final Path cacheRoot;
 
     private final Collection<CacheUpdate> cacheUpdates = new ConcurrentLinkedQueue<>();
-
-    private final List<FileRule> fileRules = new ArrayList<>();
-
-    private final Map<GeneratedPackResources, List<ResourcePack.Task>> fileTasks = new IdentityHashMap<>();
 
     private final Set<Phase> started = new HashSet<>();
 
@@ -471,138 +497,8 @@ public final class DynamicPackLoads {
       this.kind = kind;
       this.cacheRoot = cacheRoot;
       this.request = request;
-      if (type == PackType.SERVER_DATA) {
-        Services.REGISTRY.worldRegistries().forEach(entry -> addRegistryRules(entry.key(), Phase.STATIC_TAGS_READY, ResourceLifetime.FULL_LOAD));
-        RegistryDataLoader.DIMENSION_REGISTRIES.forEach(entry -> addRegistryRules(entry.key(), Phase.WORLD_REGISTRIES_READY, ResourceLifetime.FULL_LOAD));
-        Services.REGISTRY.reloadableRegistries().forEach(entry -> addRegistryRules(entry.key(), Phase.WORLD_CONTEXT_READY, ResourceLifetime.RELOADABLE));
-        BuiltInRegistries.REGISTRY.forEach(registry -> fileRules.add(new FileRule(Registries.tagsDirPath(registry.key()), ".json", Output.TAGS)));
-        fileRules.add(new FileRule("function", ".mcfunction", new Output(Phase.RELOADABLE_REGISTRIES_READY, ResourceLifetime.RELOADABLE, null)));
-        fileRules.add(new FileRule("structure", ".nbt", Output.STRUCTURES));
-      }
-      Map<Identifier, GeneratedPackResources> selected = new HashMap<>();
-      Map<String, GeneratedPackResources> nativeIds = new HashMap<>();
-      for (GeneratedPackResources pack : generated) {
-        if (pack.logicalId != null && selected.putIfAbsent(pack.logicalId, pack) != null) {
-          throw new IllegalStateException("Ambiguous generated pack ID " + pack.logicalId);
-        }
-        nativeIds.put(pack.packId(), pack);
-      }
-      Map<GeneratedPackResources, Set<GeneratedPackResources>> edges = new LinkedHashMap<>();
-      for (GeneratedPackResources pack : generated) {
-        edges.put(pack, new LinkedHashSet<>());
-      }
-      for (GeneratedPackResources pack : generated) {
-        for (String id : required.getOrDefault(pack.packId(), List.of())) {
-          addPredecessor(edges, pack, nativeIds.get(id));
-        }
-        var after = new LinkedHashSet<>(pack.rules.after());
-        var before = new LinkedHashSet<>(pack.rules.before());
-        if (pack.definition != null) {
-          after.addAll(pack.definition.after());
-          before.addAll(pack.definition.before());
-        }
-        for (Identifier id : after) {
-          addPredecessor(edges, pack, selected.get(id));
-        }
-        for (Identifier id : before) {
-          addPredecessor(edges, selected.get(id), pack);
-        }
-      }
-      Set<GeneratedPackResources> path = new LinkedHashSet<>();
-      for (GeneratedPackResources pack : generated) {
-        visit(pack, edges, path);
-        Set<String> cacheKeys = new HashSet<>();
-        fileTasks.put(pack, compileRules(pack));
-        for (ResourcePack.Task task : pack.javaTasks()) {
-          var policy = task.registration().policy();
-          if (policy != null && policy.key() != null && !cacheKeys.add(policy.key())) {
-            throw new IllegalStateException("Duplicate callback cache key in " + pack.packId() + ": " + policy.key());
-          }
-          if (task.phases().containsKey(kind)) {
-            task.inputs().values().stream().filter(CapturedInput.class::isInstance).map(CapturedInput.class::cast).forEach(input -> captured.computeIfAbsent(input, CapturedInput::capture));
-          }
-        }
-      }
+      plan = new GenerationPlan(type, generated, required, kind, cacheRoot);
       packs.stream().filter(GeneratedPackResources.class::isInstance).map(GeneratedPackResources.class::cast).forEach(pack -> pack.attempt = this);
-    }
-
-    private List<ResourcePack.Task> compileRules(GeneratedPackResources pack) {
-      var tasks = new ArrayList<ResourcePack.Task>();
-      for (var rule : pack.rules.rules()) {
-        try {
-          Output destination = type == PackType.CLIENT_RESOURCES ? Output.ASSETS : fileRules.stream().filter(entry -> entry.matches(rule.to())).map(FileRule::output)
-            .min(Comparator.comparing(Output::deadline)).orElseThrow(() -> new IllegalArgumentException("Unknown server data destination " + rule.to()));
-          Phase phase = rule.phase() == null ? destination.deadline() : rule.phase();
-          if (phase.type() != type || phase.ordinal() > destination.deadline().ordinal() || phase.fullLoadOnly() && destination.lifetime() == ResourceLifetime.RELOADABLE) {
-            throw new IllegalArgumentException(rule.to() + " cannot be generated in " + phase + " on " + kind);
-          }
-          if (kind == LoadKind.RELOAD && destination.lifetime() == ResourceLifetime.FULL_LOAD) {
-            continue;
-          }
-          tasks.add(new ResourcePack.Task(Map.of(kind, phase), rule.stage(), destination.lifetime(), Inputs.NONE, Outputs.UNSPECIFIED, (context, output) -> {
-            try {
-              rule.generate(context, output);
-              return CompletableFuture.completedFuture(null);
-            } catch (IOException | RuntimeException failure) {
-              var route = rule.from() == null ? rule.to().toString() : rule.from() + " -> " + rule.to();
-              throw new IllegalArgumentException("cobweb/rules.json rule " + rule.index() + " (" + route + "): " + failure.getMessage(), failure);
-            }
-          }, new CallbackRegistration(), rule.index(), rule.fingerprint()));
-        } catch (RuntimeException failure) {
-          throw new IllegalArgumentException(pack.packId() + "/cobweb/rules.json rule " + rule.index() + ": " + failure.getMessage(), failure);
-        }
-      }
-      return List.copyOf(tasks);
-    }
-
-    private static void addPredecessor(Map<GeneratedPackResources, Set<GeneratedPackResources>> edges, @Nullable GeneratedPackResources pack, @Nullable GeneratedPackResources predecessor) {
-      if (pack != null && predecessor != null) {
-        edges.get(pack).add(predecessor);
-      }
-    }
-
-    private void addRegistryRules(ResourceKey<? extends Registry<?>> key, Phase deadline, ResourceLifetime lifetime) {
-      fileRules.add(new FileRule(Registries.elementsDirPath(key), ".json", new Output(deadline, lifetime, key)));
-      Phase tagDeadline = lifetime == ResourceLifetime.FULL_LOAD && kind == LoadKind.RELOAD ? Phase.DATA_RESOURCES : deadline;
-      fileRules.add(new FileRule(Registries.tagsDirPath(key), ".json", new Output(tagDeadline, ResourceLifetime.RELOADABLE, null)));
-    }
-
-    private void checkOutput(ResourcePack.Task task, Phase phase, Identifier id) {
-      if (type != PackType.SERVER_DATA) {
-        return;
-      }
-      List<Output> rules = fileRules.stream().filter(rule -> rule.matches(id)).map(FileRule::output).toList();
-      boolean declared = task.outputs().values().stream().anyMatch(output -> output.directory() != null
-        && id.getPath().startsWith(output.directory() + "/") && id.getPath().endsWith(".json"));
-      if (rules.isEmpty() && !declared && task.outputs().rawLifetime() == null && !phase.fullLoadOnly()) {
-        throw new IllegalArgumentException("Custom data output needs an explicit lifetime: " + id);
-      }
-      for (Output rule : rules) {
-        if (phase.ordinal() > rule.deadline().ordinal() || task.lifetime() != rule.lifetime()) {
-          throw new IllegalArgumentException(id + " must be generated by " + rule.deadline() + " with lifetime " + rule.lifetime());
-        }
-        if (rule.registry() != null && !task.outputs().values().isEmpty()
-          && task.outputs().values().stream().noneMatch(output -> rule.registry().equals(output.registry()))) {
-          throw new IllegalArgumentException("Callback did not declare registry output " + rule.registry().identifier());
-        }
-      }
-    }
-
-    private void visit(GeneratedPackResources pack, Map<GeneratedPackResources, Set<GeneratedPackResources>> edges, Set<GeneratedPackResources> path) {
-      if (order.containsKey(pack)) {
-        return;
-      }
-      if (!path.add(pack)) {
-        throw new IllegalStateException("Cyclic pack generation order: " + path.stream().map(PackResources::packId).toList() + " -> " + pack.packId());
-      }
-      Set<GeneratedPackResources> predecessors = new LinkedHashSet<>();
-      for (GeneratedPackResources predecessor : edges.get(pack)) {
-        visit(predecessor, edges, path);
-        predecessors.addAll(order.get(predecessor));
-        predecessors.add(predecessor);
-      }
-      order.put(pack, List.copyOf(predecessors));
-      path.remove(pack);
     }
 
     /**
@@ -651,7 +547,7 @@ public final class DynamicPackLoads {
      * @return whether Cobweb owns generated files for this attempt.
      */
     public boolean generates() {
-      return !order.isEmpty();
+      return !plan.order.isEmpty();
     }
 
     /**
@@ -688,6 +584,9 @@ public final class DynamicPackLoads {
         });
       }
       cacheUpdates.clear();
+      if (applied) {
+        plan.order.keySet().forEach(GeneratedPackResources::releaseSuperseded);
+      }
       notifyObservers(type, packs, kind, failure);
     }
 
@@ -716,10 +615,10 @@ public final class DynamicPackLoads {
       Map<PackResources, PackResources> baseline = new IdentityHashMap<>();
       packs.forEach(pack -> baseline.put(pack, pack instanceof GeneratedPackResources generated ? generated.snapshot(snapshots) : snapshots.wrap(pack)));
       Map<GeneratedPackResources, CompletableFuture<Void>> finished = new LinkedHashMap<>();
-      for (var entry : order.entrySet()) {
+      for (var entry : plan.order.entrySet()) {
         GeneratedPackResources pack = entry.getKey();
         List<ResourcePack.Task> tasks = pack.javaTasks().stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
-        var rules = fileTasks.get(pack).stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
+        var rules = plan.fileTasks.get(pack).stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
         CompletableFuture<Void> ready = all(entry.getValue().stream().map(finished::get).toList());
         if (tasks.isEmpty() && rules.isEmpty()) {
           finished.put(pack, ready);
@@ -729,7 +628,7 @@ public final class DynamicPackLoads {
         finished.put(pack, ready.thenCompose(ignored -> {
           var snapshot = new MultiPackResourceManager(type, packs.stream().map(source -> source instanceof GeneratedPackResources generated && predecessors.contains(generated)
             ? generated.snapshot(snapshots) : baseline.get(source)).toList());
-          Map<Identifier, ConcurrentLinkedQueue<Submission>> submissions = new ConcurrentHashMap<>();
+          Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions = new ConcurrentHashMap<>();
           var runs = new ArrayList<CompletableFuture<Void>>();
           tasks.forEach(task -> runs.add(invoke(pack, task, phase, snapshot, registries, submissions)));
           CompletableFuture<Void> ordered = CompletableFuture.completedFuture(null);
@@ -740,7 +639,7 @@ public final class DynamicPackLoads {
           return all(runs).thenRun(() -> {
             if (!closed && !aborted.isDone()) {
               Map<Identifier, GeneratedPackResources.File> files = new HashMap<>();
-              submissions.forEach((id, operations) -> files.put(id, merge(pack, id, operations, phase, stage, snapshots)));
+              submissions.forEach((id, operations) -> files.put(id, ContributionMerger.merge(pack, id, operations, phase, stage, snapshots)));
               pack.publish(files);
             }
           });
@@ -753,16 +652,17 @@ public final class DynamicPackLoads {
     }
 
     private CompletableFuture<Void> invoke(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, ResourceManager manager,
-      HolderLookup.Provider registries, Map<Identifier, ConcurrentLinkedQueue<Submission>> submissions) {
+      HolderLookup.Provider registries, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions) {
       Map<CapturedInput<?>, Object> values = new IdentityHashMap<>();
       task.inputs().values().forEach(input -> {
         if (input instanceof CapturedInput<?> capture) {
-          values.put(capture, captured.get(capture));
+          values.put(capture, plan.captured.get(capture));
         }
       });
-      var policy = task.registration().policy();
-      boolean persistent = task.fileRule() || policy != null && policy.key() != null;
-      Path address = cacheRoot != null && (task.fileRule() || policy != null) ? CallbackCache.address(cacheRoot, pack, task, policy) : null;
+      var caching = plan.caching.get(task);
+      var policy = caching.callback();
+      boolean persistent = caching.mode() == TaskCachePolicy.Mode.PERSISTENT;
+      Path address = caching.mode() == TaskCachePolicy.Mode.DISABLED ? null : CallbackCache.address(cacheRoot, pack, task, policy);
       var observations = new CacheObservations(manager, request.queries(), features, address != null);
       Identifier owner = pack.logicalId == null ? Identifier.fromNamespaceAndPath(Constants.MOD_ID, "file_pack") : pack.logicalId;
       var context = new GenerationContext(manager, owner, phase, task.stage(), kind, registries, values, tags, observations, request.queries(), features);
@@ -815,32 +715,37 @@ public final class DynamicPackLoads {
       });
     }
 
-    private void submit(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<Submission>> submissions,
-      Collection<Recorded> recorded, CallbackCache.Contribution contribution) {
+    private void submit(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
+      Collection<Recorded> recorded, PackContribution contribution) {
       validateSubmission(pack, task, phase, contribution);
-      pack.ownBatch(List.of(contribution));
       record(task, submissions, recorded, contribution);
+      pack.adoptBatch(List.of(contribution));
     }
 
-    private void record(ResourcePack.Task task, Map<Identifier, ConcurrentLinkedQueue<Submission>> submissions,
-      Collection<Recorded> recorded, CallbackCache.Contribution contribution) {
+    private void record(ResourcePack.Task task, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
+      Collection<Recorded> recorded, PackContribution contribution) {
       long order = sequence.incrementAndGet();
-      var file = contribution.file() == null ? null : new GeneratedPackResources.File(contribution.file(), task.lifetime());
-      submissions.computeIfAbsent(contribution.id(), ignored -> new ConcurrentLinkedQueue<>()).add(new Submission(order, task, file, contribution.tag(), contribution.member(), false));
-      if (contribution.groupsMetadata()) {
-        var sidecar = contribution.companion() == null ? null : new GeneratedPackResources.File(contribution.companion(), task.lifetime(), true);
-        submissions.computeIfAbsent(contribution.companionId(), ignored -> new ConcurrentLinkedQueue<>()).add(new Submission(order, task, sidecar, null, null, true));
+      ContributionMerger.Operation operation = switch (contribution) {
+        case PackContribution.File file -> new ContributionMerger.Replacement(file.contents(), false);
+        case PackContribution.Tag tag -> new ContributionMerger.TagAddition(tag.addition());
+        case PackContribution.Member member -> new ContributionMerger.Member(member.name(), member.contents());
+        case PackContribution.WithMetadata grouped -> new ContributionMerger.Replacement(grouped.contents(), false);
+      };
+      submissions.computeIfAbsent(contribution.id(), ignored -> new ConcurrentLinkedQueue<>()).add(new ContributionMerger.Submission(order, task, operation));
+      if (contribution instanceof PackContribution.WithMetadata grouped) {
+        ContributionMerger.Operation metadata = grouped.metadata() == null ? new ContributionMerger.ClearMetadata() : new ContributionMerger.Replacement(grouped.metadata(), true);
+        submissions.computeIfAbsent(grouped.metadataId(), ignored -> new ConcurrentLinkedQueue<>()).add(new ContributionMerger.Submission(order, task, metadata));
       }
       recorded.add(new Recorded(order, contribution));
     }
 
-    private boolean replay(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<Submission>> submissions,
+    private boolean replay(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, CallbackCache.Batch batch) {
       try {
         batch.values().forEach(contribution -> validateSubmission(pack, task, phase, contribution));
-        pack.ownBatch(batch.values());
+        pack.adoptBatch(batch.values());
       } catch (RuntimeException failure) {
-        batch.values().forEach(CallbackCache.Contribution::release);
+        batch.values().forEach(PackContribution::release);
         Constants.LOGGER.warn("Invalid cached contribution in {}", pack.packId(), failure);
         return false;
       }
@@ -848,123 +753,24 @@ public final class DynamicPackLoads {
       return true;
     }
 
-    private void validateSubmission(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, CallbackCache.Contribution contribution) {
+    private void validateSubmission(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, PackContribution contribution) {
       Identifier id = contribution.id();
       if (!task.fileRule() && !Objects.requireNonNull(pack.definition).namespaces().contains(id.getNamespace())) {
         throw new IllegalArgumentException("Undeclared resource namespace in " + pack.packId() + ": " + id);
       }
       checkActive();
       // A grouped sidecar inherits the validated file's deadline and lifetime.
-      checkOutput(task, phase, id);
+      plan.checkOutput(task, phase, id);
     }
 
-    private static GeneratedPackResources.File merge(GeneratedPackResources pack, Identifier id, Collection<Submission> operations, Phase phase, Stage stage, StageResourceSnapshots snapshots) {
-      GeneratedPackResources.File result = pack.file(id);
-      ResourcePack.Task lastReplacement = null;
-      TagFile tag = null;
-      JsonObject members = null;
-      Map<String, ResourcePack.Task> memberOwners = new HashMap<>();
-      ResourceLifetime lifetime = ResourceLifetime.RELOADABLE;
-      for (Submission submission : operations.stream().sorted(Comparator.comparingLong(Submission::sequence)).toList()) {
-        if (submission.member != null) {
-          if (members == null) {
-            var base = readJson(pack, id, result, snapshots);
-            members = base == null ? new JsonObject() : base.getAsJsonObject();
-          }
-          var previous = memberOwners.put(submission.member, submission.task);
-          if (previous != null && previous != submission.task || lastReplacement != null && lastReplacement != submission.task && (!lastReplacement.fileRule() || !submission.task.fileRule())) {
-            Constants.LOGGER.warn("Competing callbacks submitted {} in {} of pack {} at {}/{}", submission.member, id, pack.packId(), phase, stage);
-          }
-          members.add(submission.member, readJson(submission.file));
-          lifetime = submission.task.lifetime();
-        } else if (submission.file != null) {
-          if (lastReplacement != null && lastReplacement != submission.task && (!lastReplacement.fileRule() || !submission.task.fileRule())) {
-            Constants.LOGGER.warn("Competing callbacks submitted {} in pack {} at {}/{}", id, pack.packId(), phase, stage);
-          }
-          if (memberOwners.values().stream().anyMatch(owner -> owner != submission.task)) {
-            Constants.LOGGER.warn("A complete file superseded keyed contributions to {} in pack {} at {}/{}", id, pack.packId(), phase, stage);
-          }
-          lastReplacement = submission.task;
-          result = submission.file;
-          tag = null;
-          members = null;
-          memberOwners.clear();
-        } else if (submission.metadataCompanion && result != null && result.companion()) {
-          result = null;
-        } else if (submission.tag != null) {
-          if (tag == null) {
-            var base = readJson(pack, id, result, snapshots);
-            tag = base == null ? new TagFile(List.of(), false) : TagFile.CODEC.parse(JsonOps.INSTANCE, base).getOrThrow();
-          }
-          Map<String, TagEntry> combined = new LinkedHashMap<>();
-          tag.entries().forEach(entry -> combined.put(entry.toString(), entry));
-          submission.tag.entries().forEach(entry -> combined.putIfAbsent(entry.toString(), entry));
-          tag = new TagFile(List.copyOf(combined.values()), submission.tag.replace() == null ? tag.replace() : submission.tag.replace());
-        }
-      }
-      if (members != null) {
-        return aggregate(pack, id, members.toString(), lifetime);
-      }
-      if (tag != null) {
-        return aggregate(pack, id, TagFile.CODEC.encodeStart(JsonOps.INSTANCE, tag).getOrThrow().toString(), ResourceLifetime.RELOADABLE);
-      }
-      return result;
-    }
-
-    private static GeneratedPackResources.File aggregate(GeneratedPackResources pack, Identifier id, String json, ResourceLifetime lifetime) {
-      try {
-        var file = PackFile.write(stream -> stream.write(json.getBytes(StandardCharsets.UTF_8)));
-        try {
-          pack.own(file);
-        } catch (RuntimeException | Error failure) {
-          file.release();
-          throw failure;
-        }
-        return new GeneratedPackResources.File(file, lifetime);
-      } catch (IOException failure) {
-        throw new UncheckedIOException("Unable to aggregate " + id + " in " + pack.packId(), failure);
-      }
-    }
-
-    @Nullable
-    private static JsonElement readJson(GeneratedPackResources pack, Identifier id, @Nullable GeneratedPackResources.File file, StageResourceSnapshots snapshots) {
-      if (file != null) {
-        return readJson(file);
-      }
-      var bundled = pack.bundledFile(id, snapshots);
-      if (bundled != null) {
-        try (var reader = new InputStreamReader(bundled.get(), StandardCharsets.UTF_8)) {
-          return JsonParser.parseReader(reader);
-        } catch (IOException failure) {
-          throw new UncheckedIOException("Unable to read this pack's bundled JSON contribution " + id, failure);
-        }
-      }
-      return null;
-    }
-
-    private static JsonElement readJson(GeneratedPackResources.File file) {
-      try (var reader = new InputStreamReader(file.content().open(), StandardCharsets.UTF_8)) {
-        return JsonParser.parseReader(reader);
-      } catch (IOException failure) {
-        throw new UncheckedIOException("Unable to read this pack's JSON contribution", failure);
-      }
-    }
   }
 
   private static CompletableFuture<Void> all(Collection<CompletableFuture<Void>> futures) {
     return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
   }
 
-  private record Submission(long sequence, ResourcePack.Task task, @Nullable GeneratedPackResources.File file, @Nullable GenerationOutput.TagAddition tag, @Nullable String member,
-                            boolean metadataCompanion) {}
-
   private record CacheUpdate(Path address, @Nullable CallbackCache.Batch batch, boolean hit, boolean persistent) {}
 
-  private record Recorded(long sequence, CallbackCache.Contribution contribution) {}
+  private record Recorded(long sequence, PackContribution contribution) {}
 
-  private record FileRule(String directory, String extension, Output output) {
-    boolean matches(Identifier id) {
-      return id.getPath().startsWith(directory + "/") && id.getPath().endsWith(extension);
-    }
-  }
 }

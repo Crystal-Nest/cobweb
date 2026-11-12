@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.impl.pack;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import it.crystalnest.cobweb.Constants;
@@ -22,8 +22,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -171,20 +171,20 @@ public final class NativePackDependencies {
    */
   public static Map<String, List<String>> validate(PackType type, List<PackResources> packs) {
     closeDeclarations();
-    return validate(type, packs, readModSections());
+    return validate(type, packs, readModSections(), false);
   }
 
   /**
    * Validates the dependencies declared by asset packs selected for server delivery.
-   * Mod-root requirements are checked by each client's native asset load.
+   * Rejects client mod requirements because delivery also supports clients without Cobweb.
    *
    * @param packs selected packs in publication priority order.
    */
   public static void validatePublication(List<PackResources> packs) {
-    validate(PackType.CLIENT_RESOURCES, packs, Map.of());
+    validate(PackType.CLIENT_RESOURCES, packs, Map.of(), true);
   }
 
-  private static Map<String, List<String>> validate(PackType type, List<PackResources> packs, Map<String, JsonObject> modSections) {
+  private static Map<String, List<String>> validate(PackType type, List<PackResources> packs, Map<String, JsonObject> modSections, boolean publication) {
     Map<String, Selected> selected = new LinkedHashMap<>();
     for (PackResources resources : packs) {
       selected.computeIfAbsent(resources.packId(), ignored -> discover(type, resources, modSections));
@@ -194,6 +194,9 @@ public final class NativePackDependencies {
       List<String> resolved = new ArrayList<>();
       for (PackRequirement requirement : declaration.packs) {
         resolved.add(resolve(owner, requirement, selected));
+      }
+      if (publication && !declaration.mods.isEmpty()) {
+        throw new IllegalStateException("Cannot deliver pack " + owner + ": client mod requirements cannot be verified for clients without Cobweb: " + declaration.mods);
       }
       for (ModRequirement requirement : declaration.mods) {
         if (!Services.PLATFORM.isModLoaded(requirement.id()) || requirement.version() != null && !Services.PLATFORM.matchesModVersion(requirement.id(), requirement.version())) {

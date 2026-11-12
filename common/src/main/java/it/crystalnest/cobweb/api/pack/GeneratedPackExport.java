@@ -136,23 +136,11 @@ public final class GeneratedPackExport {
     var files = new TreeMap<Identifier, IoSupplier<InputStream>>();
     snapshot.listAll(type, files::put);
     for (var entry : files.entrySet()) {
-      var path = resourcePath(type, entry.getKey());
+      var path = PackPaths.resourcePath(type, entry.getKey());
       try (var input = entry.getValue().get()) {
         writer.write(path, input);
       }
     }
-  }
-
-  static String resourcePath(PackType type, Identifier id) throws IOException {
-    if (id.getNamespace().equals(".") || id.getNamespace().equals("..")) {
-      throw new IOException("Invalid pack path " + id);
-    }
-    for (String part : id.getPath().split("/", -1)) {
-      if (part.isEmpty() || part.equals(".") || part.equals("..")) {
-        throw new IOException("Invalid pack path " + id);
-      }
-    }
-    return type.getDirectory() + "/" + id.getNamespace() + "/" + id.getPath();
   }
 
   @FunctionalInterface

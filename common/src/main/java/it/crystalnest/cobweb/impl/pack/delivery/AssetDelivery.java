@@ -58,6 +58,8 @@ public final class AssetDelivery implements AutoCloseable {
 
   private final AssetPackHttp http;
 
+  private final AssetPackArchives.Reuse archiveReuse = new AssetPackArchives.Reuse();
+
   private final Map<String, Served> served = new HashMap<>();
 
   @Nullable
@@ -228,7 +230,7 @@ public final class AssetDelivery implements AutoCloseable {
       failure = null;
     }
     try {
-      var build = AssetPackArchives.capture(server, packs, !warned);
+      var build = AssetPackArchives.capture(server, packs, !warned, archiveReuse, () -> current(requested));
       warned = true;
       synchronized (this) {
         if (!closed && revision == requested) {
@@ -238,6 +240,10 @@ public final class AssetDelivery implements AutoCloseable {
     } catch (RuntimeException problem) {
       report(requested, problem);
     }
+  }
+
+  private synchronized boolean current(long requested) {
+    return !closed && revision == requested;
   }
 
   private void build(long requested, AssetPackArchives.Build build) {

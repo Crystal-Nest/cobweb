@@ -4,8 +4,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceMetadata;
-import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.flag.FeatureFlagSet;
+import net.minecraft.world.flag.FeatureFlags;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -15,9 +15,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -66,12 +68,12 @@ final class CacheObservations {
     }
   }
 
-  void observeContent(Identifier id, @Nullable String directory, int stackIndex, Resource resource, InputStream opened) {
+  void observeContent(Identifier id, @Nullable String directory, int stackIndex, long maxBytes, Resource resource, InputStream opened) {
     if (supported) {
       try {
-        var request = new Request(Kind.CONTENT, fileKey(id, directory, stackIndex));
+        var request = new Request(Kind.CONTENT, new FileAddress(id, directory, stackIndex, maxBytes));
         var digest = digest();
-        if (opened instanceof StageResourceSnapshots.SnapshotStream) {
+        if (opened instanceof PackFile.CapturedStream) {
           appendContent(digest, resource, opened);
         } else {
           // Native stream decorators and immutable generated files can be opened again within the same stage view.
@@ -91,14 +93,10 @@ final class CacheObservations {
       return;
     }
     try {
-      record(new Request(Kind.METADATA, fileKey(id, directory, stackIndex)), metadataFingerprint(metadata));
+      record(new Request(Kind.METADATA, new FileAddress(id, directory, stackIndex, Long.MAX_VALUE)), metadataFingerprint(metadata));
     } catch (IOException | RuntimeException failure) {
       supported = false;
     }
-  }
-
-  private static String fileKey(Identifier id, @Nullable String directory, int stackIndex) {
-    return stackIndex + "\n" + id + (directory == null ? "" : "\n" + directory);
   }
 
   private void record(Request request, String fingerprint) {
@@ -126,8 +124,9 @@ final class CacheObservations {
 
   boolean matches(Map<Request, String> previous) {
     try {
+      var verification = new Verification();
       for (var entry : previous.entrySet()) {
-        if (!entry.getValue().equals(fingerprint(entry.getKey()))) {
+        if (!entry.getValue().equals(verification.fingerprint(entry.getKey()))) {
           return false;
         }
       }
@@ -138,30 +137,70 @@ final class CacheObservations {
   }
 
   String fingerprint(Request request) throws IOException {
+    return new Verification().fingerprint(request);
+  }
 
-    var digest = digest();
-    switch (request.kind()) {
-      case RESOURCE -> manager.getResource(Identifier.parse(request.key())).ifPresent(resource -> text(digest, resource.sourcePackId()));
-      case STACK -> appendSources(digest, manager.getResourceStack(Identifier.parse(request.key())));
-      case LIST -> appendList(digest, manager.listResources(request.key(), id -> true));
-      case LIST_STACKS -> appendStacks(digest, manager.listResourceStacks(request.key(), id -> true));
-      case NAMESPACES -> manager.getNamespaces().forEach(namespace -> text(digest, namespace));
-      case PACKS -> text(digest, packs.toString());
-      case FEATURES -> FeatureFlags.REGISTRY.toNames(features).stream().sorted().forEach(flag -> text(digest, flag.toString()));
-      case CONTENT -> {
-        var resource = fileResource(request.key());
-        if (resource != null) {
-          try (var input = resource.open()) {
-            appendContent(digest, resource, input);
+  Verification verification() { return new Verification(); }
+
+  final class Verification {
+    private final Map<String, Map<Identifier, Resource>> listings = new HashMap<>();
+
+    private final Map<String, Map<Identifier, List<Resource>>> stackListings = new HashMap<>();
+
+    private Map<Identifier, Resource> listing(String directory) {
+      return listings.computeIfAbsent(directory, path -> manager.listResources(path, id -> true));
+    }
+
+    private Map<Identifier, List<Resource>> stacks(String directory) {
+      return stackListings.computeIfAbsent(directory, path -> manager.listResourceStacks(path, id -> true));
+    }
+
+    String fingerprint(Request request) throws IOException {
+      var digest = digest();
+      switch (request.kind()) {
+        case RESOURCE -> manager.getResource(Identifier.parse(request.key())).ifPresent(resource -> text(digest, resource.sourcePackId()));
+        case STACK -> appendSources(digest, manager.getResourceStack(Identifier.parse(request.key())));
+        case LIST -> appendList(digest, listing(request.key()));
+        case LIST_STACKS -> appendStacks(digest, stacks(request.key()));
+        case NAMESPACES -> manager.getNamespaces().stream().sorted().forEach(namespace -> text(digest, namespace));
+        case PACKS -> text(digest, packs.toString());
+        case FEATURES -> FeatureFlags.REGISTRY.toNames(features).stream().sorted().forEach(flag -> text(digest, flag.toString()));
+        case CONTENT -> {
+          var resource = fileResource(request.file());
+          if (resource != null) {
+            try (var input = resource.open()) {
+              PackIO.checkLimit(input, request.file().maxBytes());
+              appendContent(digest, resource, input);
+            }
           }
         }
+        case METADATA -> {
+          var resource = fileResource(request.file());
+          return resource == null ? hex(digest) : metadataFingerprint(resource.metadata());
+        }
       }
-      case METADATA -> {
-        var resource = fileResource(request.key());
-        return resource == null ? hex(digest) : metadataFingerprint(resource.metadata());
-      }
+      return HexFormat.of().formatHex(digest.digest());
     }
-    return HexFormat.of().formatHex(digest.digest());
+
+    @Nullable
+    private Resource fileResource(FileAddress key) {
+      int index = key.stackIndex();
+      var id = key.id();
+      String directory = key.directory();
+      if (index >= 0) {
+        var stack = directory == null ? manager.getResourceStack(id) : stacks(directory).get(id);
+        if (stack != null && index < stack.size()) {
+          return stack.get(index);
+        }
+      } else {
+        var resource = directory == null ? manager.getResource(id).orElse(null) : listing(directory).get(id);
+        if (resource != null) {
+          return resource;
+        }
+      }
+      return null;
+    }
+
   }
 
   static void appendSources(MessageDigest digest, List<Resource> resources) {
@@ -183,26 +222,6 @@ final class CacheObservations {
     });
   }
 
-  @Nullable
-  private Resource fileResource(String key) {
-    var fields = key.split("\n", 3);
-    int index = Integer.parseInt(fields[0]);
-    var id = Identifier.parse(fields[1]);
-    String directory = fields.length == 3 ? fields[2] : null;
-    if (index >= 0) {
-      var stack = directory == null ? manager.getResourceStack(id) : manager.listResourceStacks(directory, id::equals).get(id);
-      if (stack != null && index < stack.size()) {
-        return stack.get(index);
-      }
-    } else {
-      var resource = directory == null ? manager.getResource(id).orElse(null) : manager.listResources(directory, id::equals).get(id);
-      if (resource != null) {
-        return resource;
-      }
-    }
-    return null;
-  }
-
   private static String metadataFingerprint(ResourceMetadata metadata) throws IOException {
     var digest = digest();
     if (metadata instanceof ResourceMetadataJson raw) {
@@ -218,8 +237,8 @@ final class CacheObservations {
 
   private static void appendContent(MessageDigest digest, Resource resource, InputStream input) throws IOException {
     text(digest, resource.sourcePackId());
-    if (input instanceof StageResourceSnapshots.SnapshotStream snapshot) {
-      text(digest, snapshot.digest);
+    if (input instanceof PackFile.CapturedStream snapshot) {
+      text(digest, snapshot.digest());
     } else {
       var content = digest();
       input.transferTo(new DigestOutputStream(OutputStream.nullOutputStream(), content));
@@ -257,5 +276,26 @@ final class CacheObservations {
     CONTENT
   }
 
-  record Request(Kind kind, String key) {}
+  record FileAddress(Identifier id, @Nullable String directory, int stackIndex, long maxBytes) {
+    FileAddress {
+      Objects.requireNonNull(id);
+      if (stackIndex < -1 || maxBytes < 0) {
+        throw new IllegalArgumentException("Invalid resource stack index");
+      }
+    }
+  }
+
+  record Request(Kind kind, String key, @Nullable FileAddress file) {
+    Request {
+      Objects.requireNonNull(kind);
+      Objects.requireNonNull(key);
+      if ((kind == Kind.CONTENT || kind == Kind.METADATA) != (file != null)) {
+        throw new IllegalArgumentException("Resource observations require a file address");
+      }
+    }
+
+    Request(Kind kind, String key) { this(kind, key, null); }
+
+    Request(Kind kind, FileAddress file) { this(kind, "", file); }
+  }
 }

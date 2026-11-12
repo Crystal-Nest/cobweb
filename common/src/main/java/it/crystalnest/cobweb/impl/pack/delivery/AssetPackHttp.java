@@ -38,8 +38,9 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.LinkOption;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayDeque;
 import java.util.List;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -63,7 +64,13 @@ final class AssetPackHttp implements AutoCloseable {
 
   private final DefaultChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
 
-  private final Semaphore downloads = new Semaphore(8);
+  private static final int MAX_DOWNLOADS = 8;
+
+  private static final int MAX_WAITING = 64;
+
+  private final ArrayDeque<Download> waiting = new ArrayDeque<>();
+
+  private int activeDownloads;
 
   private MultiThreadIoEventLoopGroup listener;
 
@@ -153,6 +160,14 @@ final class AssetPackHttp implements AutoCloseable {
   private final class Download extends SimpleChannelInboundHandler<HttpRequest> {
     private boolean requested;
 
+    private ChannelHandlerContext context;
+
+    private String address;
+
+    private boolean head;
+
+    private boolean admitted;
+
     @Override
     protected void channelRead0(ChannelHandlerContext context, HttpRequest request) {
       if (requested) {
@@ -175,26 +190,70 @@ final class AssetPackHttp implements AutoCloseable {
         fail(context, HttpResponseStatus.NOT_FOUND);
         return;
       }
-      if (!downloads.tryAcquire()) {
-        fail(context, HttpResponseStatus.SERVICE_UNAVAILABLE);
+      this.context = context;
+      this.address = name.substring(0, 64);
+      this.head = HttpMethod.HEAD.equals(request.method());
+      context.channel().closeFuture().addListener(future -> release());
+      synchronized (AssetPackHttp.this) {
+        if (!context.channel().isActive()) {
+          return;
+        }
+        if (activeDownloads < MAX_DOWNLOADS) {
+          admit();
+        } else if (waiting.size() < MAX_WAITING) {
+          waiting.addLast(this);
+          // Keep detecting peer disconnects while waiting; no file worker blocks on admission.
+          context.channel().config().setAutoRead(true);
+        } else {
+          fail(context, HttpResponseStatus.SERVICE_UNAVAILABLE);
+        }
+      }
+    }
+
+    private void admit() {
+      context.channel().config().setAutoRead(false);
+      admitted = true;
+      activeDownloads++;
+      try {
+        context.executor().execute(this::serve);
+      } catch (RejectedExecutionException failure) {
+        context.close();
+        release();
+      }
+    }
+
+    private void release() {
+      synchronized (AssetPackHttp.this) {
+        waiting.remove(this);
+        if (admitted) {
+          admitted = false;
+          activeDownloads--;
+        }
+        while (activeDownloads < MAX_DOWNLOADS && !waiting.isEmpty()) {
+          var next = waiting.removeFirst();
+          if (next.context.channel().isActive()) {
+            next.admit();
+          }
+        }
+      }
+    }
+
+    private void serve() {
+      if (!context.channel().isActive()) {
         return;
       }
-      var lease = delivery.acquire(name.substring(0, 64));
+      var lease = delivery.acquire(address);
       if (lease == null) {
-        downloads.release();
         fail(context, HttpResponseStatus.NOT_FOUND);
         return;
       }
-      context.channel().closeFuture().addListener(future -> {
-        lease.close();
-        downloads.release();
-      });
+      context.channel().closeFuture().addListener(future -> lease.close());
       var archive = lease.archive();
       var response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
       response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
       response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/zip");
       response.headers().set(HttpHeaderNames.CONTENT_LENGTH, archive.size());
-      if (HttpMethod.HEAD.equals(request.method())) {
+      if (head) {
         context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         return;
       }

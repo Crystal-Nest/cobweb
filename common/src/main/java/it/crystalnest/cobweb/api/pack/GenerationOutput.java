@@ -35,9 +35,9 @@ import java.util.function.Consumer;
 public final class GenerationOutput {
   private final GenerationContext context;
 
-  private final Consumer<CallbackCache.Contribution> submit;
+  private final Consumer<PackContribution> submit;
 
-  GenerationOutput(GenerationContext context, Consumer<CallbackCache.Contribution> submit) {
+  GenerationOutput(GenerationContext context, Consumer<PackContribution> submit) {
     this.context = context;
     this.submit = submit;
   }
@@ -99,7 +99,7 @@ public final class GenerationOutput {
    */
   public void putTexture(Identifier texture, FileWriter png) throws IOException {
     context.checkAssets();
-    write(texture.withPath(path -> "textures/" + path + ".png"), png);
+    write(PackPaths.texture(texture), png);
   }
 
   /**
@@ -111,7 +111,7 @@ public final class GenerationOutput {
    */
   public void putSound(Identifier sound, FileWriter ogg) throws IOException {
     context.checkAssets();
-    write(sound.withPath(path -> "sounds/" + path + ".ogg"), ogg);
+    write(PackPaths.sound(sound), ogg);
   }
 
   /**
@@ -124,7 +124,7 @@ public final class GenerationOutput {
     context.checkAssets();
     var id = event.withPath("sounds.json");
     try {
-      submit(CallbackCache.Contribution.member(id, event.getPath(), jsonFile(definition.toJson())));
+      submit(PackContribution.member(id, event.getPath(), jsonFile(definition.toJson())));
     } catch (IOException failure) {
       throw new UncheckedIOException("Unable to submit sound event " + event, failure);
     }
@@ -141,7 +141,7 @@ public final class GenerationOutput {
    */
   public void putSprite(Identifier texture, FileWriter png, @Nullable JsonObject metadata) throws IOException {
     context.checkAssets();
-    writeWithMetadata(texture.withPath(path -> "textures/" + path + ".png"), png, metadata);
+    writeWithMetadata(PackPaths.texture(texture), png, metadata);
   }
 
   /**
@@ -177,7 +177,7 @@ public final class GenerationOutput {
    */
   public void write(Identifier id, FileWriter writer) throws IOException {
     context.checkOpen();
-    submit(CallbackCache.Contribution.file(id, PackFile.write(writer)));
+    submit(PackContribution.file(id, PackFile.write(writer)));
   }
 
   /**
@@ -210,17 +210,8 @@ public final class GenerationOutput {
   void copy(Identifier id, GenerationResources.File source, boolean withMetadata, long maxBytes) throws IOException {
     context.checkOpen();
     FileWriter writer = stream -> {
-      try (var input = source.open()) {
-        byte[] buffer = new byte[8192];
-        long length = 0;
-        int count;
-        while ((count = input.read(buffer)) != -1) {
-          if (count > maxBytes - length) {
-            throw new IOException("Copied file exceeds " + maxBytes + " bytes");
-          }
-          stream.write(buffer, 0, count);
-          length += count;
-        }
+      try (var input = source.open(maxBytes)) {
+        PackIO.copy(input, stream, maxBytes);
       }
     };
     if (withMetadata) {
@@ -239,14 +230,14 @@ public final class GenerationOutput {
       file.release();
       throw failure;
     }
-    submit(CallbackCache.Contribution.withMetadata(id, file, companion));
+    submit(PackContribution.withMetadata(id, file, companion));
   }
 
   private static PackFile jsonFile(JsonElement json) throws IOException {
-    return PackFile.write(stream -> stream.write(json.toString().getBytes(StandardCharsets.UTF_8)));
+    return PackFile.write(stream -> stream.write(PackIO.json(json)));
   }
 
-  private void submit(CallbackCache.Contribution contribution) {
+  private void submit(PackContribution contribution) {
     try {
       context.checkOpen();
       submit.accept(contribution);
@@ -385,7 +376,7 @@ public final class GenerationOutput {
      */
     public void add(Identifier id, TagEntry... entries) {
       context.checkOpen();
-      submit(CallbackCache.Contribution.tag(paths.idToFile(id), new TagAddition(List.of(entries), null)));
+      submit(PackContribution.tag(paths.idToFile(id), new TagAddition(List.of(entries), null)));
     }
 
     /**
@@ -397,7 +388,7 @@ public final class GenerationOutput {
      */
     public void add(Identifier id, boolean replace, TagEntry... entries) {
       context.checkOpen();
-      submit(CallbackCache.Contribution.tag(paths.idToFile(id), new TagAddition(List.of(entries), replace)));
+      submit(PackContribution.tag(paths.idToFile(id), new TagAddition(List.of(entries), replace)));
     }
   }
 

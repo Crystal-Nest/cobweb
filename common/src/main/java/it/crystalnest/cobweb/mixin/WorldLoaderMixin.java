@@ -47,13 +47,13 @@ public abstract class WorldLoaderMixin {
         var repository = config.packConfig().packRepository();
         attempt = DynamicPackLoads.open(PackType.SERVER_DATA, manager.listPacks().toList(), LoadKind.FULL_LOAD, DynamicPackLoads.worldCache(repository), repository);
       } catch (RuntimeException | Error failure) {
-        manager.close();
+        DynamicPackLoads.closeAfterFailure(manager::close, failure);
         return CompletableFuture.failedFuture(failure);
       }
       tracker.bind(attempt);
       return attempt.begin(RegistryLayer.createRegistryAccess().getLayer(RegistryLayer.STATIC), opened.getFirst().enabledFeatures()).thenCompose(ignored -> continuation.apply(opened)).whenComplete((value, failure) -> {
         if (failure != null && attempt.hasRegisteredPacks() && !attempt.closed()) {
-          manager.close();
+          DynamicPackLoads.closeAfterFailure(manager::close, failure);
         }
       });
     }, executor);

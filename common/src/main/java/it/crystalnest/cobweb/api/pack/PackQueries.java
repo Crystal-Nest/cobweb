@@ -11,6 +11,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,8 @@ import java.util.function.Supplier;
  */
 public final class PackQueries {
   private static final Map<PackRepository, State> STATES = Collections.synchronizedMap(new WeakHashMap<>());
+
+  private static final Map<Pack, Map<PackType, PackInfo>> IDENTITIES = new WeakHashMap<>();
 
   @Nullable
   private static volatile Target client;
@@ -176,8 +179,22 @@ public final class PackQueries {
   }
 
   private static PackInfo info(PackType type, Pack pack) {
-    try (var metadata = pack.openMetadata()) {
-      return NativePackDependencies.info(type, pack.getId(), metadata);
+    synchronized (IDENTITIES) {
+      return IDENTITIES.computeIfAbsent(pack, ignored -> new EnumMap<>(PackType.class)).computeIfAbsent(type, side -> {
+        try (var metadata = pack.openMetadata()) {
+          return NativePackDependencies.info(side, pack.getId(), metadata);
+        }
+      });
+    }
+  }
+
+  /**
+   * Invalidates discovery metadata before native repositories refresh their pack objects.
+   */
+  @ApiStatus.Internal
+  public static void invalidateDiscovery() {
+    synchronized (IDENTITIES) {
+      IDENTITIES.clear();
     }
   }
 
