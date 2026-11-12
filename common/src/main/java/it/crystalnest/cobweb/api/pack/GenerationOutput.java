@@ -141,17 +141,7 @@ public final class GenerationOutput {
    */
   public void putSprite(Identifier texture, FileWriter png, @Nullable JsonObject metadata) throws IOException {
     context.checkAssets();
-    Identifier id = texture.withPath(path -> "textures/" + path + ".png");
-    byte[] sidecar = metadata == null ? null : metadata.toString().getBytes(StandardCharsets.UTF_8);
-    var image = PackFile.write(png);
-    PackFile companion;
-    try {
-      companion = sidecar == null ? null : PackFile.write(stream -> stream.write(sidecar));
-    } catch (IOException | RuntimeException | Error failure) {
-      image.release();
-      throw failure;
-    }
-    submit(CallbackCache.Contribution.sprite(id, image, companion));
+    writeWithMetadata(texture.withPath(path -> "textures/" + path + ".png"), png, metadata);
   }
 
   /**
@@ -188,6 +178,68 @@ public final class GenerationOutput {
   public void write(Identifier id, FileWriter writer) throws IOException {
     context.checkOpen();
     submit(CallbackCache.Contribution.file(id, PackFile.write(writer)));
+  }
+
+  /**
+   * Copies the bytes of a resource to this pack.
+   *
+   * @param id destination namespaced path, including the extension.
+   * @param source source resource from the generation snapshot.
+   * @throws IOException if the resource cannot be copied.
+   */
+  public void copy(Identifier id, GenerationResources.File source) throws IOException {
+    copy(id, source, false);
+  }
+
+  /**
+   * Copies the bytes of a resource to this pack with optional effective file-backed metadata.
+   * When metadata is requested, the file and its sidecar share an output contribution.
+   * An absent source sidecar clears any earlier grouped sidecar at the destination.
+   * Bundled and independently submitted metadata remain available under native pack priority.
+   * Cached callbacks track the effective sidecar, including its absence.
+   *
+   * @param id destination namespaced path, including the extension.
+   * @param source source resource from the generation snapshot.
+   * @param withMetadata whether to copy the effective JSON sidecar to the destination.
+   * @throws IOException if the file or its requested metadata cannot be read or written.
+   */
+  public void copy(Identifier id, GenerationResources.File source, boolean withMetadata) throws IOException {
+    copy(id, source, withMetadata, Long.MAX_VALUE);
+  }
+
+  void copy(Identifier id, GenerationResources.File source, boolean withMetadata, long maxBytes) throws IOException {
+    context.checkOpen();
+    FileWriter writer = stream -> {
+      try (var input = source.open()) {
+        byte[] buffer = new byte[8192];
+        long length = 0;
+        int count;
+        while ((count = input.read(buffer)) != -1) {
+          if (count > maxBytes - length) {
+            throw new IOException("Copied file exceeds " + maxBytes + " bytes");
+          }
+          stream.write(buffer, 0, count);
+          length += count;
+        }
+      }
+    };
+    if (withMetadata) {
+      writeWithMetadata(id, writer, source.metadataJson().orElse(null));
+    } else {
+      write(id, writer);
+    }
+  }
+
+  private void writeWithMetadata(Identifier id, FileWriter writer, @Nullable JsonObject metadata) throws IOException {
+    var file = PackFile.write(writer);
+    PackFile companion;
+    try {
+      companion = metadata == null ? null : jsonFile(metadata);
+    } catch (IOException | RuntimeException | Error failure) {
+      file.release();
+      throw failure;
+    }
+    submit(CallbackCache.Contribution.withMetadata(id, file, companion));
   }
 
   private static PackFile jsonFile(JsonElement json) throws IOException {

@@ -43,6 +43,12 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Added pack and mod requirements, optional pack dependency versions, and ordering between packs with generation callbacks.
   - Added selection-dependent titles, descriptions and icons, and native load completion observers.
   - Added opt-in callback caching, disk-backed streaming for large generated files, and inspection export for applied Cobweb packs.
+  - Added ordered asset-pack delivery to Vanilla clients on dedicated servers, including optional server-side generation and configurable HTTP hosting.
+  - Retry a failed server resource-pack download batch once within the existing login timeout, including when an earlier connection's download fails late.
+  - Added file-based resource generation for local asset and data packs, with copying, JSON patching, texture rules, and inline JSON or text writes with optional destination checks. Conditional titles, descriptions, and icons can also be declared in pack metadata.
+  - Added optional copying of resource sidecars in JSON rules and Java callbacks.
+  - Added automatic caching for file rules and tracked resolved resource sidecars in cached generation.
+  - Shared first-read resource snapshots across Java callbacks and JSON rules in the same stage, keeping cache fingerprints consistent with the bytes used for generation.
 
 - **Configuration changes**
   - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge

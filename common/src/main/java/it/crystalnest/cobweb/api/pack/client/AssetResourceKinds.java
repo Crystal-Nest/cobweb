@@ -19,6 +19,7 @@ import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.List;
 
@@ -82,12 +83,14 @@ public final class AssetResourceKinds {
       sidecar = new JsonObject();
       sidecar.add(AnimationMetadataSection.TYPE.name(), AnimationMetadataSection.CODEC.encodeStart(JsonOps.INSTANCE, animation).getOrThrow());
     }
-    output.putSprite(id, stream -> {
-      var nativeImage = (NativeImageMixin) (Object) image;
-      nativeImage.invokeCheckAllocated();
-      if (!nativeImage.invokeWriteToChannel(Channels.newChannel(stream))) {
-        throw new IOException("Unable to encode sprite " + id);
-      }
-    }, sidecar);
+    output.putSprite(id, stream -> writePng(image, stream), sidecar);
+  }
+
+  static void writePng(NativeImage image, OutputStream stream) throws IOException {
+    var nativeImage = (NativeImageMixin) (Object) image;
+    nativeImage.invokeCheckAllocated();
+    if (!nativeImage.invokeWriteToChannel(Channels.newChannel(stream))) {
+      throw new IOException("Unable to encode sprite");
+    }
   }
 }

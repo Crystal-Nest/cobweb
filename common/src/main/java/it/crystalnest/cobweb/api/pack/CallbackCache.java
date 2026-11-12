@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -40,10 +41,10 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipFile;
 
 /**
- * Stores one validated, complete contribution batch per opted-in callback and cache scope.
+ * Stores one validated contribution batch per cached callback or file rule and cache scope.
  */
 final class CallbackCache {
-  private static final int FORMAT = 2;
+  private static final int FORMAT = 3;
 
   private static final int ENTRY_LIMIT = 32_768;
 
@@ -80,30 +81,42 @@ final class CallbackCache {
 
   private CallbackCache() {}
 
-  static Path address(Path root, GeneratedPackResources pack, ResourcePack.Task task, CallbackRegistration.Policy policy) {
+  static Path address(Path root, GeneratedPackResources pack, ResourcePack.Task task, @Nullable CallbackRegistration.Policy policy) {
     var digest = CacheObservations.digest();
-    CacheObservations.text(digest, pack.definition.type().toString());
+    CacheObservations.text(digest, pack.type.toString());
     CacheObservations.text(digest, pack.packId());
-    CacheObservations.text(digest, policy.key() == null ? SESSION + "/" + task.index() : "explicit/" + policy.key());
+    if (task.fileRule()) {
+      CacheObservations.text(digest, "file-rule/" + task.index());
+    } else {
+      String key = Objects.requireNonNull(policy).key();
+      CacheObservations.text(digest, key == null ? SESSION + "/" + task.index() : "explicit/" + key);
+    }
     return root.resolve(CacheObservations.hex(digest) + ".packcache").toAbsolutePath().normalize();
   }
 
   @Nullable
-  static String fingerprint(ResourcePack.Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, CallbackRegistration.Policy policy) {
+  static String fingerprint(ResourcePack.Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, @Nullable CallbackRegistration.Policy policy, boolean persistent) {
     var digest = CacheObservations.digest();
-    String profile = policy.key() == null ? SESSION : environment();
+    String profile = persistent ? environment() : SESSION;
     if (profile == null) {
       return null;
     }
     CacheObservations.text(digest, profile);
     CacheObservations.text(digest, context.phase().name());
-    CacheObservations.text(digest, context.loadKind().name());
+    if (!task.fileRule()) {
+      CacheObservations.text(digest, context.loadKind().name());
+    }
     CacheObservations.text(digest, task.stage().name());
     CacheObservations.text(digest, task.lifetime().name());
     CacheObservations.text(digest, task.outputs().toString());
+    if (task.fileRuleFingerprint() != null) {
+      CacheObservations.text(digest, task.fileRuleFingerprint());
+      return CacheObservations.hex(digest);
+    }
+    var callbackPolicy = Objects.requireNonNull(policy);
     for (Input input : task.inputs().values()) {
       if (input instanceof CapturedInput<?> capture) {
-        if (!value(digest, values.get(capture)) && policy.fingerprint() == null) {
+        if (!value(digest, values.get(capture)) && callbackPolicy.fingerprint() == null) {
           return null;
         }
       } else {
@@ -111,7 +124,7 @@ final class CallbackCache {
         return null;
       }
     }
-    if (policy.fingerprint() != null && !value(digest, policy.fingerprint().apply(context))) {
+    if (callbackPolicy.fingerprint() != null && !value(digest, callbackPolicy.fingerprint().apply(context))) {
       return null;
     }
     return CacheObservations.hex(digest);
@@ -264,11 +277,11 @@ final class CallbackCache {
             var tag = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(input.readUTF())).getOrThrow();
             values.add(Contribution.tag(id, new GenerationOutput.TagAddition(tag.entries(), replace)));
           } else if (operation == 2) {
-            var image = readFile(input);
+            var contents = readFile(input);
             try {
-              values.add(Contribution.sprite(id, image, input.readBoolean() ? readFile(input) : null));
+              values.add(Contribution.withMetadata(id, contents, input.readBoolean() ? readFile(input) : null));
             } catch (IOException | RuntimeException | Error failure) {
-              image.release();
+              contents.release();
               throw failure;
             }
           } else if (operation == 3) {
@@ -432,7 +445,7 @@ final class CallbackCache {
             output.writeByte(1);
             output.writeByte(tag.replace() == null ? 0 : tag.replace() ? 2 : 1);
             output.writeUTF(TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(tag.entries(), false)).getOrThrow().toString());
-          } else if (entry.sprite()) {
+          } else if (entry.groupsMetadata()) {
             output.writeByte(2);
             writeFile(output, entry.file());
             output.writeBoolean(entry.companion() != null);
@@ -503,7 +516,7 @@ final class CallbackCache {
     }
   }
 
-  record Contribution(Identifier id, @Nullable PackFile file, @Nullable GenerationOutput.TagAddition tag, boolean sprite, @Nullable PackFile companion, @Nullable String member) {
+  record Contribution(Identifier id, @Nullable PackFile file, @Nullable GenerationOutput.TagAddition tag, boolean groupsMetadata, @Nullable PackFile companion, @Nullable String member) {
     static Contribution file(Identifier id, PackFile file) {
       return new Contribution(id, file, null, false, null, null);
     }
@@ -512,7 +525,7 @@ final class CallbackCache {
       return new Contribution(id, null, tag, false, null, null);
     }
 
-    static Contribution sprite(Identifier id, PackFile file, @Nullable PackFile companion) {
+    static Contribution withMetadata(Identifier id, PackFile file, @Nullable PackFile companion) {
       return new Contribution(id, file, null, true, companion, null);
     }
 

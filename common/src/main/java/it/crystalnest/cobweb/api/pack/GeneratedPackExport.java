@@ -2,8 +2,8 @@ package it.crystalnest.cobweb.api.pack;
 
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
+import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
@@ -11,15 +11,17 @@ import net.minecraft.server.packs.resources.IoSupplier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.jetbrains.annotations.ApiStatus;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
-import java.util.TreeMap;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -52,7 +54,7 @@ public final class GeneratedPackExport {
       var matches = manager.listPacks()
         .filter(GeneratedPackResources.class::isInstance)
         .map(GeneratedPackResources.class::cast)
-        .filter(pack -> pack.definition.type() == type && (reference.nativeId() == null ? reference.logicalId().equals(pack.definition.identifier()) : reference.nativeId().equals(pack.packId())))
+        .filter(pack -> pack.definition != null && pack.type == type && (reference.nativeId() == null ? reference.logicalId().equals(pack.logicalId) : reference.nativeId().equals(pack.packId())))
         .toList();
       if (matches.size() != 1) {
         return CompletableFuture.failedFuture(new IllegalArgumentException("Expected one applied Cobweb pack for " + reference + ", found " + matches.size()));
@@ -85,34 +87,11 @@ public final class GeneratedPackExport {
     Path root = Files.createDirectories(Path.of("cobweb", "exports")).toAbsolutePath().normalize();
     Path staging = Files.createTempDirectory(root, ".pack-");
     try {
-      var type = snapshot.definition.type();
-      var section = PackMetadataSection.forPackType(type);
-      var metadata = PackMetadataOverrides.readFile(snapshot);
-      metadata.remove("overlays");
-      metadata.remove("neoforge:overlays");
-      metadata.add(section.name(), section.codec().encodeStart(JsonOps.INSTANCE, Objects.requireNonNull(snapshot.getMetadataSection(section))).getOrThrow());
-      NativePackDependencies.exportMetadata(metadata, snapshot.definition);
-      Files.writeString(staging.resolve("pack.mcmeta"), metadata.toString());
-      var icon = snapshot.getRootResource("pack.png");
-      if (icon != null) {
-        try (var input = icon.get()) {
-          Files.copy(input, staging.resolve("pack.png"));
-        }
-      }
-      var directory = staging.resolve(type.getDirectory());
-      var files = new TreeMap<Identifier, IoSupplier<InputStream>>();
-      snapshot.listAll(type, files::put);
-      for (var entry : files.entrySet()) {
-        var id = entry.getKey();
-        Path file = directory.resolve(id.getNamespace()).resolve(id.getPath());
-        if (!file.normalize().equals(file) || !file.startsWith(directory) || file.equals(directory)) {
-          throw new IOException("Invalid export path " + id);
-        }
+      writeContents(snapshot, true, (name, input) -> {
+        var file = staging.resolve(name);
         Files.createDirectories(file.getParent());
-        try (var input = entry.getValue().get()) {
-          Files.copy(input, file);
-        }
-      }
+        Files.copy(input, file);
+      });
       Path destination = root.resolve("pack-" + staging.getFileName().toString().substring(".pack-".length()));
       try {
         return Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE);
@@ -132,4 +111,52 @@ public final class GeneratedPackExport {
     }
   }
 
+  static void writeContents(GeneratedPackResources snapshot, boolean inspection, EntryWriter writer) throws IOException {
+    var type = snapshot.definition.type();
+    var section = PackMetadataSection.forPackType(type);
+    var metadata = PackMetadataOverrides.readFile(snapshot);
+    metadata.remove("overlays");
+    metadata.remove("neoforge:overlays");
+    metadata.add(section.name(), section.codec().encodeStart(JsonOps.INSTANCE, Objects.requireNonNull(snapshot.getMetadataSection(section))).getOrThrow());
+    if (inspection) {
+      NativePackDependencies.exportMetadata(metadata, snapshot.definition);
+    } else {
+      // The downloaded copy can coexist with a locally registered pack of the same logical ID.
+      metadata.remove("cobweb");
+    }
+    try (var input = new ByteArrayInputStream(metadata.toString().getBytes(StandardCharsets.UTF_8))) {
+      writer.write("pack.mcmeta", input);
+    }
+    var icon = snapshot.getRootResource("pack.png");
+    if (icon != null) {
+      try (var input = icon.get()) {
+        writer.write("pack.png", input);
+      }
+    }
+    var files = new TreeMap<Identifier, IoSupplier<InputStream>>();
+    snapshot.listAll(type, files::put);
+    for (var entry : files.entrySet()) {
+      var path = resourcePath(type, entry.getKey());
+      try (var input = entry.getValue().get()) {
+        writer.write(path, input);
+      }
+    }
+  }
+
+  static String resourcePath(PackType type, Identifier id) throws IOException {
+    if (id.getNamespace().equals(".") || id.getNamespace().equals("..")) {
+      throw new IOException("Invalid pack path " + id);
+    }
+    for (String part : id.getPath().split("/", -1)) {
+      if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+        throw new IOException("Invalid pack path " + id);
+      }
+    }
+    return type.getDirectory() + "/" + id.getNamespace() + "/" + id.getPath();
+  }
+
+  @FunctionalInterface
+  interface EntryWriter {
+    void write(String path, InputStream input) throws IOException;
+  }
 }

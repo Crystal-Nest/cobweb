@@ -48,26 +48,42 @@ public final class EditorPackPresentations {
       var minecraft = Minecraft.getInstance();
       var type = minecraft.getResourcePackRepository() == repository ? PackType.CLIENT_RESOURCES : PackType.SERVER_DATA;
       var definition = Services.REGISTRY.packDeclaration(type, id);
-      if (definition == null || definition.icon() == null && definition.presentation() == null) {
-        return Optional.empty();
-      }
       if (queries == null) {
         queries = PackQueries.editor(type, repository, selected);
       }
-      PackPresentation patch = null;
-      if (definition.presentation() != null) {
+      var callback = definition == null ? null : definition.presentation();
+      var file = FilePackPresentation.read(pack, queries, callback == null);
+      var title = file == null || definition != null && definition.explicitTitle() ? null : file.title();
+      var description = file == null || definition != null && definition.explicitDescription() ? null : file.description();
+      PackIcon baseIcon = definition == null ? null : definition.icon();
+      PackIcon icon = baseIcon != null || file == null ? baseIcon : file.icon();
+      if (callback != null) {
         try {
-          patch = definition.presentation().apply(new PackPresentationContext(new PackInfo(id, definition.id()), type, queries));
+          var patch = callback.apply(new PackPresentationContext(new PackInfo(id, definition.id()), type, queries));
+          if (patch != null) {
+            title = patch.title() == null ? title : patch.title();
+            description = patch.description() == null ? description : patch.description();
+            icon = patch.icon() == null ? icon : patch.icon();
+          }
         } catch (RuntimeException failure) {
           Constants.LOGGER.warn("Unable to refresh pack presentation for {}", id, failure);
         }
       }
-      PackIcon icon = patch == null ? null : patch.icon();
       Identifier texture = icon == null ? null : texture(pack, icon);
-      if (texture == null && definition.icon() != null && !definition.icon().equals(icon)) {
-        texture = texture(pack, definition.icon());
+      if (texture == null && baseIcon != null && !baseIcon.equals(icon)) {
+        texture = texture(pack, baseIcon);
       }
-      return Optional.of(new Display(patch, texture));
+      if (title == null && description == null && texture == null) {
+        return Optional.empty();
+      }
+      var patch = PackPresentation.builder();
+      if (title != null) {
+        patch.title(title);
+      }
+      if (description != null) {
+        patch.description(description);
+      }
+      return Optional.of(new Display(patch.build(), texture));
     }).orElse(null);
   }
 

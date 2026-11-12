@@ -171,7 +171,20 @@ public final class NativePackDependencies {
    */
   public static Map<String, List<String>> validate(PackType type, List<PackResources> packs) {
     closeDeclarations();
-    var modSections = readModSections();
+    return validate(type, packs, readModSections());
+  }
+
+  /**
+   * Validates the dependencies declared by asset packs selected for server delivery.
+   * Mod-root requirements are checked by each client's native asset load.
+   *
+   * @param packs selected packs in publication priority order.
+   */
+  public static void validatePublication(List<PackResources> packs) {
+    validate(PackType.CLIENT_RESOURCES, packs, Map.of());
+  }
+
+  private static Map<String, List<String>> validate(PackType type, List<PackResources> packs, Map<String, JsonObject> modSections) {
     Map<String, Selected> selected = new LinkedHashMap<>();
     for (PackResources resources : packs) {
       selected.computeIfAbsent(resources.packId(), ignored -> discover(type, resources, modSections));

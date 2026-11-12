@@ -39,6 +39,8 @@ public abstract class ResourcePack {
 
   private final PackLocationInfo location;
 
+  private final boolean explicitTitle;
+
   @Nullable
   private final Component description;
 
@@ -73,6 +75,7 @@ public abstract class ResourcePack {
     FileUtil.decomposePath(identifier.getPath()).getOrThrow();
     type = registrar.type;
     location = new PackLocationInfo("mod/" + identifier.getNamespace() + ":" + bundledRoot(), registrar.title.copy(), registrar.source, Optional.empty());
+    explicitTitle = registrar.explicitTitle;
     description = registrar.description == null ? null : registrar.description.copy();
     formats = registrar.formats;
     activation = registrar.activation;
@@ -129,6 +132,26 @@ public abstract class ResourcePack {
    */
   public final Component title() {
     return location.title().copy();
+  }
+
+  /**
+   * Checks whether the registrar supplies a title for the editor.
+   *
+   * @return whether Java supplies the base title.
+   */
+  @ApiStatus.Internal
+  public final boolean hasExplicitTitle() {
+    return explicitTitle;
+  }
+
+  /**
+   * Checks whether the registrar supplies a description for the editor.
+   *
+   * @return whether Java supplies the base description.
+   */
+  @ApiStatus.Internal
+  public final boolean hasExplicitDescription() {
+    return description != null;
   }
 
   /**
@@ -539,7 +562,7 @@ public abstract class ResourcePack {
       phases.put(kind, selected);
     }
     var registration = new CallbackRegistration();
-    tasks.add(new Task(Map.copyOf(phases), stage, lifetime, inputs, outputs, callback, registration, tasks.size()));
+    tasks.add(new Task(Map.copyOf(phases), stage, lifetime, inputs, outputs, callback, registration, tasks.size(), null));
     return registration;
   }
 
@@ -635,7 +658,12 @@ public abstract class ResourcePack {
     return presentation;
   }
 
-  record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index) {}
+  record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index,
+              @Nullable String fileRuleFingerprint) {
+    boolean fileRule() {
+      return fileRuleFingerprint != null;
+    }
+  }
 
   /**
    * Generates complete resource submissions before returning.
@@ -680,6 +708,8 @@ public abstract class ResourcePack {
     private final PackType type;
 
     private Component title;
+
+    private boolean explicitTitle;
 
     @Nullable
     private Component description;
@@ -736,6 +766,7 @@ public abstract class ResourcePack {
      */
     public final R title(Component value) {
       title = Objects.requireNonNull(value).copy();
+      explicitTitle = true;
       return self();
     }
 

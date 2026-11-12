@@ -1,6 +1,8 @@
 package it.crystalnest.cobweb.api.pack;
 
 import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
+import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
+import it.crystalnest.cobweb.mixin.OverlayedPackResourcesAccessor;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.BundledPackResources;
 import net.minecraft.resources.Identifier;
@@ -21,6 +23,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -31,7 +34,15 @@ import java.util.stream.Stream;
  * Native resource opening owned by one pack and resource load.
  */
 final class GeneratedPackResources implements PackResources {
+  @Nullable
   final ResourcePack definition;
+
+  final PackType type;
+
+  @Nullable
+  final Identifier logicalId;
+
+  FilePackRules rules = FilePackRules.EMPTY;
 
   private final PackLocationInfo location;
 
@@ -50,8 +61,16 @@ final class GeneratedPackResources implements PackResources {
 
   private boolean closed;
 
-  GeneratedPackResources(ResourcePack definition, PackLocationInfo location, Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles) {
+  private GeneratedPackResources(@Nullable ResourcePack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
+    Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles) {
+    this(definition, type, logicalId, location, files, bundles, ownsBundles, null);
+  }
+
+  private GeneratedPackResources(@Nullable ResourcePack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
+    Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles, @Nullable StageResourceSnapshots snapshots) {
     this.definition = definition;
+    this.type = type;
+    this.logicalId = logicalId;
     this.location = location;
     this.files = files;
     this.bundles = bundles;
@@ -59,17 +78,54 @@ final class GeneratedPackResources implements PackResources {
     PackResources content = new GeneratedContent();
     if (bundles != null) {
       if (bundles.base != null) {
-        content = definition.generates() ? new OverlayedPackResources(bundles.base.pack(), List.of(content)) : bundles.base.pack();
+        var base = bundles.base.pack();
+        content = new OverlayedPackResources(snapshots == null ? base : snapshots.wrap(base), List.of(content));
       }
       if (!bundles.overlays.isEmpty()) {
-        content = new OverlayedPackResources(content, bundles.overlays.stream().map(BundledPackResources::pack).toList());
+        var layers = bundles.overlays.stream().map(BundledPackResources::pack);
+        content = new OverlayedPackResources(content, (snapshots == null ? layers : layers.map(snapshots::wrap)).toList());
       }
     }
     view = content;
   }
 
-  GeneratedPackResources snapshot() {
-    return new GeneratedPackResources(definition, location, files, bundles, false);
+  GeneratedPackResources snapshot(StageResourceSnapshots snapshots) {
+    var copy = new GeneratedPackResources(definition, type, logicalId, location, files, bundles, false, snapshots);
+    copy.rules = rules;
+    return copy;
+  }
+
+  private GeneratedPackResources copy(Map<Identifier, File> entries, @Nullable Bundles sources, boolean owns) {
+    var copy = new GeneratedPackResources(definition, type, logicalId, location, entries, sources, owns);
+    copy.rules = rules;
+    return copy;
+  }
+
+  static GeneratedPackResources wrap(PackType type, PackResources pack) {
+    List<PackResources> layers = pack instanceof OverlayedPackResources overlay
+      ? ((OverlayedPackResourcesAccessor) overlay).getPackResourcesStack().reversed() : List.of(pack);
+    var bundles = new Bundles(nativeBundle(layers.getFirst()), layers.subList(1, layers.size()).stream().map(GeneratedPackResources::nativeBundle).toList());
+    return new GeneratedPackResources(null, type, NativePackDependencies.info(type, pack).logicalId(), pack.location(), Map.of(), bundles, true);
+  }
+
+  private static BundledPackResources nativeBundle(PackResources pack) {
+    return new BundledPackResources(pack, (type, namespace, output) -> pack.listResources(type, namespace, "", output));
+  }
+
+  Object ownerKey() {
+    return definition == null ? packId() : definition;
+  }
+
+  boolean generates() {
+    return definition != null && definition.generates() || !rules.rules().isEmpty() || !files.isEmpty();
+  }
+
+  boolean hasFiles() {
+    return !files.isEmpty();
+  }
+
+  List<ResourcePack.Task> javaTasks() {
+    return definition == null ? List.of() : definition.tasks();
   }
 
   File file(Identifier id) {
@@ -77,7 +133,7 @@ final class GeneratedPackResources implements PackResources {
   }
 
   synchronized GeneratedPackResources fullLoadSnapshot() {
-    var retained = new GeneratedPackResources(definition, location, Map.of(), null, false);
+    var retained = copy(Map.of(), null, false);
     retained.retainFullLoad(this);
     return retained;
   }
@@ -89,7 +145,7 @@ final class GeneratedPackResources implements PackResources {
     if (bundles != null) {
       bundles.retain();
     }
-    var snapshot = new GeneratedPackResources(definition, location, files, bundles, true);
+    var snapshot = copy(files, bundles, true);
     files.values().forEach(file -> {
       if (snapshot.owned.add(file.content)) {
         file.content.retain();
@@ -149,6 +205,9 @@ final class GeneratedPackResources implements PackResources {
 
   @Override
   public PackLocationInfo location() {
+    if ((!rules.rules().isEmpty() || hasFiles()) && location.knownPackInfo().isPresent()) {
+      return new PackLocationInfo(location.id(), location.title(), location.source(), java.util.Optional.empty());
+    }
     return location;
   }
 
@@ -172,7 +231,7 @@ final class GeneratedPackResources implements PackResources {
     if (bundles != null && bundles.base != null) {
       listBundle(bundles.base, type, resolved);
     }
-    if (type == definition.type()) {
+    if (type == this.type) {
       files.forEach((id, file) -> resolved.put(id, file.content::open));
     }
     if (bundles != null) {
@@ -194,8 +253,8 @@ final class GeneratedPackResources implements PackResources {
   @SuppressWarnings("unchecked")
   public <T> T getMetadataSection(MetadataSectionType<T> type) throws IOException {
     var primary = bundles == null || bundles.base == null ? null : bundles.base.pack();
-    if (type.equals(PackMetadataSection.forPackType(definition.type()))) {
-      return (T) PackMetadataOverrides.read(definition.type(), primary, definition.description(), definition.formats());
+    if (definition != null && type.equals(PackMetadataSection.forPackType(this.type))) {
+      return (T) PackMetadataOverrides.read(this.type, primary, definition.description(), definition.formats());
     }
     return primary == null ? null : primary.getMetadataSection(type);
   }
@@ -218,8 +277,12 @@ final class GeneratedPackResources implements PackResources {
   }
 
   @Nullable
-  IoSupplier<InputStream> bundledFile(Identifier id) {
-    return bundles == null || bundles.base == null ? null : bundles.base.pack().getResource(definition.type(), id);
+  IoSupplier<InputStream> bundledFile(Identifier id, StageResourceSnapshots snapshots) {
+    if (bundles == null || bundles.base == null) {
+      return null;
+    }
+    var base = bundles.base.pack();
+    return snapshots.wrap(base, type, id, base.getResource(type, id));
   }
 
   private final class GeneratedContent extends AbstractPackMetadataResources implements PackResources {
@@ -234,13 +297,13 @@ final class GeneratedPackResources implements PackResources {
 
     @Override
     public IoSupplier<InputStream> getResource(PackType type, Identifier id) {
-      File file = type == definition.type() ? files.get(id) : null;
+      File file = type == GeneratedPackResources.this.type ? files.get(id) : null;
       return file == null ? null : file.content::open;
     }
 
     @Override
     public void listResources(PackType type, String namespace, String prefix, ResourceOutput output) {
-      if (type == definition.type()) {
+      if (type == GeneratedPackResources.this.type) {
         String directory = prefix.isEmpty() ? "" : prefix + "/";
         files.forEach((id, file) -> {
           if (id.getNamespace().equals(namespace) && id.getPath().startsWith(directory)) {
@@ -252,7 +315,15 @@ final class GeneratedPackResources implements PackResources {
 
     @Override
     public Set<String> getNamespaces(PackType type) {
-      return type == definition.type() ? definition.namespaces() : Set.of();
+      if (type != GeneratedPackResources.this.type) {
+        return Set.of();
+      }
+      var namespaces = new HashSet<>(rules.namespaces());
+      if (definition != null && definition.generates()) {
+        namespaces.addAll(definition.namespaces());
+      }
+      files.keySet().forEach(id -> namespaces.add(id.getNamespace()));
+      return namespaces;
     }
 
     @Override
@@ -311,7 +382,7 @@ final class GeneratedPackResources implements PackResources {
         }
         return bundled(location, definition.bundledRoot() + "/" + path);
       }).filter(Objects::nonNull).toList();
-      return new GeneratedPackResources(definition, location, Map.of(), new Bundles(base, active), true);
+      return new GeneratedPackResources(definition, definition.type(), definition.identifier(), location, Map.of(), new Bundles(base, active), true);
     }
 
     @Nullable

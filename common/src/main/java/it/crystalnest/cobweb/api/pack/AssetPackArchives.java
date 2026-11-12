@@ -1,0 +1,208 @@
+package it.crystalnest.cobweb.api.pack;
+
+import it.crystalnest.cobweb.Constants;
+import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.packs.PackResources;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+/**
+ * Captures one detached publication and writes its deterministic native ZIPs.
+ */
+@ApiStatus.Internal
+public final class AssetPackArchives {
+  private static final long MAX_ZIP_BYTES = 250L * 1024 * 1024;
+
+  private static final long MAX_CONTENT_BYTES = 1024L * 1024 * 1024;
+
+  private static final int MAX_ENTRIES = 65_535;
+
+  private static final LocalDateTime ZIP_TIME = LocalDateTime.of(2000, 1, 1, 0, 0);
+
+  private AssetPackArchives() {}
+
+  /**
+   * Captures the applied server state needed for publication.
+   *
+   * @param server server on its main thread after a successful load.
+   * @param packs selected asset packs in increasing priority.
+   * @param warnClientCallbacks whether to report client-only output.
+   * @return detached publication job.
+   */
+  public static Build capture(MinecraftServer server, List<AssetPack> packs, boolean warnClientCallbacks) {
+    var captures = new ArrayList<Captured>();
+    for (AssetPack pack : packs) {
+      var publication = pack.capturePublication(server);
+      if (publication == null && warnClientCallbacks && pack.generates()) {
+        Constants.LOGGER.warn("Publishing only bundled assets of {} because its callbacks run on the client", pack.identifier());
+      }
+      captures.add(new Captured(pack, publication));
+    }
+    return (directory, staging) -> write(directory, staging, captures);
+  }
+
+  private static List<Archive> write(Path directory, Path staging, List<Captured> captures) throws IOException {
+    Files.createDirectories(directory);
+    Files.createDirectories(staging);
+    var resources = new ArrayList<PackResources>();
+    try {
+      for (var capture : captures) {
+        var nativePack = capture.pack.toPack();
+        if (nativePack == null || !nativePack.getCompatibility().isCompatible()) {
+          throw new IOException("Invalid or incompatible asset pack metadata for " + capture.pack.identifier());
+        }
+        try (var openings = nativePack.open()) {
+          openings.forEach(resources::add);
+        }
+      }
+      NativePackDependencies.validatePublication(resources);
+      var archives = new ArrayList<Archive>();
+      for (int index = 0; index < resources.size(); index++) {
+        var capture = captures.get(index);
+        var pack = (GeneratedPackResources) resources.get(index);
+        if (capture.publication != null) {
+          var output = new AssetPublicationOutput(pack);
+          try {
+            capture.publication.generate(output);
+            output.finish();
+          } finally {
+            output.close();
+          }
+        }
+        archives.add(writeArchive(directory, staging, pack));
+      }
+      return List.copyOf(archives);
+    } finally {
+      resources.forEach(PackResources::close);
+    }
+  }
+
+  private static Archive writeArchive(Path directory, Path scratch, GeneratedPackResources pack) throws IOException {
+    Path staging = Files.createTempFile(scratch, ".pending-", ".zip");
+    var sha1 = digest("SHA-1");
+    var sha256 = digest("SHA-256");
+    try {
+      try (var file = Files.newOutputStream(staging);
+           var bounded = new LimitedOutput(file, MAX_ZIP_BYTES);
+           var first = new DigestOutputStream(bounded, sha1);
+           var second = new DigestOutputStream(first, sha256);
+           var zip = new ZipOutputStream(second)) {
+        var contents = new LimitedOutput(zip, MAX_CONTENT_BYTES);
+        int[] entries = {0};
+        GeneratedPackExport.writeContents(pack, false, (name, input) -> {
+          if (++entries[0] > MAX_ENTRIES) {
+            throw new IOException("Too many files in published asset pack " + pack.packId());
+          }
+          var entry = new ZipEntry(name);
+          entry.setTimeLocal(ZIP_TIME);
+          zip.putNextEntry(entry);
+          input.transferTo(contents);
+          zip.closeEntry();
+        });
+      }
+      String address = HexFormat.of().formatHex(sha256.digest());
+      Path destination = directory.resolve(address + ".zip");
+      long size = Files.size(staging);
+      if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS) || Files.mismatch(staging, destination) != -1) {
+        try {
+          Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException ignored) {
+          Files.move(staging, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+      }
+      var id = pack.definition.identifier();
+      var uuid = UUID.nameUUIDFromBytes(("cobweb:published-assets/" + id).getBytes(StandardCharsets.UTF_8));
+      return new Archive(id, uuid, address, HexFormat.of().formatHex(sha1.digest()), destination, size);
+    } finally {
+      Files.deleteIfExists(staging);
+    }
+  }
+
+  private static MessageDigest digest(String algorithm) {
+    try {
+      return MessageDigest.getInstance(algorithm);
+    } catch (NoSuchAlgorithmException failure) {
+      throw new IllegalStateException("Missing ZIP digest " + algorithm, failure);
+    }
+  }
+
+  /**
+   * Writes an archive set using previously captured values.
+   */
+  @FunctionalInterface
+  public interface Build {
+    /**
+     * Builds a complete candidate publication.
+     *
+     * @param directory publication storage directory.
+     * @param staging temporary storage on the same file system.
+     * @return archives in increasing priority.
+     * @throws IOException if opening, generating or writing a pack fails.
+     */
+    List<Archive> write(Path directory, Path staging) throws IOException;
+  }
+
+  /**
+   * Identifies the immutable bytes of a published pack.
+   *
+   * @param id logical pack ID.
+   * @param uuid stable network offer ID.
+   * @param address SHA-256 digest used in its route.
+   * @param sha1 native download hash.
+   * @param path archived file.
+   * @param size archived file size in bytes.
+   */
+  public record Archive(Identifier id, UUID uuid, String address, String sha1, Path path, long size) {}
+
+  private record Captured(AssetPack pack, @Nullable AssetPack.Publication publication) {}
+
+  private static final class LimitedOutput extends FilterOutputStream {
+    private long remaining;
+
+    private LimitedOutput(OutputStream output, long limit) {
+      super(output);
+      remaining = limit;
+    }
+
+    @Override
+    public void write(int value) throws IOException {
+      reserve(1);
+      out.write(value);
+    }
+
+    @Override
+    public void write(byte[] bytes, int offset, int length) throws IOException {
+      reserve(length);
+      out.write(bytes, offset, length);
+    }
+
+    private void reserve(int length) throws IOException {
+      if (length > remaining) {
+        throw new IOException("Published asset pack exceeds its size limit");
+      }
+      remaining -= length;
+    }
+  }
+}

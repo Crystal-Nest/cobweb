@@ -45,7 +45,7 @@ public abstract class WorldLoaderMixin {
       DynamicPackLoads.Attempt attempt;
       try {
         var repository = config.packConfig().packRepository();
-        attempt = DynamicPackLoads.open(PackType.SERVER_DATA, manager.listPacks().toList(), LoadKind.FULL_LOAD, null, DynamicPackLoads.worldCache(repository), repository);
+        attempt = DynamicPackLoads.open(PackType.SERVER_DATA, manager.listPacks().toList(), LoadKind.FULL_LOAD, DynamicPackLoads.worldCache(repository), repository);
       } catch (RuntimeException | Error failure) {
         manager.close();
         return CompletableFuture.failedFuture(failure);

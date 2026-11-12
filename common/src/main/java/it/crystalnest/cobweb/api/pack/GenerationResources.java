@@ -1,17 +1,21 @@
 package it.crystalnest.cobweb.api.pack;
 
 import com.google.gson.JsonParser;
+import com.google.gson.JsonObject;
 import com.mojang.serialization.Codec;
 import net.minecraft.locale.Language;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.metadata.MetadataSectionType;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.ResourceMetadata;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -29,9 +33,12 @@ public final class GenerationResources {
 
   private final ResourceManager manager;
 
-  GenerationResources(GenerationContext context, ResourceManager manager) {
+  private final CacheObservations observations;
+
+  GenerationResources(GenerationContext context, ResourceManager manager, CacheObservations observations) {
     this.context = context;
     this.manager = manager;
+    this.observations = observations;
   }
 
   /**
@@ -42,8 +49,9 @@ public final class GenerationResources {
    */
   public Optional<File> get(Identifier id) {
     context.checkOpen();
-    context.observe(CacheObservations.Kind.RESOURCE, id.toString());
-    return manager.getResource(id).map(resource -> new File(resource));
+    var resource = manager.getResource(id);
+    observations.observe(CacheObservations.Kind.RESOURCE, id.toString(), digest -> resource.ifPresent(file -> CacheObservations.text(digest, file.sourcePackId())));
+    return resource.map(file -> new File(file, id, null, -1));
   }
 
   /**
@@ -72,8 +80,9 @@ public final class GenerationResources {
    */
   public List<File> stack(Identifier id) {
     context.checkOpen();
-    context.observe(CacheObservations.Kind.STACK, id.toString());
-    return manager.getResourceStack(id).stream().map(resource -> new File(resource)).toList();
+    var stack = manager.getResourceStack(id);
+    observations.observe(CacheObservations.Kind.STACK, id.toString(), digest -> CacheObservations.appendSources(digest, stack));
+    return stackFiles(id, null, stack);
   }
 
   /**
@@ -85,8 +94,13 @@ public final class GenerationResources {
    */
   public Map<Identifier, File> list(String directory, ResourceManager.Selector selector) {
     context.checkOpen();
-    context.observe(CacheObservations.Kind.LIST, directory);
-    return manager.listResources(directory, selector).entrySet().stream().collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> new File(entry.getValue())));
+    boolean tracking = observations.tracking();
+    var files = manager.listResources(directory, tracking ? id -> true : selector);
+    if (tracking) {
+      observations.observe(CacheObservations.Kind.LIST, directory, digest -> CacheObservations.appendList(digest, files));
+    }
+    return files.entrySet().stream().filter(entry -> !tracking || selector.isIncluded(entry.getKey()))
+      .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> new File(entry.getValue(), entry.getKey(), directory, -1)));
   }
 
   /**
@@ -98,9 +112,21 @@ public final class GenerationResources {
    */
   public Map<Identifier, List<File>> listStacks(String directory, ResourceManager.Selector selector) {
     context.checkOpen();
-    context.observe(CacheObservations.Kind.LIST_STACKS, directory);
-    return manager.listResourceStacks(directory, selector).entrySet().stream()
-      .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> entry.getValue().stream().map(File::new).toList()));
+    boolean tracking = observations.tracking();
+    var files = manager.listResourceStacks(directory, tracking ? id -> true : selector);
+    if (tracking) {
+      observations.observe(CacheObservations.Kind.LIST_STACKS, directory, digest -> CacheObservations.appendStacks(digest, files));
+    }
+    return files.entrySet().stream().filter(entry -> !tracking || selector.isIncluded(entry.getKey()))
+      .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> stackFiles(entry.getKey(), directory, entry.getValue())));
+  }
+
+  private List<File> stackFiles(Identifier id, @Nullable String directory, List<Resource> stack) {
+    var files = new ArrayList<File>(stack.size());
+    for (int index = 0; index < stack.size(); index++) {
+      files.add(new File(stack.get(index), id, directory, index));
+    }
+    return List.copyOf(files);
   }
 
   /**
@@ -110,8 +136,9 @@ public final class GenerationResources {
    */
   public Set<String> namespaces() {
     context.checkOpen();
-    context.observe(CacheObservations.Kind.NAMESPACES, "");
-    return Collections.unmodifiableSet(new LinkedHashSet<>(manager.getNamespaces()));
+    var namespaces = new LinkedHashSet<>(manager.getNamespaces());
+    observations.observe(CacheObservations.Kind.NAMESPACES, "", digest -> namespaces.forEach(namespace -> CacheObservations.text(digest, namespace)));
+    return Collections.unmodifiableSet(namespaces);
   }
 
   /**
@@ -139,8 +166,18 @@ public final class GenerationResources {
   public final class File {
     private final Resource resource;
 
-    private File(Resource resource) {
+    private final Identifier id;
+
+    @Nullable
+    private final String directory;
+
+    private final int stackIndex;
+
+    private File(Resource resource, Identifier id, @Nullable String directory, int stackIndex) {
       this.resource = resource;
+      this.id = id;
+      this.directory = directory;
+      this.stackIndex = stackIndex;
     }
 
     /**
@@ -154,14 +191,22 @@ public final class GenerationResources {
     }
 
     /**
-     * Opens a fresh stream scoped to the callback. Cobweb closes it at callback completion.
+     * Opens a fresh stream scoped to the callback. Readers of the same resolved file in this stage share its first captured contents. Cobweb closes the stream at callback completion.
      *
      * @return stream of the resource contents.
      * @throws IOException if the file cannot be opened.
      */
     public InputStream open() throws IOException {
       context.checkOpen();
-      return context.stream(resource.open());
+      try {
+        var input = resource.open();
+        var scoped = context.stream(input);
+        observations.observeContent(id, directory, stackIndex, resource, input);
+        return scoped;
+      } catch (IOException | RuntimeException failure) {
+        observations.unsupported();
+        throw failure;
+      }
     }
 
     /**
@@ -173,8 +218,29 @@ public final class GenerationResources {
      * @throws IOException if the metadata cannot be read.
      */
     public <T> Optional<T> metadata(MetadataSectionType<T> type) throws IOException {
-      context.untrackedRead();
-      return resource.metadata().getSection(type);
+      return observedMetadata().getSection(type);
+    }
+
+    /**
+     * Reads a detached copy of the native sidecar associated with this resource.
+     *
+     * @return original JSON sidecar when available.
+     * @throws IOException if the sidecar cannot be read.
+     */
+    public Optional<JsonObject> metadataJson() throws IOException {
+      return observedMetadata() instanceof ResourceMetadataJson raw ? Optional.of(raw.json().deepCopy()) : Optional.empty();
+    }
+
+    private ResourceMetadata observedMetadata() throws IOException {
+      context.checkOpen();
+      try {
+        var metadata = resource.metadata();
+        observations.observeMetadata(id, directory, stackIndex, metadata);
+        return metadata;
+      } catch (IOException | RuntimeException failure) {
+        context.untrackedRead();
+        throw failure;
+      }
     }
 
     /**

@@ -21,6 +21,8 @@ reusable code — not boilerplate.
 Cobweb is the shared modding API used across all **Crystal Nest** projects.  
 📚 Want to dive deeper? Check out the full [Wiki](https://github.com/Crystal-Nest/cobweb/wiki).
 
+Players can receive Cobweb's dedicated-server resource packs with an unmodified Minecraft client. Mods that use Cobweb for client features still need it installed on the client.
+
 [![Minecraft Storage](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/cobweb/minecraft-storage-banner.png "Minecraft Storage")](https://minecraftstorage.com/mods/cobweb?ref=crystal-nest)
 
 ## ✨ **Features**

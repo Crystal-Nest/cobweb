@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.platform.services;
 
 import com.mojang.serialization.Codec;
+import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.api.pack.PackActivation;
 import it.crystalnest.cobweb.api.pack.PackDependencySettings;
 import it.crystalnest.cobweb.api.pack.PackLoadOutcome;
@@ -307,7 +308,23 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   @Nullable
   public final PackDeclaration packDeclaration(PackType type, String nativeId) {
     ResourcePack pack = packs.getOrDefault(type, Map.of()).get(nativeId);
-    return pack == null ? null : new PackDeclaration(pack.identifier(), pack.dependencySettings(), pack.loadObserver(), pack.icon(), pack.presentation());
+    return pack == null ? null : new PackDeclaration(pack.identifier(), pack.dependencySettings(), pack.loadObserver(), pack.icon(), pack.presentation(), pack.hasExplicitTitle(), pack.hasExplicitDescription());
+  }
+
+  /**
+   * Resolves an asset pack selected for publication by its logical identifier.
+   *
+   * @param id logical pack identifier.
+   * @return matching registered pack, or null if absent.
+   */
+  @Nullable
+  public final AssetPack assetPack(Identifier id) {
+    for (var pack : packs.getOrDefault(PackType.CLIENT_RESOURCES, Map.of()).values()) {
+      if (pack instanceof AssetPack asset && asset.identifier().equals(id)) {
+        return asset;
+      }
+    }
+    return null;
   }
 
   /**
@@ -318,9 +335,11 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    * @param observer optional native outcome observer.
    * @param icon explicit base icon, if any.
    * @param presentation optional editor presentation callback.
+   * @param explicitTitle whether Java supplies the base title.
+   * @param explicitDescription whether Java supplies the base description.
    */
   public record PackDeclaration(Identifier id, PackDependencySettings dependencies, @Nullable Consumer<PackLoadOutcome> observer, @Nullable PackIcon icon,
-                                @Nullable Function<PackPresentationContext, PackPresentation> presentation) {}
+                                @Nullable Function<PackPresentationContext, PackPresentation> presentation, boolean explicitTitle, boolean explicitDescription) {}
 
   /**
    * Opens a pack root relative to its owning mod's resource container.

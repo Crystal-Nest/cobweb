@@ -16,6 +16,7 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.flag.FeatureFlagSet;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -57,7 +58,7 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
 
   GenerationContext(ResourceManager manager, Identifier pack, Phase phase, Stage stage, LoadKind loadKind, HolderLookup.Provider registries,
     Map<CapturedInput<?>, Object> captured, Map<TagKey<?>, List<? extends Holder<?>>> tags, CacheObservations observations, PackQueries packs, FeatureFlagSet features) {
-    resources = new GenerationResources(this, manager);
+    resources = new GenerationResources(this, manager, observations);
     this.pack = pack;
     this.phase = phase;
     this.stage = stage;

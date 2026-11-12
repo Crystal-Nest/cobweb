@@ -190,7 +190,7 @@ publisher {
   setGameVersions(game_versions.toArray(new String[0]))
   setDisplayName("[$loader - $minecraft_version] $mod_title v$mod_version")
   setJavaVersions([JavaVersion.toVersion(java_version)])
-  setCurseEnvironment("both") // "server", "client" or "both".
+  setCurseEnvironment("both") // Cobweb supports installation on both physical sides.
   github {
     repo = "$github_user/$mod_id_kebab"
     tag = "v${project.version}"

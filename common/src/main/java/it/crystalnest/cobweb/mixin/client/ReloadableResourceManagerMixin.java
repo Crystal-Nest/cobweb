@@ -54,21 +54,27 @@ public abstract class ReloadableResourceManagerMixin {
     if (type != PackType.CLIENT_RESOURCES) {
       return original.call(background, main, initial, packs);
     }
+    List<PackResources> prepared;
+    try {
+      prepared = DynamicPackLoads.prepare(type, packs, null);
+    } catch (RuntimeException | Error failure) {
+      return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), null);
+    }
     CompletableFuture<ReloadInstance> nativeReload;
     DynamicPackLoads.Attempt opened = null;
     try {
       var repository = Minecraft.getInstance().getResourcePackRepository();
       PackQueries.bindClient(repository, (ReloadableResourceManager) (Object) this);
-      var attempt = DynamicPackLoads.open(type, packs, kind, null, Path.of("cobweb", "cache", "assets"), repository);
+      var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of("cobweb", "cache", "assets"), repository);
       opened = attempt;
-      nativeReload = attempt.generates() ? attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> original.call(background, main, initial, packs), main)
-        : CompletableFuture.completedFuture(original.call(background, main, initial, packs));
+      nativeReload = attempt.generates() ? attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> original.call(background, main, initial, prepared), main)
+        : CompletableFuture.completedFuture(original.call(background, main, initial, prepared));
     } catch (RuntimeException | Error failure) {
       nativeReload = CompletableFuture.failedFuture(failure);
     }
     nativeReload.whenComplete((reload, failure) -> {
       if (failure != null) {
-        packs.forEach(PackResources::close);
+        prepared.forEach(PackResources::close);
       }
     });
     return DynamicPackLoads.gatedReload(nativeReload, opened);

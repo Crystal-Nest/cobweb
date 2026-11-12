@@ -4,14 +4,25 @@
   "package": "${group}.${mod_id}.mixin",
   "compatibilityLevel": "JAVA_${java_version}",
   "mixins": [
+    "ConnectionAccessor",
     "DataPackCommandMixin",
+    "DedicatedServerMixin",
+    "DedicatedServerPropertiesAccessor",
     "MinecraftServerMixin",
+    "OverlayedPackResourcesAccessor",
     "RegistryDataLoaderMixin",
     "ReloadableServerResourcesMixin",
     "ReloadCommandMixin",
+    "ResourceMetadataMixin",
+    "ServerConfigurationPacketListenerImplMixin",
+    "ServerConnectionListenerChannelInitializerMixin",
+    "ServerConnectionListenerMixin",
+    "ServerHandshakePacketListenerImplMixin",
     "ServerPacksSourceWorldMixin",
+    "SettingsAccessor",
     "TagLoaderMixin",
-    "WorldLoaderMixin"
+    "WorldLoaderMixin",
+    "WorldLoaderPackConfigMixin"
   ],
   "client": [
     "client.NativeImageMixin",
