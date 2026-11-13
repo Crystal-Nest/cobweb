@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.LayeredRegistryAccess;
 import net.minecraft.core.Registry;

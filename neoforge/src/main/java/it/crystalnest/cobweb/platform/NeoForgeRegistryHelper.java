@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
 import com.mojang.serialization.Codec;
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
 import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
@@ -16,23 +15,18 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
-import it.crystalnest.cobweb.platform.services.BundledPackResources;
-import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
-import net.neoforged.neoforge.event.AddPackFindersEvent;
-import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DataPackRegistriesHooks;
+import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NewDatapackRegistryEvent;
 import net.neoforged.neoforge.registries.datamaps.DataMapType;
-import net.neoforged.neoforge.resource.JarContentsPackResources;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,9 +55,10 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   protected <T> void addDataPackRegistry(CobwebDataPackRegistry<T> definition, @Nullable Codec<T> networkCodec) {
     dataPackRegistries.add(event -> {
       var key = definition.key();
-      if (BuiltInRegistries.REGISTRY.containsKey(key.identifier()) || Stream.of(RegistryDataLoader.WORLD_REGISTRIES, RegistryDataLoader.DIMENSION_REGISTRIES, RegistryDataLoader.RELOADABLE_REGISTRIES)
-        .flatMap(Collection::stream)
-        .anyMatch(registry -> registry.key().equals(key))) {
+      if (
+        BuiltInRegistries.REGISTRY.containsKey(key.identifier()) ||
+        Stream.of(RegistryDataLoader.WORLD_REGISTRIES, RegistryDataLoader.DIMENSION_REGISTRIES, RegistryDataLoader.RELOADABLE_REGISTRIES).flatMap(Collection::stream).anyMatch(registry -> registry.key().equals(key))
+      ) {
         throw new IllegalStateException("Registry already exists: " + key.identifier());
       }
       if (definition.lifetime() == CobwebDataPackRegistry.Lifetime.RELOADABLE) {
@@ -97,6 +92,11 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   }
 
   @Override
+  public CreativeModeTab.Builder createCreativeModeTabBuilder() {
+    return CreativeModeTab.builder();
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
     return (Register<R>) registries.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
@@ -107,6 +107,10 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
         register = new Register.Blocks(namespace);
       } else if (registryKey.equals(Registries.ENTITY_TYPE)) {
         register = new Register.Entities(namespace);
+      } else if (registryKey.equals(Registries.POTION)) {
+        register = new Register.Potions(namespace);
+      } else if (registryKey.equals(Registries.CREATIVE_MODE_TAB)) {
+        register = new Register.CreativeModeTabs(namespace);
       } else if (registryKey.equals(Registries.DATA_COMPONENT_TYPE) || registryKey.equals(Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE)) {
         register = new Register.DataComponents(registryKey.equals(Registries.DATA_COMPONENT_TYPE) ? Registries.DATA_COMPONENT_TYPE : Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE, namespace);
       } else {
@@ -115,42 +119,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
       register.register(bus);
       return register;
     });
-  }
-
-  @Override
-  protected void addPackSource(PackType type, Supplier<Pack> supplier) {
-    bus.addListener((AddPackFindersEvent event) -> {
-      if (event.getPackType() == type) {
-        event.addRepositorySource(consumer -> {
-          Pack pack = supplier.get();
-          if (pack != null) {
-            consumer.accept(pack);
-          }
-        });
-      }
-    });
-  }
-
-  @Override
-  public String bundledKnownPackNamespace() {
-    return "neoforge";
-  }
-
-  @Override
-  @Nullable
-  public BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root) {
-    return ModList.get().getModContainerById(owner).map(container -> {
-      var contents = container.getModInfo().getOwningFile().getFile().getContents();
-      return new BundledPackResources(new JarContentsPackResources(location, contents, root), (type, namespace, output) -> {
-        var prefix = root + "/" + type.getDirectory() + "/" + namespace + "/";
-        contents.visitContent(prefix, (path, resource) -> {
-          var id = Identifier.tryBuild(namespace, path.substring(prefix.length()));
-          if (id != null) {
-            output.accept(id, resource.retain()::open);
-          }
-        });
-      });
-    }).orElse(null);
   }
 
   /**
@@ -165,7 +133,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
       dataPackRegistries.forEach(registry -> registry.accept(event));
       dataPackRegistries.clear();
     });
-    bus.addListener((FMLLoadCompleteEvent event) -> DynamicPackLoads.closeDeclarations());
   }
 
   /**
@@ -285,6 +252,24 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     }
 
     /**
+     * Specialized register for potions.
+     */
+    public static final class Potions extends Register<Potion> implements CobwebRegister.Potions {
+      private Potions(String namespace) {
+        super(Registries.POTION, namespace);
+      }
+    }
+
+    /**
+     * Specialized register for creative mode tabs.
+     */
+    public static final class CreativeModeTabs extends Register<CreativeModeTab> implements CobwebRegister.CreativeModeTabs {
+      private CreativeModeTabs(String namespace) {
+        super(Registries.CREATIVE_MODE_TAB, namespace);
+      }
+    }
+
+    /**
      * Specialized register for data component types.
      */
     public static final class DataComponents extends Register<DataComponentType<?>> implements CobwebRegister.DataComponents {
@@ -305,12 +290,11 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     }
 
     @Override
-    public Holder<T> getDelegate() {
+    public @NonNull Holder<T> getDelegate() {
       return holder().getDelegate();
     }
 
     @Override
-    @SuppressWarnings("removal")
     public @Nullable ResourceKey<T> getKey() {
       return holder().getKey();
     }
@@ -326,7 +310,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     }
 
     @Override
-    public <A> @Nullable A getData(DataMapType<T, A> type) {
+    public <A> @Nullable A getData(@NonNull DataMapType<T, A> type) {
       return holder().getData(type);
     }
   }

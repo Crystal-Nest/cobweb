@@ -1,8 +1,10 @@
 package it.crystalnest.cobweb.api.pack;
 
+import it.crystalnest.cobweb.api.pack.generation.AssetPublicationOutput;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -31,8 +33,15 @@ public final class AssetPack extends ResourcePack {
     return new Registrar(id);
   }
 
+  /**
+   * Captures server state for the publication worker.
+   *
+   * @param server running server that owns the applied data.
+   * @return detached publication, or null when this pack only publishes bundled assets.
+   */
   @Nullable
-  Publication capturePublication(MinecraftServer server) {
+  @ApiStatus.Internal
+  public Publication capturePublication(MinecraftServer server) {
     return capture == null ? null : capture.apply(server);
   }
 
@@ -53,8 +62,18 @@ public final class AssetPack extends ResourcePack {
     void generate(T captured, AssetPublicationOutput output) throws IOException;
   }
 
+  /**
+   * Generates assets from the state already captured for one publication.
+   */
   @FunctionalInterface
-  interface Publication {
+  @ApiStatus.Internal
+  public interface Publication {
+    /**
+     * Writes the generated assets for this publication.
+     *
+     * @param output publication output for this pack.
+     * @throws IOException if an asset cannot be read or written.
+     */
     void generate(AssetPublicationOutput output) throws IOException;
   }
 

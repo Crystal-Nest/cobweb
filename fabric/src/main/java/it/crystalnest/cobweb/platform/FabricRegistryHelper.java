@@ -1,17 +1,16 @@
 package it.crystalnest.cobweb.platform;
 
 import com.mojang.serialization.Codec;
-import it.crystalnest.cobweb.api.pack.PackSources;
 import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.CobwebRegistry;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
+import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 import net.fabricmc.fabric.api.event.registry.FabricRegistry;
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
 import net.fabricmc.fabric.api.event.registry.RegistryAttribute;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
@@ -20,14 +19,10 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PathPackResources;
-import it.crystalnest.cobweb.platform.services.BundledPackResources;
-import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
 
@@ -66,55 +61,6 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     return DynamicRegistries.getReloadableRegistries();
   }
 
-  /**
-   * Internal list of {@link Pack data pack}s to register.
-   */
-  private static final List<Supplier<Pack>> DATA_PACKS = new ArrayList<>();
-
-  /**
-   * Internal list of {@link Pack texture pack}s to register.
-   */
-  private static final List<Supplier<Pack>> ASSET_PACKS = new ArrayList<>();
-
-  /**
-   * Registers all Cobweb data packs with the given repository.
-   *
-   * @param repository {@link PackRepository}.
-   * @return updated repository.
-   */
-  public static PackRepository registerDataPacks(PackRepository repository) {
-    registerPacks(DATA_PACKS, repository);
-    return repository;
-  }
-
-  /**
-   * Registers all Cobweb asset packs with the given repository.
-   *
-   * @param repository {@link PackRepository}.
-   * @return updated repository.
-   */
-  public static PackRepository registerTexturePacks(PackRepository repository) {
-    registerPacks(ASSET_PACKS, repository);
-    return repository;
-  }
-
-  /**
-   * Registers the provided list of resource packs to the given repository.
-   *
-   * @param packs resource packs.
-   * @param repository {@link PackRepository}.
-   */
-  private static void registerPacks(List<Supplier<Pack>> packs, PackRepository repository) {
-    for (var definition : packs) {
-      ((PackSources) repository).addSource(consumer -> {
-        Pack pack = definition.get();
-        if (pack != null) {
-          consumer.accept(pack);
-        }
-      });
-    }
-  }
-
   @Override
   protected <R> CobwebRegister<R> createRegistry(ResourceKey<Registry<R>> registryKey, String namespace, CobwebRegistry.Settings settings) {
     // Validate the entry namespace before mutating the root registry.
@@ -133,6 +79,11 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   }
 
   @Override
+  public CreativeModeTab.Builder createCreativeModeTabBuilder() {
+    return FabricCreativeModeTab.builder();
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public <R> DeferredRegister<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
     return (DeferredRegister<R>) registries.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
@@ -143,6 +94,10 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
         register = new DeferredRegister.Blocks(namespace);
       } else if (registryKey.equals(Registries.ENTITY_TYPE)) {
         register = new DeferredRegister.Entities(namespace);
+      } else if (registryKey.equals(Registries.POTION)) {
+        register = new DeferredRegister.Potions(namespace);
+      } else if (registryKey.equals(Registries.CREATIVE_MODE_TAB)) {
+        register = new DeferredRegister.CreativeModeTabs(namespace);
       } else if (registryKey.equals(Registries.DATA_COMPONENT_TYPE) || registryKey.equals(Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE)) {
         register = new DeferredRegister.DataComponents(registryKey.equals(Registries.DATA_COMPONENT_TYPE) ? Registries.DATA_COMPONENT_TYPE : Registries.ENCHANTMENT_EFFECT_COMPONENT_TYPE, namespace);
       } else {
@@ -150,29 +105,6 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
       }
       return register;
     });
-  }
-
-  @Override
-  protected void addPackSource(PackType type, Supplier<Pack> supplier) {
-    switch (type) {
-      case SERVER_DATA -> DATA_PACKS.add(supplier);
-      case CLIENT_RESOURCES -> ASSET_PACKS.add(supplier);
-    }
-  }
-
-  @Override
-  public String bundledKnownPackNamespace() {
-    return "cobweb";
-  }
-
-  @Override
-  @Nullable
-  public BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root) {
-    return FabricLoader.getInstance().getModContainer(owner).map(container -> {
-      var path = container.findPath(root).orElseGet(() -> container.getRootPaths().getFirst().resolve(root));
-      return new BundledPackResources(new PathPackResources(location, path),
-        (type, namespace, output) -> PathPackResources.listPath(namespace, path.resolve(type.getDirectory()).resolve(namespace), List.of(), output));
-    }).orElse(null);
   }
 
   /**
@@ -279,6 +211,24 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     public static final class Entities extends DeferredRegister<EntityType<?>> implements CobwebRegister.Entities {
       private Entities(String namespace) {
         super(Registries.ENTITY_TYPE, namespace);
+      }
+    }
+
+    /**
+     * Specialized register for potions.
+     */
+    public static final class Potions extends DeferredRegister<Potion> implements CobwebRegister.Potions {
+      private Potions(String namespace) {
+        super(Registries.POTION, namespace);
+      }
+    }
+
+    /**
+     * Specialized register for creative mode tabs.
+     */
+    public static final class CreativeModeTabs extends DeferredRegister<CreativeModeTab> implements CobwebRegister.CreativeModeTabs {
+      private CreativeModeTabs(String namespace) {
+        super(Registries.CREATIVE_MODE_TAB, namespace);
       }
     }
 

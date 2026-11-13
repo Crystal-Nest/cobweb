@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin;
 
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.Main;
 import net.minecraft.util.Util;

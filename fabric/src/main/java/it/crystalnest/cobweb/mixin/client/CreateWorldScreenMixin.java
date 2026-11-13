@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin.client;
 
-import it.crystalnest.cobweb.platform.FabricRegistryHelper;
+import it.crystalnest.cobweb.platform.FabricPackHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldCallback;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
@@ -28,6 +28,6 @@ public abstract class CreateWorldScreenMixin {
    */
   @ModifyVariable(method = "openCreateWorldScreen", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"))
   private static PackRepository modifyPackRepository$openCreateWorldScreen(PackRepository original) {
-    return FabricRegistryHelper.registerDataPacks(original);
+    return FabricPackHelper.registerDataPacks(original);
   }
 }

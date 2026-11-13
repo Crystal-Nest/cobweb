@@ -1,14 +1,6 @@
 package it.crystalnest.cobweb.platform.services;
 
 import com.mojang.serialization.Codec;
-import it.crystalnest.cobweb.api.pack.AssetPack;
-import it.crystalnest.cobweb.api.pack.PackActivation;
-import it.crystalnest.cobweb.api.pack.PackDependencySettings;
-import it.crystalnest.cobweb.api.pack.PackLoadOutcome;
-import it.crystalnest.cobweb.api.pack.PackIcon;
-import it.crystalnest.cobweb.api.pack.PackPresentation;
-import it.crystalnest.cobweb.api.pack.PackPresentationContext;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
@@ -17,11 +9,9 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.RegistryDataLoader;
-import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.CreativeModeTab;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -31,21 +21,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Platform specific registration helper.
+ * Registers game objects and declares registries through the current loader.
  *
  * @param <T> actual register type.
  */
 public abstract class RegistryHelper<T extends CobwebRegister<?>> {
-  /**
-   * Registered definitions indexed by type and native ID.
-   */
-  private final Map<PackType, Map<String, ResourcePack>> packs = new ConcurrentHashMap<>();
-
   /**
    * Map linking all mods that use the API to all the registries they use.<br>
    * Used to avoid creating and registering multiple instances of the same register.
@@ -102,9 +85,9 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    *
    * @param definition registry key, codec and loading lifetime.
    * @param networkCodec optional synchronization codec for a world registry.
-   * @param <T> entry type.
+   * @param <E> entry type.
    */
-  public final synchronized <T> void registerDataPackRegistry(CobwebDataPackRegistry<T> definition, @Nullable Codec<T> networkCodec) {
+  public final synchronized <E> void registerDataPackRegistry(CobwebDataPackRegistry<E> definition, @Nullable Codec<E> networkCodec) {
     Identifier id = definition.key().identifier();
     if (dataPackRegistriesClosed) {
       throw new IllegalStateException("Data pack registry declarations have closed: " + id);
@@ -128,27 +111,23 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    *
    * @param definition registry definition.
    * @param networkCodec optional synchronization codec for a world registry.
-   * @param <T> entry type.
+   * @param <E> entry type.
    */
-  protected abstract <T> void addDataPackRegistry(CobwebDataPackRegistry<T> definition, @Nullable Codec<T> networkCodec);
+  protected abstract <E> void addDataPackRegistry(CobwebDataPackRegistry<E> definition, @Nullable Codec<E> networkCodec);
 
   /**
    * Returns the native registry declarations read during a full world load.
    *
    * @return native world registry definitions.
    */
-  public List<RegistryDataLoader.RegistryData<?>> worldRegistries() {
-    return RegistryDataLoader.WORLD_REGISTRIES;
-  }
+  public abstract List<RegistryDataLoader.RegistryData<?>> worldRegistries();
 
   /**
    * Returns the native registry declarations read during a reload.
    *
    * @return native reloadable registry definitions.
    */
-  public List<RegistryDataLoader.RegistryData<?>> reloadableRegistries() {
-    return RegistryDataLoader.RELOADABLE_REGISTRIES;
-  }
+  public abstract List<RegistryDataLoader.RegistryData<?>> reloadableRegistries();
 
   /**
    * Provides a {@link CobwebRegister} for the specified mod and {@link Registry}.
@@ -228,6 +207,33 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   }
 
   /**
+   * Provides the specialized potion register.
+   *
+   * @param namespace mod ID.
+   * @return specialized potion register.
+   */
+  public CobwebRegister.Potions ofPotions(String namespace) {
+    return (CobwebRegister.Potions) of(Registries.POTION, namespace);
+  }
+
+  /**
+   * Provides the specialized creative mode tab register.
+   *
+   * @param namespace mod ID.
+   * @return specialized creative mode tab register.
+   */
+  public CobwebRegister.CreativeModeTabs ofCreativeModeTabs(String namespace) {
+    return (CobwebRegister.CreativeModeTabs) of(Registries.CREATIVE_MODE_TAB, namespace);
+  }
+
+  /**
+   * Creates a fresh creative mode tab builder using the loader's tab placement behavior.
+   *
+   * @return native creative mode tab builder.
+   */
+  public abstract CreativeModeTab.Builder createCreativeModeTabBuilder();
+
+  /**
    * A builder-convenience view; does not subscribe or queue another native register.
    */
   private record ComponentRegister(CobwebRegister<DataComponentType<?>> delegate) implements CobwebRegister.DataComponents {
@@ -261,100 +267,4 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
       return delegate.register(name, supplier);
     }
   }
-
-  /**
-   * Registers a {@link ResourcePack}.
-   *
-   * @param type {@link PackType}.
-   * @param supplier {@link Supplier} for the {@link Pack} to register.
-   */
-  protected abstract void addPackSource(PackType type, Supplier<Pack> supplier);
-
-  /**
-   * Registers a definition and reserves its native pack identity.
-   *
-   * @param pack registered definition.
-   */
-  public final synchronized void registerCobwebPack(ResourcePack pack) {
-    var byId = packs.computeIfAbsent(pack.type(), type -> new ConcurrentHashMap<>());
-    if (byId.containsKey(pack.packId())) {
-      throw new IllegalStateException("Pack already registered for " + pack.type() + ": " + pack.identifier());
-    }
-    addPackSource(pack.type(), pack::toPack);
-    byId.put(pack.packId(), pack);
-  }
-
-  /**
-   * Finds the activation policy of a pack registered through Cobweb.
-   *
-   * @param type native resource type.
-   * @param id native pack ID.
-   * @return activation policy or null for an unmanaged pack.
-   */
-  @Nullable
-  public final PackActivation activation(PackType type, String id) {
-    ResourcePack pack = packs.getOrDefault(type, Map.of()).get(id);
-    return pack == null ? null : pack.activation();
-  }
-
-  /**
-   * Finds the declared logical ID and dependency overrides for a registered Cobweb pack.
-   *
-   * @param type native resource type.
-   * @param nativeId ID in the selected native repository.
-   * @return pack declaration, or null for unmanaged packs.
-   */
-  @Nullable
-  public final PackDeclaration packDeclaration(PackType type, String nativeId) {
-    ResourcePack pack = packs.getOrDefault(type, Map.of()).get(nativeId);
-    return pack == null ? null : new PackDeclaration(pack.identifier(), pack.dependencySettings(), pack.loadObserver(), pack.icon(), pack.presentation(), pack.hasExplicitTitle(), pack.hasExplicitDescription());
-  }
-
-  /**
-   * Resolves an asset pack selected for publication by its logical identifier.
-   *
-   * @param id logical pack identifier.
-   * @return matching registered pack, or null if absent.
-   */
-  @Nullable
-  public final AssetPack assetPack(Identifier id) {
-    for (var pack : packs.getOrDefault(PackType.CLIENT_RESOURCES, Map.of()).values()) {
-      if (pack instanceof AssetPack asset && asset.identifier().equals(id)) {
-        return asset;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Identity and dependency overrides of a managed pack.
-   *
-   * @param id logical pack identifier.
-   * @param dependencies explicit Java overrides.
-   * @param observer optional native outcome observer.
-   * @param icon explicit base icon, if any.
-   * @param presentation optional editor presentation callback.
-   * @param explicitTitle whether Java supplies the base title.
-   * @param explicitDescription whether Java supplies the base description.
-   */
-  public record PackDeclaration(Identifier id, PackDependencySettings dependencies, @Nullable Consumer<PackLoadOutcome> observer, @Nullable PackIcon icon,
-                                @Nullable Function<PackPresentationContext, PackPresentation> presentation, boolean explicitTitle, boolean explicitDescription) {}
-
-  /**
-   * Opens a pack root relative to its owning mod's resource container.
-   *
-   * @param location native pack identity.
-   * @param owner owning mod ID.
-   * @param root bundled root relative to the owning mod.
-   * @return bundled resource opening, or null if the owner is absent.
-   */
-  @Nullable
-  public abstract BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root);
-
-  /**
-   * Returns the existing network namespace for callback-free bundled packs.
-   *
-   * @return loader-specific known-pack namespace.
-   */
-  public abstract String bundledKnownPackNamespace();
 }

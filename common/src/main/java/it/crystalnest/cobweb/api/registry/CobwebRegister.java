@@ -1,17 +1,22 @@
 package it.crystalnest.cobweb.api.registry;
 
+import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 
@@ -460,6 +465,52 @@ public interface CobwebRegister<R> {
      */
     default <D> CobwebEntry<DataComponentType<D>> registerComponentType(String name, UnaryOperator<DataComponentType.Builder<D>> builder) {
       return register(name, () -> builder.apply(DataComponentType.builder()).build());
+    }
+  }
+
+  /**
+   * Registers potions with entry-specific or shared translation suffixes.
+   */
+  interface Potions extends CobwebRegister<Potion> {
+    /**
+     * Registers a potion using the entry path as its translation suffix.
+     *
+     * @param name potion entry path.
+     * @param effects factory for fresh effect instances, invoked at native registration time.
+     * @return registered potion entry.
+     */
+    default CobwebEntry<Potion> registerPotion(String name, Supplier<MobEffectInstance[]> effects) {
+      return registerPotion(name, name, effects);
+    }
+
+    /**
+     * Registers a potion with an explicit translation suffix, which can be shared by variants.
+     *
+     * @param name potion entry path.
+     * @param translationSuffix suffix Minecraft uses for potion item translations.
+     * @param effects factory for fresh effect instances, invoked at native registration time.
+     * @return registered potion entry.
+     */
+    default CobwebEntry<Potion> registerPotion(String name, String translationSuffix, Supplier<MobEffectInstance[]> effects) {
+      return register(name, () -> new Potion(translationSuffix, effects.get()));
+    }
+  }
+
+  /**
+   * Registers creative mode tabs using the loader's builder.
+   */
+  interface CreativeModeTabs extends CobwebRegister<CreativeModeTab> {
+    /**
+     * Registers a creative mode tab with a default title using the translation key {@code itemGroup.<namespace>.<path>}.
+     * The builder transformation runs at native registration time and may override the title.
+     * Configure the icon and displayed items through the supplied builder.
+     *
+     * @param name tab entry path.
+     * @param builder transformation of the fresh tab builder.
+     * @return registered creative mode tab entry.
+     */
+    default CobwebEntry<CreativeModeTab> registerTab(String name, UnaryOperator<CreativeModeTab.Builder> builder) {
+      return register(name, id -> builder.apply(Services.REGISTRY.createCreativeModeTabBuilder().title(Component.translatable("itemGroup." + id.getNamespace() + "." + id.getPath()))).build());
     }
   }
 }

@@ -2,8 +2,8 @@ package it.crystalnest.cobweb.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
-import it.crystalnest.cobweb.api.pack.LoadKind;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import net.minecraft.server.WorldLoader;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;

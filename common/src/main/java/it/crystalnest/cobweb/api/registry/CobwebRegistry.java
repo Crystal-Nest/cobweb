@@ -7,9 +7,6 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.alchemy.Potion;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -53,7 +50,7 @@ public final class CobwebRegistry {
 
   /**
    * Declares a registry loaded from data packs when opening a world, without synchronizing its entries to clients.
-   * Call during mod initialization. Use {@link #createWorld(ResourceKey, Codec, Codec)} to enable synchronization.
+   * Call during mod initialization. Use {@link #createWorldRegistry(ResourceKey, Codec, Codec)} to enable synchronization.
    *
    * @param key native registry key.
    * @param codec codec for complete entries in data packs.
@@ -61,7 +58,7 @@ public final class CobwebRegistry {
    * @return registered world registry definition.
    * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
    */
-  public static <T> CobwebDataPackRegistry<T> createWorld(ResourceKey<Registry<T>> key, Codec<T> codec) {
+  public static <T> CobwebDataPackRegistry<T> createWorldRegistry(ResourceKey<Registry<T>> key, Codec<T> codec) {
     return createDataPack(key, codec, CobwebDataPackRegistry.Lifetime.WORLD, null);
   }
 
@@ -79,7 +76,7 @@ public final class CobwebRegistry {
    * @return registered world registry definition.
    * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
    */
-  public static <T> CobwebDataPackRegistry<T> createWorld(ResourceKey<Registry<T>> key, Codec<T> codec, Codec<T> networkCodec) {
+  public static <T> CobwebDataPackRegistry<T> createWorldRegistry(ResourceKey<Registry<T>> key, Codec<T> codec, Codec<T> networkCodec) {
     return createDataPack(key, codec, CobwebDataPackRegistry.Lifetime.WORLD, Objects.requireNonNull(networkCodec));
   }
 
@@ -93,10 +90,22 @@ public final class CobwebRegistry {
    * @return registered reloadable registry definition.
    * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
    */
-  public static <T> CobwebDataPackRegistry<T> createReloadable(ResourceKey<Registry<T>> key, Codec<T> codec) {
+  public static <T> CobwebDataPackRegistry<T> createReloadableRegistry(ResourceKey<Registry<T>> key, Codec<T> codec) {
     return createDataPack(key, codec, CobwebDataPackRegistry.Lifetime.RELOADABLE, null);
   }
 
+  /**
+   * Creates a data pack registry definition and declares it through the current loader.
+   *
+   * @param key native registry key.
+   * @param codec codec for complete entries in data packs.
+   * @param lifetime when Minecraft loads the registry's entries.
+   * @param networkCodec synchronization codec for a world registry, or null to leave entries unsynchronized.
+   * @param <T> entry type.
+   * @return registered data pack registry definition.
+   * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
+   * @throws NullPointerException if the registry key or entry codec is null.
+   */
   private static <T> CobwebDataPackRegistry<T> createDataPack(ResourceKey<Registry<T>> key, Codec<T> codec, CobwebDataPackRegistry.Lifetime lifetime, @Nullable Codec<T> networkCodec) {
     var definition = new CobwebDataPackRegistry<>(key, codec, lifetime);
     Services.REGISTRY.registerDataPackRegistry(definition, networkCodec);
@@ -218,32 +227,22 @@ public final class CobwebRegistry {
   }
 
   /**
-   * Provides a {@link CobwebRegister} of {@link MobEffect}s for the specified mod.
+   * Provides the specialized potion register for the specified mod.
    *
    * @param namespace mod ID.
-   * @return {@link CobwebRegister} of {@link MobEffect}s.
+   * @return specialized potion register.
    */
-  public static CobwebRegister<MobEffect> ofMobEffects(String namespace) {
-    return of(Registries.MOB_EFFECT, namespace);
+  public static CobwebRegister.Potions ofPotions(String namespace) {
+    return Services.REGISTRY.ofPotions(namespace);
   }
 
   /**
-   * Provides a {@link CobwebRegister} of {@link Potion}s for the specified mod.
+   * Provides the specialized creative mode tab register for the specified mod.
    *
    * @param namespace mod ID.
-   * @return {@link CobwebRegister} of {@link Potion}s.
+   * @return specialized creative mode tab register.
    */
-  public static CobwebRegister<Potion> ofPotions(String namespace) {
-    return of(Registries.POTION, namespace);
-  }
-
-  /**
-   * Provides a {@link CobwebRegister} of {@link CreativeModeTab}s for the specified mod.
-   *
-   * @param namespace mod ID.
-   * @return {@link CobwebRegister} of {@link CreativeModeTab}s.
-   */
-  public static CobwebRegister<CreativeModeTab> ofCreativeModeTabs(String namespace) {
-    return of(Registries.CREATIVE_MODE_TAB, namespace);
+  public static CobwebRegister.CreativeModeTabs ofCreativeModeTabs(String namespace) {
+    return Services.REGISTRY.ofCreativeModeTabs(namespace);
   }
 }

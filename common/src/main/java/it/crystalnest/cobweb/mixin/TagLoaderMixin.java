@@ -3,7 +3,7 @@ package it.crystalnest.cobweb.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import net.minecraft.core.Registry;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.tags.TagLoader;

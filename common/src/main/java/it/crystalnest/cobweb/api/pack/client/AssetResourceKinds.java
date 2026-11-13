@@ -3,10 +3,10 @@ package it.crystalnest.cobweb.api.pack.client;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.serialization.JsonOps;
-import it.crystalnest.cobweb.api.pack.GenerationOutput;
-import it.crystalnest.cobweb.api.pack.Phase;
-import it.crystalnest.cobweb.api.pack.ResourceKind;
-import it.crystalnest.cobweb.api.pack.ResourceLifetime;
+import it.crystalnest.cobweb.api.pack.generation.GenerationOutput;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
+import it.crystalnest.cobweb.api.pack.generation.output.ResourceKind;
+import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
 import it.crystalnest.cobweb.mixin.client.NativeImageMixin;
 import net.minecraft.client.data.models.model.ModelInstance;
 import net.minecraft.client.gui.font.providers.GlyphProviderDefinition;
@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.texture.atlas.SpriteSource;
 import net.minecraft.client.renderer.texture.atlas.SpriteSources;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -86,7 +87,15 @@ public final class AssetResourceKinds {
     output.putSprite(id, stream -> writePng(image, stream), sidecar);
   }
 
-  static void writePng(NativeImage image, OutputStream stream) throws IOException {
+  /**
+   * Encodes a native image as PNG to the supplied stream.
+   *
+   * @param image allocated native image.
+   * @param stream destination stream.
+   * @throws IOException if the image cannot be encoded.
+   */
+  @ApiStatus.Internal
+  public static void writePng(NativeImage image, OutputStream stream) throws IOException {
     var nativeImage = (NativeImageMixin) (Object) image;
     nativeImage.invokeCheckAllocated();
     if (!nativeImage.invokeWriteToChannel(Channels.newChannel(stream))) {

@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.mixin.client;
 
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
-import it.crystalnest.cobweb.platform.FabricRegistryHelper;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.platform.FabricPackHelper;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -44,6 +44,6 @@ public abstract class MinecraftMixin {
    */
   @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackRepository;reload()V"))
   private void onInit(CallbackInfo ci) {
-    FabricRegistryHelper.registerTexturePacks(resourcePackRepository);
+    FabricPackHelper.registerTexturePacks(resourcePackRepository);
   }
 }

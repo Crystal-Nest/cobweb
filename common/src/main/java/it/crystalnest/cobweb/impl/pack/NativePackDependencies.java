@@ -5,12 +5,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.ModRequirement;
-import it.crystalnest.cobweb.api.pack.PackInfo;
-import it.crystalnest.cobweb.api.pack.PackReference;
-import it.crystalnest.cobweb.api.pack.PackRequirement;
+import it.crystalnest.cobweb.api.pack.dependency.ModRequirement;
+import it.crystalnest.cobweb.api.pack.query.PackInfo;
+import it.crystalnest.cobweb.api.pack.query.PackReference;
+import it.crystalnest.cobweb.api.pack.dependency.PackRequirement;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
-import it.crystalnest.cobweb.api.pack.VersionRange;
+import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackMetadataResources;
@@ -118,7 +118,7 @@ public final class NativePackDependencies {
    * @return pack identity, including a logical identity when available.
    */
   public static PackInfo info(PackType type, String nativeId, PackMetadataResources resources) {
-    var declaration = Services.REGISTRY.packDeclaration(type, nativeId);
+    var declaration = Services.PACK.packDeclaration(type, nativeId);
     if (declaration != null) {
       return new PackInfo(nativeId, declaration.id());
     }
@@ -258,7 +258,7 @@ public final class NativePackDependencies {
         throw new UncheckedIOException("Unable to read pack metadata of " + resources.packId(), failure);
       }
     }
-    var java = Services.REGISTRY.packDeclaration(type, resources.packId());
+    var java = Services.PACK.packDeclaration(type, resources.packId());
     if (java == null && !resources.packId().startsWith("file/") && modSections.containsValue(metadata)) {
       return new Selected(null, null, List.of(), List.of());
     }

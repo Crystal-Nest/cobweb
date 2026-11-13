@@ -25,9 +25,11 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Added registry-key access, tag-key creation helpers, and an unmodifiable live view of each register's declared entries, including unbound NeoForge entries.
   - Fixed generic and specialized registry factories returning incompatible cached instances when requested in a different order.
   - Fixed register-cache races during parallel NeoForge mod initialization.
+  - Added specialized potion and creative mode tab registers with helpers for potion effects, shared translation suffixes, and native tab builders.
+  - Removed the `ofMobEffects()` shortcut. Use `CobwebRegistry.of(Registries.MOB_EFFECT, modId)`.
   - Added native registry aliases with namespaced-path and full-identifier overloads. Aliases retain loader-native declaration timing and conflict handling.
   - Added Java-created custom registries with optional native numeric-ID synchronization and a default entry, duplicate-creation protection, and registration from multiple namespaces.
-  - Added common declarations for world-loaded and reloadable data-pack registries, with optional native network codecs for world registries. Clarified synchronization opt-in, codec reuse, and client decoding requirements.
+  - Added `CobwebRegistry.createWorldRegistry()` and `createReloadableRegistry()` for world-loaded and reloadable data-pack registries, with optional native network codecs for world registries. Clarified synchronization opt-in, codec reuse, and client decoding requirements.
   - Added `registry()` access to the full native static registry. NeoForge custom registries can be unavailable before its new-registry event; the creating register exposes its registry immediately.
   - Added explicit-key data component factories, including enchantment effect components and custom component registries. Specialized custom views share generic registrations and entry inspection.
   - Custom `CobwebRegister` implementations must now implement `registryKey()`, `registry()`, `addAlias(Identifier, Identifier)`, and `entries()`.
@@ -37,6 +39,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Added pack titles accepting a `Component` or a string translation key.
   - Added disabled-by-default, enabled-by-default, and always-active modes on both loaders, independently of pack source and position. Packs default to disabled, top placement, and movable position.
   - Added fixed top/bottom placement and preserved pack selections and ordering across restarts, including optional fixed packs and packs changed from always active to optional.
+  - Texture overlays use Minecraft's alpha blending.
   - Fixed bundled pack overlays on Fabric and nested overlay roots on NeoForge, retaining native metadata and conditional overlay handling.
   - Pack metadata is read during native discovery, with Java overrides for description and formats. Generated files can override bundled base files while active overlays retain their native precedence.
   - Applied activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
@@ -55,6 +58,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Reported file-rule preparation failures to load observers and preserved reload cancellation when asset publication is enabled.
   - Queued bounded HTTP download bursts, stopped obsolete publication work cooperatively, and reused unchanged static archives. Rejected client mod requirements for server-delivered packs.
   - Cached discovery identities until repository refresh and separated generation planning, contribution merging, rule payloads, ownership, and delivery phases.
+  - Organized the pack API into subpackages for generation, dependencies, presentation, and queries. Generation declarations are grouped by input, output, and lifecycle.
   - Preserved resource capture limits through native DEBUG leak-detection streams and kept discovery identities separate for distinct packs with equal locations.
 
 - **Configuration changes**

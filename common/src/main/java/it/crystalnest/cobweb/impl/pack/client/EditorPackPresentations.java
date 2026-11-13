@@ -2,11 +2,11 @@ package it.crystalnest.cobweb.impl.pack.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.PackIcon;
-import it.crystalnest.cobweb.api.pack.PackInfo;
-import it.crystalnest.cobweb.api.pack.PackPresentation;
-import it.crystalnest.cobweb.api.pack.PackPresentationContext;
-import it.crystalnest.cobweb.api.pack.PackQueries;
+import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
+import it.crystalnest.cobweb.api.pack.query.PackInfo;
+import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
+import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
+import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -47,7 +47,7 @@ public final class EditorPackPresentations {
     return values.computeIfAbsent(pack.getId(), id -> {
       var minecraft = Minecraft.getInstance();
       var type = minecraft.getResourcePackRepository() == repository ? PackType.CLIENT_RESOURCES : PackType.SERVER_DATA;
-      var definition = Services.REGISTRY.packDeclaration(type, id);
+      var definition = Services.PACK.packDeclaration(type, id);
       if (queries == null) {
         queries = PackQueries.editor(type, repository, selected);
       }

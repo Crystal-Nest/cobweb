@@ -1,5 +1,24 @@
 package it.crystalnest.cobweb.api.pack;
 
+import it.crystalnest.cobweb.api.pack.dependency.ModRequirement;
+import it.crystalnest.cobweb.api.pack.dependency.PackDependencySettings;
+import it.crystalnest.cobweb.api.pack.dependency.PackRequirement;
+import it.crystalnest.cobweb.api.pack.generation.CallbackRegistration;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.GenerationContext;
+import it.crystalnest.cobweb.api.pack.generation.GenerationOutput;
+import it.crystalnest.cobweb.api.pack.generation.input.Input;
+import it.crystalnest.cobweb.api.pack.generation.input.Inputs;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
+import it.crystalnest.cobweb.api.pack.generation.output.Output;
+import it.crystalnest.cobweb.api.pack.generation.output.Outputs;
+import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
+import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
+import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
+import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
@@ -192,10 +211,10 @@ public abstract class ResourcePack {
     PackLocationInfo discovered = location;
     String owner = identifier.getNamespace();
     if (!generates() && Services.PLATFORM.isModLoaded(owner)) {
-      var known = new KnownPack(Services.REGISTRY.bundledKnownPackNamespace(), packId(), Services.PLATFORM.getModVersion(owner));
+      var known = new KnownPack(Services.PACK.bundledKnownPackNamespace(), packId(), Services.PLATFORM.getModVersion(owner));
       discovered = new PackLocationInfo(location.id(), location.title(), location.source(), Optional.of(known));
     }
-    return Pack.readMetaAndCreate(discovered, new GeneratedPackResources.Supplier(this), type, selection);
+    return Pack.readMetaAndCreate(discovered, DynamicPackLoads.resources(this), type, selection);
   }
 
   /**
@@ -581,37 +600,85 @@ public abstract class ResourcePack {
     return outputs.values().stream().allMatch(output -> output.deadline().type() == type && candidate.ordinal() <= output.deadline().ordinal());
   }
 
-  synchronized List<Task> tasks() {
+  /**
+   * Returns the Java callbacks declared for this pack.
+   *
+   * @return snapshot of the declared tasks.
+   */
+  @ApiStatus.Internal
+  public final synchronized List<Task> tasks() {
     return List.copyOf(tasks);
   }
 
-  synchronized boolean generates() {
+  /**
+   * Indicates whether this pack has local Java generation callbacks.
+   *
+   * @return whether any Java callbacks are declared.
+   */
+  @ApiStatus.Internal
+  public final synchronized boolean generates() {
     return !tasks.isEmpty();
   }
 
-  Set<String> namespaces() {
+  /**
+   * Returns the namespaces declared for Java generation.
+   *
+   * @return immutable set of allowed output namespaces.
+   */
+  @ApiStatus.Internal
+  public final Set<String> namespaces() {
     return namespaces;
   }
 
+  /**
+   * Returns the Java description override used during native discovery.
+   *
+   * @return description override, or null to inherit file metadata.
+   */
   @Nullable
-  Component description() {
+  @ApiStatus.Internal
+  public final Component description() {
     return description;
   }
 
+  /**
+   * Returns the Java format override used during native discovery.
+   *
+   * @return supported formats, or null to inherit file metadata.
+   */
   @Nullable
-  InclusiveRange<PackFormat> formats() {
+  @ApiStatus.Internal
+  public final InclusiveRange<PackFormat> formats() {
     return formats;
   }
 
-  String bundledRoot() {
+  /**
+   * Returns the fixed path of this pack within its owning mod.
+   *
+   * @return relative path beneath the mod resource root.
+   */
+  @ApiStatus.Internal
+  public final String bundledRoot() {
     return (type == PackType.SERVER_DATA ? "datapack/" : "texturepack/") + identifier.getPath();
   }
 
-  Set<Identifier> after() {
+  /**
+   * Returns the Java-declared generation predecessors.
+   *
+   * @return immutable set of logical pack IDs.
+   */
+  @ApiStatus.Internal
+  public final Set<Identifier> after() {
     return after;
   }
 
-  Set<Identifier> before() {
+  /**
+   * Returns the Java-declared generation successors.
+   *
+   * @return immutable set of logical pack IDs.
+   */
+  @ApiStatus.Internal
+  public final Set<Identifier> before() {
     return before;
   }
 
@@ -658,14 +725,45 @@ public abstract class ResourcePack {
     return presentation;
   }
 
-  enum TaskOrigin {
+  /**
+   * Identifies where a generation task was declared.
+   */
+  @ApiStatus.Internal
+  public enum TaskOrigin {
+    /**
+     * Task registered by a Java callback.
+     */
     JAVA,
+
+    /**
+     * Task compiled from a file rule.
+     */
     FILE_RULE
   }
 
-  record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index,
+  /**
+   * Describes a generation task and its scheduling contracts.
+   *
+   * @param phases phase for each supported load kind.
+   * @param stage stage within the selected phase.
+   * @param lifetime lifetime of the submitted files.
+   * @param inputs input contracts.
+   * @param outputs output contracts.
+   * @param callback generation callback.
+   * @param registration callback options.
+   * @param index declaration index within the task origin.
+   * @param origin Java or file-rule declaration.
+   * @param fileRuleFingerprint fingerprint of a file rule, or null for a Java task.
+   */
+  @ApiStatus.Internal
+  public record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index,
     TaskOrigin origin, @Nullable String fileRuleFingerprint) {
-    boolean fileRule() {
+    /**
+     * Indicates whether this task came from a declarative file rule.
+     *
+     * @return whether the declaration is a file rule.
+     */
+    public boolean fileRule() {
       return origin == TaskOrigin.FILE_RULE;
     }
   }
@@ -973,7 +1071,7 @@ public abstract class ResourcePack {
       if (DynamicPackLoads.declarationsClosed()) {
         throw new IllegalStateException("Pack registration closed before " + pack.identifier());
       }
-      Services.REGISTRY.registerCobwebPack(pack);
+      Services.PACK.registerCobwebPack(pack);
       return pack;
     }
   }

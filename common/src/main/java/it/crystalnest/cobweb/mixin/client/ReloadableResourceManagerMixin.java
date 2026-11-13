@@ -2,9 +2,9 @@ package it.crystalnest.cobweb.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import it.crystalnest.cobweb.api.pack.DynamicPackLoads;
-import it.crystalnest.cobweb.api.pack.LoadKind;
-import it.crystalnest.cobweb.api.pack.PackQueries;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
+import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.server.packs.PackResources;

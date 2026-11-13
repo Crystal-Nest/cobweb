@@ -35,7 +35,7 @@ public final class StaticPackSelection {
    */
   @Nullable
   public static PackActivation activation(PackType type, Pack pack) {
-    return Services.REGISTRY.activation(type, pack.getId());
+    return Services.PACK.activation(type, pack.getId());
   }
 
   /**
@@ -96,7 +96,7 @@ public final class StaticPackSelection {
   public static List<String> discover(PackRepository repository, WorldData world, Collection<String> previous, Collection<String> discovered) {
     List<String> selected = new ArrayList<>(discovered);
     selected.removeIf(id -> {
-      PackActivation activation = Services.REGISTRY.activation(PackType.SERVER_DATA, id);
+      PackActivation activation = Services.PACK.activation(PackType.SERVER_DATA, id);
       Pack pack = repository.getPack(id);
       return activation != null && !previous.contains(id) && activation != PackActivation.ALWAYS_ACTIVE
              && (activation == PackActivation.DEFAULT_DISABLED

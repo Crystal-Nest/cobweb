@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.platform.services;
 
-import it.crystalnest.cobweb.api.pack.VersionRange;
+import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
 import it.crystalnest.cobweb.platform.model.Environment;
 import it.crystalnest.cobweb.platform.model.Platform;
 import net.minecraft.server.packs.repository.Pack;
@@ -18,12 +18,20 @@ import java.util.NoSuchElementException;
  */
 public interface PlatformHelper {
   /**
-   * Checks native pack visibility.
+   * Checks if the game is currently in a development environment.
    *
-   * @param pack native pack.
-   * @return whether the loader hides this pack from the selection UI.
+   * @return whether it's a development environment.
    */
-  boolean isPackHidden(Pack pack);
+  boolean isDevEnv();
+
+  /**
+   * Gets the name of the environment type as a string.
+   *
+   * @return name of the environment type.
+   */
+  default Environment getEnvironment() {
+    return isDevEnv() ? Environment.DEVELOPMENT : Environment.PRODUCTION;
+  }
 
   /**
    * Gets the name of the current platform
@@ -39,6 +47,14 @@ public interface PlatformHelper {
    * @return whether the mod is loaded.
    */
   boolean isModLoaded(String modId);
+
+  /**
+   * Checks native pack visibility.
+   *
+   * @param pack native pack.
+   * @return whether the loader hides this pack from the selection UI.
+   */
+  boolean isPackHidden(Pack pack);
 
   /**
    * Returns the IDs of loaded mods.
@@ -76,14 +92,6 @@ public interface PlatformHelper {
   ModResource modResource(String modId, String path);
 
   /**
-   * Metadata in a loaded mod's actual content container.
-   *
-   * @param location physical resource identity.
-   * @param stream supplier of a fresh stream for the metadata.
-   */
-  record ModResource(URI location, IoSupplier<InputStream> stream) {}
-
-  /**
    * Checks a dependency constraint using the loader's own mod version rules.
    *
    * @param modId loaded mod ID.
@@ -112,18 +120,10 @@ public interface PlatformHelper {
   Path getResourcePath(String modId, String path) throws NoSuchElementException;
 
   /**
-   * Checks if the game is currently in a development environment.
+   * Metadata in a loaded mod's actual content container.
    *
-   * @return whether it's a development environment.
+   * @param location physical resource identity.
+   * @param stream supplier of a fresh stream for the metadata.
    */
-  boolean isDevEnv();
-
-  /**
-   * Gets the name of the environment type as a string.
-   *
-   * @return name of the environment type.
-   */
-  default Environment getEnvironment() {
-    return isDevEnv() ? Environment.DEVELOPMENT : Environment.PRODUCTION;
-  }
+  record ModResource(URI location, IoSupplier<InputStream> stream) {}
 }

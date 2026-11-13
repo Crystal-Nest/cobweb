@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
-import it.crystalnest.cobweb.api.pack.VersionRange;
+import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
 import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import net.minecraft.server.packs.repository.Pack;

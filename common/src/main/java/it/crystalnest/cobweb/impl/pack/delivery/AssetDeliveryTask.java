@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.impl.pack.delivery;
 
 import io.netty.channel.Channel;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.AssetPackArchives;
+import it.crystalnest.cobweb.api.pack.generation.AssetPackArchives;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;

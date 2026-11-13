@@ -3,6 +3,7 @@ package it.crystalnest.cobweb.platform;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.ConfigHelper;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import org.jetbrains.annotations.Nullable;
@@ -23,6 +24,11 @@ public final class Services {
    * Provides registration for game objects.
    */
   public static final RegistryHelper<?> REGISTRY = load(RegistryHelper.class);
+
+  /**
+   * Provides pack registration and access to bundled pack resources.
+   */
+  public static final PackHelper PACK = load(PackHelper.class);
 
   /**
    * Provides registration for configuration specs.

@@ -5,7 +5,7 @@ import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.AssetPack;
-import it.crystalnest.cobweb.api.pack.AssetPackArchives;
+import it.crystalnest.cobweb.api.pack.generation.AssetPackArchives;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
@@ -103,7 +103,7 @@ public final class AssetDelivery implements AutoCloseable {
     var config = AssetDeliveryConfig.read();
     if (!config.packs().isEmpty()) {
       var packs = config.packs().stream().map(id -> {
-        AssetPack pack = Services.REGISTRY.assetPack(id);
+        AssetPack pack = Services.PACK.assetPack(id);
         if (pack == null) {
           throw new IllegalArgumentException("Unknown asset pack " + id + " in " + AssetDeliveryConfig.FILE);
         }

@@ -1,9 +1,9 @@
 package it.crystalnest.cobweb.api.pack.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import it.crystalnest.cobweb.api.pack.GenerationContext;
-import it.crystalnest.cobweb.api.pack.GenerationResources;
-import it.crystalnest.cobweb.api.pack.ResourceKind;
+import it.crystalnest.cobweb.api.pack.generation.GenerationContext;
+import it.crystalnest.cobweb.api.pack.generation.GenerationResources;
+import it.crystalnest.cobweb.api.pack.generation.output.ResourceKind;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.locale.DeprecatedTranslationsInfo;

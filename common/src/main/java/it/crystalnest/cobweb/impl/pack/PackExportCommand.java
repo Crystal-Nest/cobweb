@@ -2,9 +2,9 @@ package it.crystalnest.cobweb.impl.pack;
 
 import com.mojang.brigadier.CommandDispatcher;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.PackExports;
-import it.crystalnest.cobweb.api.pack.PackQueries;
-import it.crystalnest.cobweb.api.pack.PackReference;
+import it.crystalnest.cobweb.api.pack.query.PackExports;
+import it.crystalnest.cobweb.api.pack.query.PackQueries;
+import it.crystalnest.cobweb.api.pack.query.PackReference;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;

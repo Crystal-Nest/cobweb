@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import it.crystalnest.cobweb.platform.FabricRegistryHelper;
+import it.crystalnest.cobweb.platform.FabricPackHelper;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,6 +21,6 @@ public abstract class ServerPacksSourceMixin {
    */
   @ModifyReturnValue(method = "createPackRepository*", at = @At(value = "RETURN"))
   private static PackRepository modifyCreatePackRepository(PackRepository original) {
-    return FabricRegistryHelper.registerDataPacks(original);
+    return FabricPackHelper.registerDataPacks(original);
   }
 }

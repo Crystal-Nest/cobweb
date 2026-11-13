@@ -76,6 +76,7 @@ public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supp
     return holder.hashCode();
   }
 
+  @NonNull
   @Override
   public String toString() {
     return "CobwebEntry[holder=" + holder + "]";
@@ -124,7 +125,6 @@ public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supp
   }
 
   @Override
-  @SuppressWarnings("deprecation")
   public boolean is(@NotNull Holder<T> holder) {
     return this.holder.is(holder);
   }
@@ -141,7 +141,7 @@ public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supp
   }
 
   @Override
-  public void bindComponents(DataComponentMap components) {
+  public void bindComponents(@NonNull DataComponentMap components) {
     holder.bindComponents(components);
   }
 
