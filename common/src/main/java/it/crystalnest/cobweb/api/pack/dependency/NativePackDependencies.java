@@ -1,21 +1,19 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack.dependency;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.dependency.ModRequirement;
+import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
-import it.crystalnest.cobweb.api.pack.dependency.PackRequirement;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
-import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -34,6 +32,7 @@ import java.util.function.Function;
 /**
  * Resolves the dependency metadata of the native pack selection for one resource load.
  */
+@ApiStatus.Internal
 public final class NativePackDependencies {
   private static final Map<ModRequirementKey, List<PackRequirement>> modOverrides = new LinkedHashMap<>();
 

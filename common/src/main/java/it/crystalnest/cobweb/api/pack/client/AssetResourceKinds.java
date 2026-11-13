@@ -47,14 +47,12 @@ public final class AssetResourceKinds {
   /**
    * Conditional glyph providers for one font.
    */
-  public static final ResourceKind<List<GlyphProviderDefinition.Conditional>> FONTS = ResourceKind.json("font", GlyphProviderDefinition.Conditional.CODEC.listOf().fieldOf("providers").codec(),
-    ResourceLifetime.RELOADABLE, Phase.CLIENT_RESOURCES);
+  public static final ResourceKind<List<GlyphProviderDefinition.Conditional>> FONTS = ResourceKind.json("font", GlyphProviderDefinition.Conditional.CODEC.listOf().fieldOf("providers").codec(), ResourceLifetime.RELOADABLE, Phase.CLIENT_RESOURCES);
 
   /**
    * Particle sprite identifiers for one particle description.
    */
-  public static final ResourceKind<List<Identifier>> PARTICLES = ResourceKind.json("particles", Identifier.CODEC.listOf().optionalFieldOf("textures", List.of()).codec(),
-    ResourceLifetime.RELOADABLE, Phase.CLIENT_RESOURCES);
+  public static final ResourceKind<List<Identifier>> PARTICLES = ResourceKind.json("particles", Identifier.CODEC.listOf().optionalFieldOf("textures", List.of()).codec(), ResourceLifetime.RELOADABLE, Phase.CLIENT_RESOURCES);
 
   private AssetResourceKinds() {}
 
@@ -95,7 +93,7 @@ public final class AssetResourceKinds {
    * @throws IOException if the image cannot be encoded.
    */
   @ApiStatus.Internal
-  public static void writePng(NativeImage image, OutputStream stream) throws IOException {
+  static void writePng(NativeImage image, OutputStream stream) throws IOException {
     var nativeImage = (NativeImageMixin) (Object) image;
     nativeImage.invokeCheckAllocated();
     if (!nativeImage.invokeWriteToChannel(Channels.newChannel(stream))) {

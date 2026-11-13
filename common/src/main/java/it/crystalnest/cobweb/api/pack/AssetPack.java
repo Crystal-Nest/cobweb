@@ -1,10 +1,10 @@
 package it.crystalnest.cobweb.api.pack;
 
+import it.crystalnest.cobweb.api.pack.AssetPackPublication.Publication;
 import it.crystalnest.cobweb.api.pack.generation.AssetPublicationOutput;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -12,12 +12,20 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * Supplies bundled or generated client assets, with optional generation for dedicated server delivery.
+ * Supplies bundled or generated client assets.
+ * <p>A dedicated server can publish the bundled assets and any output from {@link Registrar#onPublish(Function, PublicationCallback)}
+ * when the operator selects this pack for delivery.
  */
 public final class AssetPack extends ResourcePack {
+  /**
+   * Optional server-thread capture that binds detached inputs to a publication job.
+   */
   @Nullable
   private final Function<MinecraftServer, Publication> capture;
 
+  /**
+   * @param registrar configuration for the asset pack and its optional publication callback.
+   */
   private AssetPack(Registrar registrar) {
     super(registrar);
     capture = registrar.capture;
@@ -26,27 +34,27 @@ public final class AssetPack extends ResourcePack {
   /**
    * Creates a registrar for a client asset pack.
    *
-   * @param id logical pack identifier.
-   * @return pack registrar.
+   * @param id logical pack identifier whose namespace identifies the owning mod.
+   * @return a new registrar for the asset pack.
+   * @throws NullPointerException if the identifier is null.
    */
   public static Registrar registrar(Identifier id) {
     return new Registrar(id);
   }
 
   /**
-   * Captures server state for the publication worker.
+   * Captures the applied state needed for one publication on the server thread.
    *
-   * @param server running server that owns the applied data.
-   * @return detached publication, or null when this pack only publishes bundled assets.
+   * @param server running server whose applied data is available to the capture callback.
+   * @return publication job bound to detached inputs, or null if no publication callback was declared.
    */
   @Nullable
-  @ApiStatus.Internal
-  public Publication capturePublication(MinecraftServer server) {
+  Publication capturePublication(MinecraftServer server) {
     return capture == null ? null : capture.apply(server);
   }
 
   /**
-   * Generates assets to include in the pack offered by a dedicated server.
+   * Generates assets for a dedicated server's published pack from detached inputs.
    *
    * @param <T> detached capture type.
    */
@@ -63,40 +71,34 @@ public final class AssetPack extends ResourcePack {
   }
 
   /**
-   * Generates assets from the state already captured for one publication.
-   */
-  @FunctionalInterface
-  @ApiStatus.Internal
-  public interface Publication {
-    /**
-     * Writes the generated assets for this publication.
-     *
-     * @param output publication output for this pack.
-     * @throws IOException if an asset cannot be read or written.
-     */
-    void generate(AssetPublicationOutput output) throws IOException;
-  }
-
-  /**
    * Configures a client asset pack.
    */
   public static final class Registrar extends ResourcePack.Registrar<AssetPack, Registrar> {
+    /**
+     * Optional server-state capture and worker callback configured for this pack.
+     */
     @Nullable
     private Function<MinecraftServer, Publication> capture;
 
+    /**
+     * @param id logical identifier of the asset pack to register.
+     */
     private Registrar(Identifier id) {
       super(id, PackType.CLIENT_RESOURCES);
     }
 
     /**
-     * Adds generation for dedicated servers that select this pack for delivery. The capture runs on the server thread
-     * after startup and successful data reloads. Return detached values that remain safe to use during later reloads.
-     * The generation callback runs on a worker thread. Ordinary client generation callbacks use their native lifecycle.
+     * Declares generation for dedicated servers whose operator selects this pack for delivery.
+     * <p>
+     * Cobweb runs the capture on the server thread after startup and successful data reloads.
+     * Return detached inputs that remain safe to use during later reloads. The generation callback runs on a worker thread.
+     * Ordinary client generation callbacks follow the client resource lifecycle.
      *
-     * @param capture reads applied server state and returns detached inputs.
-     * @param callback generates files from those inputs and the pack's bundled assets.
+     * @param capture reads applied server state and returns detached inputs for the worker.
+     * @param callback generates files from the captured inputs and the pack's bundled assets.
      * @param <T> detached capture type.
      * @return this registrar.
+     * @throws NullPointerException if either callback is null.
      * @throws IllegalStateException if publication generation was already declared.
      */
     public <T> Registrar onPublish(Function<MinecraftServer, T> capture, PublicationCallback<T> callback) {

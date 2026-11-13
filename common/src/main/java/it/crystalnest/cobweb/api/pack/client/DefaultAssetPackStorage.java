@@ -1,11 +1,11 @@
-package it.crystalnest.cobweb.impl.pack.client;
+package it.crystalnest.cobweb.api.pack.client;
 
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.PackActivation;
-import it.crystalnest.cobweb.impl.pack.StaticPackSelection;
+import it.crystalnest.cobweb.api.pack.model.PackActivation;
+import it.crystalnest.cobweb.api.pack.StaticPackSelection;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
@@ -29,7 +29,7 @@ import java.util.Set;
  * Records discovery only; Minecraft options remain the authority for enabled packs and their order.
  */
 @ApiStatus.Internal
-public final class DefaultAssetPackStorage {
+final class DefaultAssetPackStorage {
   /**
    * Codec for the set of previously encountered pack IDs stored in the tracker.
    */

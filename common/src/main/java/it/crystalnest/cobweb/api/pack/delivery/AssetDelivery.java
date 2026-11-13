@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack.delivery;
+package it.crystalnest.cobweb.api.pack.delivery;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -10,6 +10,7 @@ import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.world.level.storage.LevelResource;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.regex.Pattern;
 /**
  * Owns one dedicated server's publication state and HTTP listeners.
  */
+@ApiStatus.Internal
 public final class AssetDelivery implements AutoCloseable {
   private static final Map<MinecraftServer, AssetDelivery> SERVERS = new ConcurrentHashMap<>();
 

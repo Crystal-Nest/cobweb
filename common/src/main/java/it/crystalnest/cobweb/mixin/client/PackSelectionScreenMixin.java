@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin.client;
 
-import it.crystalnest.cobweb.impl.pack.client.EditorPackPresentations;
+import it.crystalnest.cobweb.api.pack.client.EditorPackPresentations;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;

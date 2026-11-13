@@ -2,13 +2,13 @@ package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
+import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
-import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;

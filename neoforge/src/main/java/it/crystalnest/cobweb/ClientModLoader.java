@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.impl.pack.client.ClientPackExportCommand;
+import it.crystalnest.cobweb.api.pack.client.ClientPackExportCommand;
 import net.minecraft.commands.CommandSourceStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;

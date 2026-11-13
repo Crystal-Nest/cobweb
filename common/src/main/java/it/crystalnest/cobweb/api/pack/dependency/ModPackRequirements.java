@@ -1,6 +1,5 @@
 package it.crystalnest.cobweb.api.pack.dependency;
 
-import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
 import net.minecraft.server.packs.PackType;
 
 import java.util.List;

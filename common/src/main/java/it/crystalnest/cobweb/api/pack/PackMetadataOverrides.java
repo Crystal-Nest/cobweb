@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -9,6 +9,7 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackFormat;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.util.InclusiveRange;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Composes Java description and format declarations with the native primary metadata section.
  */
+@ApiStatus.Internal
 public final class PackMetadataOverrides {
   private PackMetadataOverrides() {}
 

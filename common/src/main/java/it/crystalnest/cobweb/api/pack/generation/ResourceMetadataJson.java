@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack.generation;
 
 import com.google.gson.JsonObject;
 import net.minecraft.server.packs.metadata.MetadataSectionType;

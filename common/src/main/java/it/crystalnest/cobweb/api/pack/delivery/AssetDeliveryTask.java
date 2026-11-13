@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack.delivery;
+package it.crystalnest.cobweb.api.pack.delivery;
 
 import io.netty.channel.Channel;
 import it.crystalnest.cobweb.Constants;
@@ -12,6 +12,7 @@ import net.minecraft.network.protocol.common.ServerboundResourcePackPacket.Actio
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConfigurationTask;
 import net.minecraft.util.Util;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.util.function.Consumer;
 /**
  * Offers one publication revision and retries an ordered batch once after a download failure or discard.
  */
+@ApiStatus.Internal
 public final class AssetDeliveryTask implements ConfigurationTask {
   private static final Type TYPE = new Type("cobweb:asset_packs");
 

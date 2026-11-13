@@ -1,9 +1,10 @@
-package it.crystalnest.cobweb.impl.pack.client;
+package it.crystalnest.cobweb.api.pack.client;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
+import it.crystalnest.cobweb.api.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.api.pack.dependency.Mods;
 import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
@@ -11,7 +12,6 @@ import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.api.pack.query.PackQuestion;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
 import it.crystalnest.cobweb.api.pack.query.PackStatus;
-import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.Identifier;

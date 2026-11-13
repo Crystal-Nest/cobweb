@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin;
 
-import it.crystalnest.cobweb.impl.pack.delivery.AssetDelivery;
+import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.handshake.ClientIntentionPacket;
 import net.minecraft.server.MinecraftServer;

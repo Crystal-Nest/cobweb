@@ -1,10 +1,10 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
 import com.mojang.serialization.JsonOps;
-import it.crystalnest.cobweb.api.pack.query.PackReference;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
-import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
+import it.crystalnest.cobweb.api.pack.PackMetadataOverrides;
+import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.api.pack.query.PackReference;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;

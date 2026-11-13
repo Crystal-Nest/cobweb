@@ -1,10 +1,10 @@
 package it.crystalnest.cobweb.platform.services;
 
 import it.crystalnest.cobweb.api.pack.AssetPack;
-import it.crystalnest.cobweb.api.pack.PackActivation;
+import it.crystalnest.cobweb.api.pack.BundledPackResources;
+import it.crystalnest.cobweb.api.pack.model.PackActivation;
+import it.crystalnest.cobweb.api.pack.PackDeclaration;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
-import it.crystalnest.cobweb.impl.pack.BundledPackResources;
-import it.crystalnest.cobweb.impl.pack.PackDeclaration;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackType;

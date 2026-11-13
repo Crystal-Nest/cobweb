@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandler;
-import it.crystalnest.cobweb.impl.pack.delivery.AssetDelivery;
+import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerConnectionListener;
 import org.spongepowered.asm.mixin.Final;

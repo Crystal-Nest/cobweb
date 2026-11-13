@@ -1,8 +1,9 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
-import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
+import it.crystalnest.cobweb.api.pack.AssetPack;
+import it.crystalnest.cobweb.api.pack.AssetPackPublication;
+import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackResources;
@@ -74,7 +75,7 @@ public final class AssetPackArchives {
   public static Build capture(MinecraftServer server, List<AssetPack> packs, boolean warnClientCallbacks, Reuse reuse, BooleanSupplier current) {
     var captures = new ArrayList<Captured>();
     for (AssetPack pack : packs) {
-      var publication = pack.capturePublication(server);
+      var publication = AssetPackPublication.capture(pack, server);
       if (publication == null && warnClientCallbacks && pack.generates()) {
         Constants.LOGGER.warn("Publishing only bundled assets of {} because its callbacks run on the client", pack.identifier());
       }
@@ -272,7 +273,7 @@ public final class AssetPackArchives {
    */
   public record Archive(Identifier id, UUID uuid, String address, String sha1, Path path, long size) {}
 
-  private record Captured(AssetPack pack, @Nullable AssetPack.Publication publication) {}
+  private record Captured(AssetPack pack, @Nullable AssetPackPublication.Publication publication) {}
 
   private static final class LimitedOutput extends FilterOutputStream {
     private long remaining;

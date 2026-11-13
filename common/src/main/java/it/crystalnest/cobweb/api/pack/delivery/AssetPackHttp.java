@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack.delivery;
+package it.crystalnest.cobweb.api.pack.delivery;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;

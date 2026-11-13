@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack;
 
 import it.crystalnest.cobweb.api.pack.dependency.PackDependencySettings;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;

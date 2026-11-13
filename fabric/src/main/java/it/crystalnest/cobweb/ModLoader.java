@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.impl.pack.PackExportCommand;
+import it.crystalnest.cobweb.api.pack.query.PackExportCommand;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import org.jetbrains.annotations.ApiStatus;

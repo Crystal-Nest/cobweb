@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin;
 
-import it.crystalnest.cobweb.impl.pack.StaticPackSelection;
+import it.crystalnest.cobweb.api.pack.StaticPackSelection;
 import net.minecraft.server.commands.ReloadCommand;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.level.storage.WorldData;

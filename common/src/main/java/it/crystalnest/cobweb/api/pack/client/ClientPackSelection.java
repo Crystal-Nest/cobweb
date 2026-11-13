@@ -1,6 +1,6 @@
-package it.crystalnest.cobweb.impl.pack.client;
+package it.crystalnest.cobweb.api.pack.client;
 
-import it.crystalnest.cobweb.impl.pack.StaticPackSelection;
+import it.crystalnest.cobweb.api.pack.StaticPackSelection;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Options;
 import net.minecraft.server.packs.PackType;

@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.pack.BundledPackResources;
 import it.crystalnest.cobweb.api.pack.PackSources;
-import it.crystalnest.cobweb.impl.pack.BundledPackResources;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.packs.PackLocationInfo;

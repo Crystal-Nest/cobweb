@@ -1,10 +1,10 @@
 package it.crystalnest.cobweb.mixin;
 
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
-import it.crystalnest.cobweb.impl.pack.delivery.AssetDelivery;
-import it.crystalnest.cobweb.impl.pack.delivery.AssetDeliveryTask;
+import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
+import it.crystalnest.cobweb.api.pack.delivery.AssetDeliveryTask;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketUtils;
 import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;

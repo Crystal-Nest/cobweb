@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.mixin;
 
 import io.netty.channel.Channel;
-import it.crystalnest.cobweb.impl.pack.delivery.AssetDelivery;
+import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
 import net.minecraft.network.Connection;
 import net.minecraft.server.network.ServerConnectionListener;
 import org.spongepowered.asm.mixin.Mixin;

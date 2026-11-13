@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.mixin;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import it.crystalnest.cobweb.impl.pack.StaticPackSelection;
+import it.crystalnest.cobweb.api.pack.StaticPackSelection;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.commands.DataPackCommand;

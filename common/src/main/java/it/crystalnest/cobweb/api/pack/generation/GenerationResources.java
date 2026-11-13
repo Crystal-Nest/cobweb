@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceKind;
-import it.crystalnest.cobweb.impl.pack.ResourceMetadataJson;
 import net.minecraft.locale.Language;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.metadata.MetadataSectionType;

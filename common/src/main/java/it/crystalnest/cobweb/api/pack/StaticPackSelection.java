@@ -1,6 +1,6 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack;
 
-import it.crystalnest.cobweb.api.pack.PackActivation;
+import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
@@ -21,9 +21,6 @@ import java.util.Set;
  */
 @ApiStatus.Internal
 public final class StaticPackSelection {
-  /**
-   * Prevents instantiation of the selection utilities.
-   */
   private StaticPackSelection() {}
 
   /**
@@ -59,8 +56,7 @@ public final class StaticPackSelection {
    * @return whether this is an always-active Cobweb definition.
    */
   public static boolean isAlwaysActive(PackType type, Pack pack) {
-    PackActivation activation = activation(type, pack);
-    return activation != null && activation == PackActivation.ALWAYS_ACTIVE;
+    return activation(type, pack) == PackActivation.ALWAYS_ACTIVE;
   }
 
   /**
@@ -74,9 +70,7 @@ public final class StaticPackSelection {
   public static List<String> orderNewPacks(PackRepository repository, Collection<String> selected, Collection<String> previous) {
     Set<String> old = new HashSet<>(previous);
     List<Pack> ordered = packs(repository, selected);
-    List<Pack> added = ordered.stream()
-      .filter(pack -> !old.contains(pack.getId()) && activation(PackType.SERVER_DATA, pack) != null)
-      .toList();
+    List<Pack> added = ordered.stream().filter(pack -> !old.contains(pack.getId()) && activation(PackType.SERVER_DATA, pack) != null).toList();
     ordered.removeAll(added);
     for (Pack pack : added) {
       pack.getDefaultPosition().insert(ordered, pack, Pack::selectionConfig, false);
@@ -85,7 +79,7 @@ public final class StaticPackSelection {
   }
 
   /**
-   * Adapts native /reload discovery without changing other packs' discovery behavior.
+   * Adapts native {@code /reload} discovery without changing other packs' discovery behavior.
    *
    * @param repository reloaded repository.
    * @param world world configuration.
@@ -98,9 +92,7 @@ public final class StaticPackSelection {
     selected.removeIf(id -> {
       PackActivation activation = Services.PACK.activation(PackType.SERVER_DATA, id);
       Pack pack = repository.getPack(id);
-      return activation != null && !previous.contains(id) && activation != PackActivation.ALWAYS_ACTIVE
-             && (activation == PackActivation.DEFAULT_DISABLED
-                 || pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
+      return activation != null && !previous.contains(id) && activation != PackActivation.ALWAYS_ACTIVE && (activation == PackActivation.DEFAULT_DISABLED || pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
     });
     return requirePacks(repository, orderNewPacks(repository, selected, previous));
   }

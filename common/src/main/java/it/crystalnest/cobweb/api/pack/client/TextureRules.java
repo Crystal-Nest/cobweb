@@ -1,10 +1,9 @@
-package it.crystalnest.cobweb.impl.pack.client;
+package it.crystalnest.cobweb.api.pack.client;
 
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.api.image.ImageTransforms;
-import it.crystalnest.cobweb.api.pack.client.AssetResourceKinds;
 import it.crystalnest.cobweb.api.pack.generation.GenerationOutput;
 import it.crystalnest.cobweb.api.pack.generation.GenerationResources;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
@@ -69,14 +68,12 @@ public final class TextureRules {
       return raw.get();
     }
     var metadata = new JsonObject();
-    source.metadata(AnimationMetadataSection.TYPE).ifPresent(animation ->
-      metadata.add(AnimationMetadataSection.TYPE.name(), AnimationMetadataSection.CODEC.encodeStart(JsonOps.INSTANCE, animation).getOrThrow()));
+    source.metadata(AnimationMetadataSection.TYPE).ifPresent(animation -> metadata.add(AnimationMetadataSection.TYPE.name(), AnimationMetadataSection.CODEC.encodeStart(JsonOps.INSTANCE, animation).getOrThrow()));
     return metadata;
   }
 
   private static void submit(GenerationOutput output, Identifier destination, NativeImage result, JsonObject metadata) throws IOException {
-    var id = destination.withPath(path -> path.substring("textures/".length(), path.length() - ".png".length()));
-    output.putSprite(id, stream -> AssetResourceKinds.writePng(result, stream), metadata.isEmpty() ? null : metadata);
+    output.putSprite(destination.withPath(path -> path.substring("textures/".length(), path.length() - ".png".length())), stream -> AssetResourceKinds.writePng(result, stream), metadata.isEmpty() ? null : metadata);
   }
 
   private static NativeImage read(GenerationResources.File file) throws IOException {

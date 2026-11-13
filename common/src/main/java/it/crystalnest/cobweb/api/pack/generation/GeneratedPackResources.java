@@ -1,10 +1,10 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
+import it.crystalnest.cobweb.api.pack.BundledPackResources;
+import it.crystalnest.cobweb.api.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
+import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
-import it.crystalnest.cobweb.impl.pack.BundledPackResources;
-import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
-import it.crystalnest.cobweb.impl.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.mixin.OverlayedPackResourcesAccessor;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.resources.Identifier;

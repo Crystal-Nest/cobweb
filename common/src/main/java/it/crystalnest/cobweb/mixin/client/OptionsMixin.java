@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import it.crystalnest.cobweb.impl.pack.client.ClientPackSelection;
+import it.crystalnest.cobweb.api.pack.client.ClientPackSelection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.server.packs.repository.Pack;

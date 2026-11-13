@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.impl.pack.PackExportCommand;
+import it.crystalnest.cobweb.api.pack.query.PackExportCommand;
 import it.crystalnest.cobweb.platform.NeoForgePackHelper;
 import it.crystalnest.cobweb.platform.NeoForgeRegistryHelper;
 import it.crystalnest.cobweb.platform.Services;

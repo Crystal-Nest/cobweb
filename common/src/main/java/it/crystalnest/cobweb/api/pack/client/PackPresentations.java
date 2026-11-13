@@ -1,6 +1,5 @@
 package it.crystalnest.cobweb.api.pack.client;
 
-import it.crystalnest.cobweb.impl.pack.client.EditorPackPresentations;
 import net.minecraft.client.Minecraft;
 
 /**

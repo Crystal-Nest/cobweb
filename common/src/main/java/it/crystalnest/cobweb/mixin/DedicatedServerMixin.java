@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin;
 
-import it.crystalnest.cobweb.impl.pack.delivery.AssetDelivery;
+import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
 import net.minecraft.server.dedicated.DedicatedServer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

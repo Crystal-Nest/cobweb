@@ -3,7 +3,7 @@ package it.crystalnest.cobweb.mixin;
 import com.google.gson.JsonObject;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
-import it.crystalnest.cobweb.impl.pack.ResourceMetadataJson;
+import it.crystalnest.cobweb.api.pack.generation.ResourceMetadataJson;
 import net.minecraft.server.packs.resources.ResourceMetadata;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

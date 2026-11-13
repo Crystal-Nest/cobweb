@@ -1,19 +1,18 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack.query;
 
 import com.mojang.brigadier.CommandDispatcher;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.query.PackExports;
-import it.crystalnest.cobweb.api.pack.query.PackQueries;
-import it.crystalnest.cobweb.api.pack.query.PackReference;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.players.NameAndId;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Registers the inspection export command for server data packs.
  */
+@ApiStatus.Internal
 public final class PackExportCommand {
   private PackExportCommand() {}
 

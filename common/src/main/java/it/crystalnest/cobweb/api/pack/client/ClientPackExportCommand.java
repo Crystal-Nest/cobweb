@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.impl.pack.client;
+package it.crystalnest.cobweb.api.pack.client;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -11,12 +11,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.function.BiConsumer;
 
 /**
  * Registers a client-local export command for the current applied asset packs.
  */
+@ApiStatus.Internal
 public final class ClientPackExportCommand {
   private ClientPackExportCommand() {}
 

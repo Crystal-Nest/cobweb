@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
-import it.crystalnest.cobweb.impl.pack.ResourceMetadataJson;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;

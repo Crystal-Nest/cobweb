@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.pack.query;
 
 import com.google.common.collect.MapMaker;
-import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
+import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;

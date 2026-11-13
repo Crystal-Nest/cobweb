@@ -16,6 +16,7 @@ import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import it.crystalnest.cobweb.api.pack.generation.output.Output;
 import it.crystalnest.cobweb.api.pack.generation.output.Outputs;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
+import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;

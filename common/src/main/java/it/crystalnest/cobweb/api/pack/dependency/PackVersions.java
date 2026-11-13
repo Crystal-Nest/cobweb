@@ -1,6 +1,5 @@
-package it.crystalnest.cobweb.impl.pack;
+package it.crystalnest.cobweb.api.pack.dependency;
 
-import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;

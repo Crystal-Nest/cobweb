@@ -1,11 +1,11 @@
-package it.crystalnest.cobweb.impl.pack.client;
+package it.crystalnest.cobweb.api.pack.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
-import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
+import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Minecraft;
@@ -14,6 +14,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ import java.util.UUID;
 /**
  * Keeps one presentation patch and texture per displayed pack for an editor revision.
  */
+@ApiStatus.Internal
 public final class EditorPackPresentations {
   private final Map<String, Optional<Display>> values = new HashMap<>();
 
