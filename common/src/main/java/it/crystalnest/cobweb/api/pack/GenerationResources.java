@@ -214,7 +214,7 @@ public final class GenerationResources {
       }
       context.checkOpen();
       try {
-        var input = resource.open();
+        var input = PackIO.open(resource, maxBytes);
         try {
           PackIO.checkLimit(input, maxBytes);
           observations.observeContent(id, directory, stackIndex, maxBytes, resource, input);

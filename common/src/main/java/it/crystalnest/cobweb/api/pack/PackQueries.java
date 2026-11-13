@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.api.pack;
 
+import com.google.common.collect.MapMaker;
 import it.crystalnest.cobweb.impl.pack.NativePackDependencies;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackResources;
@@ -25,7 +26,8 @@ import java.util.function.Supplier;
 public final class PackQueries {
   private static final Map<PackRepository, State> STATES = Collections.synchronizedMap(new WeakHashMap<>());
 
-  private static final Map<Pack, Map<PackType, PackInfo>> IDENTITIES = new WeakHashMap<>();
+  // Guava weak keys use object identity; native Pack equality compares locations instead.
+  private static final Map<Pack, Map<PackType, PackInfo>> IDENTITIES = new MapMaker().weakKeys().makeMap();
 
   @Nullable
   private static volatile Target client;

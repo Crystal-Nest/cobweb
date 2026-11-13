@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.api.pack;
 
 import com.google.gson.JsonElement;
+import net.minecraft.server.packs.resources.Resource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,7 +12,25 @@ import java.nio.charset.StandardCharsets;
  * Encodes shared file contents and bounds reads before they enter temporary storage.
  */
 final class PackIO {
+  private static final ScopedValue<Long> CAPTURE_LIMIT = ScopedValue.newInstance();
+
   private PackIO() {}
+
+  /**
+   * Carries the limit through native stream decorators to the backing supplier.
+   *
+   * @param resource resolved native resource.
+   * @param maxBytes maximum captured bytes.
+   * @return native stream, including any leak-detection wrapper.
+   * @throws IOException if opening or bounded capture fails.
+   */
+  static InputStream open(Resource resource, long maxBytes) throws IOException {
+    return ScopedValue.where(CAPTURE_LIMIT, Math.min(captureLimit(), maxBytes)).call(resource::open);
+  }
+
+  static long captureLimit() {
+    return CAPTURE_LIMIT.orElse(Long.MAX_VALUE);
+  }
 
   static void checkLimit(InputStream input, long maxBytes) throws IOException {
     if (input instanceof StageResourceSnapshots.SnapshotStream snapshot) {

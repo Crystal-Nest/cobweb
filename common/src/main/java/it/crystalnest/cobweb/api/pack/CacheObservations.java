@@ -77,7 +77,7 @@ final class CacheObservations {
           appendContent(digest, resource, opened);
         } else {
           // Native stream decorators and immutable generated files can be opened again within the same stage view.
-          try (var input = resource.open()) {
+          try (var input = PackIO.open(resource, maxBytes)) {
             appendContent(digest, resource, input);
           }
         }
@@ -168,7 +168,7 @@ final class CacheObservations {
         case CONTENT -> {
           var resource = fileResource(request.file());
           if (resource != null) {
-            try (var input = resource.open()) {
+            try (var input = PackIO.open(resource, request.file().maxBytes())) {
               PackIO.checkLimit(input, request.file().maxBytes());
               appendContent(digest, resource, input);
             }

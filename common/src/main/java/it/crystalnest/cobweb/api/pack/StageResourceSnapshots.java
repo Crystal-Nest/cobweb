@@ -42,7 +42,14 @@ final class StageResourceSnapshots implements AutoCloseable {
 
   @Nullable
   IoSupplier<InputStream> wrap(PackResources source, PackType type, Identifier id, @Nullable IoSupplier<InputStream> original) {
-    return original == null || type != this.type ? original : () -> new SnapshotStream(capture(source, id), original);
+    return original == null || type != this.type ? original : () -> {
+      var stream = new SnapshotStream(capture(source, id), original);
+      long limit = PackIO.captureLimit();
+      if (limit != Long.MAX_VALUE) {
+        stream.initialize(limit);
+      }
+      return stream;
+    };
   }
 
   private synchronized Capture capture(PackResources source, Identifier id) throws IOException {

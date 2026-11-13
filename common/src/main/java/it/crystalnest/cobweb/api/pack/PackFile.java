@@ -79,6 +79,9 @@ final class PackFile {
     if (leases == 0) {
       throw new IOException("Pack file has already been released");
     }
+    if (size > PackIO.captureLimit()) {
+      throw new IOException("Resource exceeds " + PackIO.captureLimit() + " bytes");
+    }
     InputStream input = path == null ? new ByteArrayInputStream(bytes) : Files.newInputStream(path);
     leases++;
     return new FileStream(input);

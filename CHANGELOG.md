@@ -55,6 +55,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Reported file-rule preparation failures to load observers and preserved reload cancellation when asset publication is enabled.
   - Queued bounded HTTP download bursts, stopped obsolete publication work cooperatively, and reused unchanged static archives. Rejected client mod requirements for server-delivered packs.
   - Cached discovery identities until repository refresh and separated generation planning, contribution merging, rule payloads, ownership, and delivery phases.
+  - Preserved resource capture limits through native DEBUG leak-detection streams and kept discovery identities separate for distinct packs with equal locations.
 
 - **Configuration changes**
   - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge
