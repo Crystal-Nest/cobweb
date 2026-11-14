@@ -6,10 +6,10 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
-import it.crystalnest.cobweb.api.pack.StaticPackSelection;
 import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
+import it.crystalnest.cobweb.api.pack.selection.DataPackSelection;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.packs.PackResources;
@@ -73,7 +73,7 @@ public abstract class MinecraftServerMixin {
    */
   @WrapOperation(method = "configurePackRepository", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackSource;shouldAddAutomatically()Z"))
   private static boolean wrapShouldAddAutomatically(PackSource instance, Operation<Boolean> original, @Local Pack pack) {
-    return StaticPackSelection.addAutomatically(pack, original.call(instance));
+    return DataPackSelection.addAutomatically(pack, original.call(instance));
   }
 
   /**
@@ -92,7 +92,7 @@ public abstract class MinecraftServerMixin {
   private static WorldDataConfiguration wrapConfigureRepositoryWithSelection(PackRepository repository, Collection<String> selected, FeatureFlagSet features, boolean disableInactive,
     Operation<WorldDataConfiguration> original, @Local(argsOnly = true) WorldDataConfiguration initial) {
     // The safe-mode branch passes false; leave each loader's safe-mode selection untouched.
-    return original.call(repository, disableInactive ? StaticPackSelection.orderNewPacks(repository, selected, initial.dataPacks().getEnabled()) : selected, features, disableInactive);
+    return original.call(repository, disableInactive ? DataPackSelection.orderNewPacks(repository, selected, initial.dataPacks().getEnabled()) : selected, features, disableInactive);
   }
 
   /**
@@ -104,7 +104,7 @@ public abstract class MinecraftServerMixin {
    */
   @ModifyVariable(method = "reloadResources", at = @At("HEAD"), argsOnly = true)
   private Collection<String> modifyPacksToEnable(Collection<String> original) {
-    return StaticPackSelection.requirePacks(packRepository, original);
+    return DataPackSelection.requirePacks(packRepository, original);
   }
 
   /**

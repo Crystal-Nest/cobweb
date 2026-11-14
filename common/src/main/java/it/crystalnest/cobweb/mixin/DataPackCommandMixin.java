@@ -2,11 +2,10 @@ package it.crystalnest.cobweb.mixin;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import it.crystalnest.cobweb.api.pack.StaticPackSelection;
+import it.crystalnest.cobweb.api.pack.selection.DataPackSelection;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.commands.DataPackCommand;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -36,7 +35,7 @@ public abstract class DataPackCommandMixin {
    */
   @Inject(method = "disablePack", at = @At("HEAD"))
   private static void onDisablePack(CommandSourceStack source, Pack pack, CallbackInfoReturnable<Integer> cir) throws CommandSyntaxException {
-    if (StaticPackSelection.isAlwaysActive(PackType.SERVER_DATA, pack)) {
+    if (DataPackSelection.isAlwaysActive(pack)) {
       throw ERROR_REQUIRED_PACK.create(pack.getId());
     }
   }

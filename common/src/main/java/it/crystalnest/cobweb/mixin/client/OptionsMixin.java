@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import it.crystalnest.cobweb.api.pack.client.ClientPackSelection;
+import it.crystalnest.cobweb.api.pack.selection.ClientPackSelection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.server.packs.repository.Pack;
@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Injects into {@link Options} to persist static asset pack selection while preserving native filtering.
+ * Injects into {@link Options} to persist Cobweb asset pack selection while preserving native filtering.
  */
 @Mixin(Options.class)
 public abstract class OptionsMixin {

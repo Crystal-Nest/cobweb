@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin;
 
-import it.crystalnest.cobweb.api.pack.StaticPackSelection;
+import it.crystalnest.cobweb.api.pack.selection.DataPackSelection;
 import net.minecraft.server.commands.ReloadCommand;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.world.level.storage.WorldData;
@@ -27,6 +27,6 @@ public abstract class ReloadCommandMixin {
    */
   @Inject(method = "discoverNewPacks", at = @At("RETURN"), cancellable = true)
   private static void onDiscoverNewPacks(PackRepository repository, WorldData world, Collection<String> previous, CallbackInfoReturnable<Collection<String>> cir) {
-    cir.setReturnValue(StaticPackSelection.discover(repository, world, previous, cir.getReturnValue()));
+    cir.setReturnValue(DataPackSelection.discover(repository, world, previous, cir.getReturnValue()));
   }
 }

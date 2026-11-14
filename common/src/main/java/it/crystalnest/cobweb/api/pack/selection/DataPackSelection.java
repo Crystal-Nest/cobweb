@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.api.pack;
+package it.crystalnest.cobweb.api.pack.selection;
 
 import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import it.crystalnest.cobweb.platform.Services;
@@ -17,22 +17,21 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Small selection adaptations for registered static packs; ordinary native packs are unaffected.
+ * Applies Cobweb activation and initial placement policies to native data pack selection.
  */
 @ApiStatus.Internal
-public final class StaticPackSelection {
-  private StaticPackSelection() {}
+public final class DataPackSelection {
+  private DataPackSelection() {}
 
   /**
-   * Finds a registered Cobweb pack definition.
+   * Finds a registered data pack's activation policy.
    *
-   * @param type pack type.
    * @param pack native pack.
-   * @return registered definition, if managed by Cobweb.
+   * @return registered activation policy, or {@code null} for an unmanaged pack.
    */
   @Nullable
-  public static PackActivation activation(PackType type, Pack pack) {
-    return Services.PACK.activation(type, pack.getId());
+  private static PackActivation activation(Pack pack) {
+    return Services.PACK.activation(PackType.SERVER_DATA, pack.getId());
   }
 
   /**
@@ -43,20 +42,19 @@ public final class StaticPackSelection {
    * @return initial auto-add decision.
    */
   public static boolean addAutomatically(Pack pack, boolean nativeDefault) {
-    PackActivation activation = activation(PackType.SERVER_DATA, pack);
+    PackActivation activation = activation(pack);
     // Required packs are inserted by the repository, preserving their native position rules.
     return activation == null ? nativeDefault : activation == PackActivation.DEFAULT_ENABLED;
   }
 
   /**
-   * Checks whether Cobweb requires this pack.
+   * Checks whether Cobweb requires this data pack.
    *
-   * @param type pack type.
-   * @param pack pack.
-   * @return whether this is an always-active Cobweb definition.
+   * @param pack native data pack.
+   * @return whether this is an always-active Cobweb data pack.
    */
-  public static boolean isAlwaysActive(PackType type, Pack pack) {
-    return activation(type, pack) == PackActivation.ALWAYS_ACTIVE;
+  public static boolean isAlwaysActive(Pack pack) {
+    return activation(pack) == PackActivation.ALWAYS_ACTIVE;
   }
 
   /**
@@ -70,7 +68,7 @@ public final class StaticPackSelection {
   public static List<String> orderNewPacks(PackRepository repository, Collection<String> selected, Collection<String> previous) {
     Set<String> old = new HashSet<>(previous);
     List<Pack> ordered = packs(repository, selected);
-    List<Pack> added = ordered.stream().filter(pack -> !old.contains(pack.getId()) && activation(PackType.SERVER_DATA, pack) != null).toList();
+    List<Pack> added = ordered.stream().filter(pack -> !old.contains(pack.getId()) && activation(pack) != null).toList();
     ordered.removeAll(added);
     for (Pack pack : added) {
       pack.getDefaultPosition().insert(ordered, pack, Pack::selectionConfig, false);
@@ -107,7 +105,7 @@ public final class StaticPackSelection {
   public static List<String> requirePacks(PackRepository repository, Collection<String> selected) {
     List<Pack> ordered = packs(repository, selected);
     for (Pack pack : repository.getAvailablePacks()) {
-      if (isAlwaysActive(PackType.SERVER_DATA, pack) && !ordered.contains(pack)) {
+      if (isAlwaysActive(pack) && !ordered.contains(pack)) {
         pack.getDefaultPosition().insert(ordered, pack, Pack::selectionConfig, false);
       }
     }
