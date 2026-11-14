@@ -14,11 +14,28 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
- * Reads the dedicated server's asset publication and hosting settings.
+ * Dedicated server asset publication and hosting settings.
+ *
+ * @param packs selected logical pack IDs in increasing priority.
+ * @param hosting transport used to expose the archives.
+ * @param port dedicated HTTP port, or zero for the other hosting modes.
+ * @param bindAddress local bind address, or {@code null} to use the game server's bind address.
+ * @param publicHost public hostname, or {@code null} to derive it from the player's connection.
+ * @param publicBaseUrl explicit download base, or {@code null} to derive it from the hosting settings.
  */
 record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @Nullable String bindAddress, @Nullable String publicHost, @Nullable URI publicBaseUrl) {
+  /**
+   * Configuration path relative to the dedicated server's working directory.
+   */
   static final Path FILE = Path.of("config", "cobweb-asset-delivery.json");
 
+  /**
+   * Reads and validates operator settings, preserving pack order.
+   * A missing file returns a configuration with delivery disabled.
+   *
+   * @return parsed settings or disabled defaults.
+   * @throws IOException if the file cannot be read or contains invalid settings.
+   */
   static AssetDeliveryConfig read() throws IOException {
     if (Files.notExists(FILE)) {
       return new AssetDeliveryConfig(List.of(), Hosting.GAME_PORT, 0, null, null, null);
@@ -64,6 +81,16 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
     }
   }
 
+  /**
+   * Resolves the base URL advertised to a client.
+   * An explicit public base URL takes precedence. Otherwise, a separate listener uses its configured port, a public host on the game listener uses the bound game port, and the default uses the address the player joined.
+   *
+   * @param host hostname the client used to join.
+   * @param gamePort local Minecraft listener port.
+   * @param advertisedGamePort Minecraft port the client used to join.
+   * @return public base URL ending with a slash.
+   * @throws IllegalArgumentException if the derived host or port cannot be used.
+   */
   URI baseUrl(String host, int gamePort, int advertisedGamePort) {
     if (publicBaseUrl != null) {
       return publicBaseUrl;
@@ -72,6 +99,14 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
     return httpBase(publicHost == null ? host : publicHost, advertisedPort);
   }
 
+  /**
+   * Builds a URL for the built-in HTTP endpoint, omitting the default HTTP port.
+   *
+   * @param host hostname or address to advertise.
+   * @param port HTTP port to advertise.
+   * @return base URL for the archive endpoint.
+   * @throws IllegalArgumentException if the host or port cannot be used.
+   */
   private static URI httpBase(String host, int port) {
     try {
       URI result = new URI("http", null, host, port == 80 ? -1 : port, AssetPackHttp.ROUTE, null, null);
@@ -84,6 +119,13 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
     }
   }
 
+  /**
+   * Validates an operator-provided HTTP or HTTPS base URL and ensures a trailing slash.
+   *
+   * @param text configured base URL.
+   * @return validated base URL.
+   * @throws IllegalArgumentException if the URL is invalid, contains credentials, a query or a fragment, or has an invalid port.
+   */
   private static URI publicUrl(String text) {
     URI uri = URI.create(text);
     if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) || uri.getHost() == null || uri.getRawUserInfo() != null
@@ -93,6 +135,14 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
     return uri.getRawPath().endsWith("/") ? uri : URI.create(uri + "/");
   }
 
+  /**
+   * Reads an optional nonblank string property.
+   *
+   * @param json configuration object.
+   * @param key property name.
+   * @return value, or {@code null} if the property is absent.
+   * @throws RuntimeException if the property is present with an invalid value.
+   */
   @Nullable
   private static String string(JsonObject json, String key) {
     if (!json.has(key)) {
@@ -105,9 +155,21 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
     return value.getAsString();
   }
 
+  /**
+   * Transport used to expose published pack archives.
+   */
   enum Hosting {
+    /**
+     * Serves HTTP on the Minecraft listener.
+     */
     GAME_PORT,
+    /**
+     * Serves HTTP on a dedicated listener.
+     */
     SEPARATE_PORT,
+    /**
+     * Publishes archives for an externally hosted URL and opens no Cobweb listener.
+     */
     EXTERNAL
   }
 }

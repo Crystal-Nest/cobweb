@@ -10,7 +10,6 @@ import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.world.level.storage.LevelResource;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -32,22 +31,45 @@ import java.util.regex.Pattern;
 /**
  * Owns one dedicated server's publication state and HTTP listeners.
  */
-@ApiStatus.Internal
 public final class AssetDelivery implements AutoCloseable {
+  /**
+   * Active publication services, keyed by their owning servers.
+   */
   private static final Map<MinecraftServer, AssetDelivery> SERVERS = new ConcurrentHashMap<>();
 
+  /**
+   * Time retired URLs remain available to clients that already received them.
+   */
   private static final long GRACE_MILLIS = Duration.ofMinutes(15).toMillis();
 
+  /**
+   * File names eligible for pruning in the publication directory.
+   */
   private static final Pattern ARCHIVE_FILE = Pattern.compile("[a-f0-9]{64}[.]zip");
 
+  /**
+   * Temporary ZIP names eligible for pruning in the staging directory.
+   */
   private static final Pattern STAGING_FILE = Pattern.compile("[.]pending-[0-9]+[.]zip");
 
+  /**
+   * Address advertised by the client during the Minecraft handshake.
+   */
   private static final AttributeKey<InetSocketAddress> INTENTION = AttributeKey.valueOf("cobweb:asset_intention");
 
+  /**
+   * Publication service passed to child channels of the shared Minecraft listener.
+   */
   private static final AttributeKey<AssetDelivery> DELIVERY = AttributeKey.valueOf("cobweb:asset_delivery");
 
+  /**
+   * Dedicated server whose applied data feeds publication callbacks.
+   */
   private final DedicatedServer server;
 
+  /**
+   * Operator's selection and hosting settings for this server.
+   */
   private final AssetDeliveryConfig config;
 
   /**
@@ -55,31 +77,67 @@ public final class AssetDelivery implements AutoCloseable {
    */
   private final List<PackHelper.RegisteredPack> packs;
 
+  /**
+   * World-local directory of complete, content-addressed archives.
+   */
   private final Path directory;
 
+  /**
+   * Sibling directory for temporary archives before publication.
+   */
   private final Path staging;
 
+  /**
+   * Owned worker that writes archives and prunes older files.
+   */
   private final ScheduledThreadPoolExecutor worker;
 
+  /**
+   * Owned transport for built-in hosting.
+   */
   private final AssetPackHttp http;
 
+  /**
+   * Index of reusable archives across publication revisions.
+   */
   private final AssetPackArchives.Reuse archiveReuse = new AssetPackArchives.Reuse();
 
+  /**
+   * Published and retired archive entries indexed by address and guarded by this service's monitor.
+   */
   private final Map<String, Served> served = new HashMap<>();
 
+  /**
+   * Last complete publication in increasing priority, or {@code null} until the first successful build.
+   */
   @Nullable
   private volatile List<AssetPackArchives.Archive> publication;
 
+  /**
+   * Failure of the current revision, or {@code null} while building or after success.
+   */
   @Nullable
   private volatile Throwable failure;
 
+  /**
+   * Most recently scheduled build, or {@code null} before one has been scheduled.
+   */
   @Nullable
   private Future<?> pending;
 
+  /**
+   * Latest requested publication number, guarded by this service's monitor.
+   */
   private long revision;
 
+  /**
+   * Whether shutdown has started, guarded by this service's monitor.
+   */
   private boolean closed;
 
+  /**
+   * Whether the first successful capture has already had a chance to report startup advisories.
+   */
   private boolean warned;
 
   /**
@@ -107,7 +165,8 @@ public final class AssetDelivery implements AutoCloseable {
    * Opens publication for a dedicated server that has packs configured.
    *
    * @param server initializing dedicated server.
-   * @throws IOException if the operator configuration cannot be used.
+   * @throws IOException if the operator configuration cannot be read or parsed.
+   * @throws IllegalArgumentException if the operator selects an unregistered asset pack.
    */
   public static void configure(DedicatedServer server) throws IOException {
     var config = AssetDeliveryConfig.read();
@@ -210,6 +269,14 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Resolves the public download base for a player's connection.
+   * The local address is the fallback when no hostname was recorded, and the bound port replaces a missing or zero handshake port.
+   *
+   * @param channel player's TCP channel.
+   * @return base URL ending with a slash.
+   * @throws IllegalArgumentException if the selected host or port cannot be used.
+   */
   URI baseUrl(Channel channel) {
     var address = channel.attr(INTENTION).get();
     var local = (InetSocketAddress) channel.localAddress();
@@ -218,15 +285,29 @@ public final class AssetDelivery implements AutoCloseable {
     return config.baseUrl(host, local.getPort(), port);
   }
 
+  /**
+   * Returns the last complete publication, including while a replacement builds or after a replacement fails.
+   *
+   * @return complete archives in increasing priority, or {@code null} before the first success.
+   */
   @Nullable
   List<AssetPackArchives.Archive> publication() {
     return publication;
   }
 
+  /**
+   * Checks whether the latest publication attempt failed.
+   *
+   * @return whether the current revision has failed, even if a prior publication is available.
+   */
   boolean unavailable() {
     return failure != null;
   }
 
+  /**
+   * Captures publication inputs on the server thread and queues archive construction.
+   * A newer revision cancels queued work and makes any older running work ineligible for publication.
+   */
   private void refresh() {
     long requested;
     synchronized (this) {
@@ -252,10 +333,23 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Checks whether work is still eligible for publication.
+   *
+   * @param requested revision being captured or built.
+   * @return whether this revision is current and the service is open.
+   */
   private synchronized boolean current(long requested) {
     return !closed && revision == requested;
   }
 
+  /**
+   * Writes the captured archives and submits the complete set for publication.
+   * Reports failures only if this revision is still current.
+   *
+   * @param requested revision being built.
+   * @param build captured source packs and generated contributions.
+   */
   private void build(long requested, AssetPackArchives.Build build) {
     try {
       var archives = build.write(directory, staging);
@@ -265,6 +359,13 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Makes a complete current revision available and starts the grace period for superseded addresses.
+   * Addresses retained by the new publication remain available indefinitely while current.
+   *
+   * @param requested revision that completed.
+   * @param archives complete archives in increasing priority.
+   */
   private synchronized void publish(long requested, List<AssetPackArchives.Archive> archives) {
     if (closed || revision != requested) {
       return;
@@ -282,6 +383,12 @@ public final class AssetDelivery implements AutoCloseable {
     Constants.LOGGER.info("Published {} server asset pack(s)", archives.size());
   }
 
+  /**
+   * Records and logs a failure for the current revision, leaving the last complete publication available.
+   *
+   * @param requested revision that failed.
+   * @param problem cause of the publication failure.
+   */
   private synchronized void report(long requested, Throwable problem) {
     if (!closed && revision == requested) {
       failure = problem;
@@ -289,6 +396,13 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Acquires a reader lease for an available archive.
+   * The lease protects the archive from pruning through expiry and must be closed once.
+   *
+   * @param address lowercase SHA-256 address of the archive.
+   * @return reader lease, or {@code null} if the archive is absent, expired, or the service has closed.
+   */
   @Nullable
   synchronized Lease acquire(String address) {
     var entry = served.get(address);
@@ -299,10 +413,18 @@ public final class AssetDelivery implements AutoCloseable {
     return new Lease(entry.archive, () -> release(entry));
   }
 
+  /**
+   * Releases one reader's reference to an archive.
+   *
+   * @param entry referenced archive entry.
+   */
   private synchronized void release(Served entry) {
     entry.readers--;
   }
 
+  /**
+   * Drops expired entries without active readers and prunes old archive and staging files.
+   */
   private void prune() {
     long now = System.currentTimeMillis();
     synchronized (this) {
@@ -312,6 +434,13 @@ public final class AssetDelivery implements AutoCloseable {
     prune(staging, STAGING_FILE, now);
   }
 
+  /**
+   * Deletes old files with managed names whose addresses are absent from the serving index.
+   *
+   * @param folder publication or staging directory.
+   * @param filenames pattern matching files managed in the directory.
+   * @param now current wall-clock time in milliseconds.
+   */
   private void prune(Path folder, Pattern filenames, long now) {
     if (!Files.isDirectory(folder)) {
       return;
@@ -334,6 +463,10 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Stops archive work and HTTP serving, then clears the serving index.
+   * Subsequent calls have no effect.
+   */
   @Override
   public synchronized void close() {
     if (!closed) {
@@ -344,6 +477,12 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Reader lease that prevents removal of a published archive while a consumer is using it.
+   *
+   * @param archive leased archive.
+   * @param release action that releases this reader's reference.
+   */
   record Lease(AssetPackArchives.Archive archive, Runnable release) implements AutoCloseable {
     @Override
     public void close() {
@@ -351,13 +490,28 @@ public final class AssetDelivery implements AutoCloseable {
     }
   }
 
+  /**
+   * Availability and reader count for an archive in the serving index.
+   */
   private static final class Served {
+    /**
+     * Complete archive available at this address.
+     */
     private final AssetPackArchives.Archive archive;
 
+    /**
+     * Wall-clock expiry in milliseconds, or {@link Long#MAX_VALUE} while current.
+     */
     private long expiresAt;
 
+    /**
+     * Number of active reader leases.
+     */
     private int readers;
 
+    /**
+     * @param archive complete archive to serve.
+     */
     private Served(AssetPackArchives.Archive archive) {
       this.archive = archive;
     }

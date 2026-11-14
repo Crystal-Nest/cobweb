@@ -12,8 +12,8 @@ import net.minecraft.network.protocol.common.ServerboundResourcePackPacket.Actio
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConfigurationTask;
 import net.minecraft.util.Util;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -29,46 +29,94 @@ import java.util.function.Consumer;
 /**
  * Offers one publication revision and retries an ordered batch once after a download failure or discard.
  */
-@ApiStatus.Internal
 public final class AssetDeliveryTask implements ConfigurationTask {
+  /**
+   * Native configuration task type for Cobweb delivery.
+   */
   private static final Type TYPE = new Type("cobweb:asset_packs");
 
+  /**
+   * Maximum wait for the first complete publication.
+   */
   private static final long PREPARATION_TIMEOUT = Duration.ofSeconds(30).toMillis();
 
+  /**
+   * Time allowed for the whole offer, including any retry.
+   */
   private static final long APPLICATION_TIMEOUT = Duration.ofMinutes(2).toMillis();
 
+  /**
+   * Server publication service used by this connection.
+   */
   private final AssetDelivery delivery;
 
+  /**
+   * Player's TCP channel, used to resolve the advertised address.
+   */
   private final Channel channel;
 
+  /**
+   * Whether the server requires clients to accept and apply the offered packs.
+   */
   private final boolean required;
 
+  /**
+   * Optional consent prompt attached to published packs.
+   */
   private final Optional<Component> prompt;
 
+  /**
+   * Optional native offer configured in {@code server.properties}.
+   */
   private final Optional<MinecraftServer.ServerResourcePackInfo> configured;
 
+  /**
+   * Action that disconnects this client with the supplied reason.
+   */
   private final Consumer<Component> disconnect;
 
+  /**
+   * All offer IDs used by this task, including retired IDs whose replies may still arrive.
+   */
   private final Set<UUID> sent = new HashSet<>();
 
+  /**
+   * Offers still awaiting terminal replies, keyed by UUID with labels for diagnostics.
+   */
   private final Map<UUID, String> pending = new LinkedHashMap<>();
 
+  /**
+   * Most recently sent batch in increasing priority.
+   */
   private List<Offer> batch = List.of();
 
+  /**
+   * Recorded download failure or discard awaiting a batch retry, or {@code null} when none is pending.
+   */
   @Nullable
   private String retryableFailure;
 
+  /**
+   * Whether this task can still retry the batch after a download failure or discard.
+   */
   private boolean retryAllowed = true;
 
+  /**
+   * Packet sink supplied when native configuration starts the task.
+   */
   private Consumer<Packet<?>> send;
 
+  /**
+   * Monotonic deadline for the current preparation or application window.
+   */
   private long deadline;
 
+  /**
+   * Current state of this connection's pack configuration task.
+   */
   private Phase phase = Phase.PREPARING;
 
   /**
-   * Creates a task for one connection.
-   *
    * @param delivery server's publication service.
    * @param channel player's TCP channel.
    * @param required server-wide pack setting.
@@ -87,16 +135,27 @@ public final class AssetDeliveryTask implements ConfigurationTask {
   }
 
   @Override
-  public Type type() {
+  public @NonNull Type type() {
     return TYPE;
   }
 
+  /**
+   * Stores the native packet sink and starts the publication wait.
+   *
+   * @param send packet sink for the player's connection.
+   */
   @Override
-  public void start(Consumer<Packet<?>> send) {
+  public void start(@NonNull Consumer<Packet<?>> send) {
     this.send = send;
     deadline = Util.getMillis() + PREPARATION_TIMEOUT;
   }
 
+  /**
+   * Waits for publication, advances the current offer, or performs the single retry within the application deadline.
+   * An optional timeout removes the pending offers and allows configuration to continue. A required timeout rejects the connection.
+   *
+   * @return whether configuration may proceed to the next task.
+   */
   @Override
   public boolean tick() {
     if (phase == Phase.REJECTED || phase == Phase.COMPLETE) {
@@ -141,6 +200,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
 
   /**
    * Handles a native result for a UUID offered on this connection.
+   * Terminal replies remove pending entries. Replies for retired attempts are consumed without altering the current batch.
    *
    * @param packet client pack result.
    * @return whether the UUID belongs to this task.
@@ -158,6 +218,12 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     return true;
   }
 
+  /**
+   * Records a retryable failure or applies the required or optional failure policy.
+   *
+   * @param label pack label for diagnostics.
+   * @param action unsuccessful terminal status.
+   */
   private void handleFailure(String label, Action action) {
     String detail = label + " (" + action + ")";
     if (retryAllowed && (action == Action.FAILED_DOWNLOAD || action == Action.DISCARDED)) {
@@ -175,10 +241,22 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     }
   }
 
+  /**
+   * Creates the disconnect message for a failed required pack.
+   *
+   * @param detail diagnostic identifying the pack and its unsuccessful status.
+   * @return disconnect reason.
+   */
   private static Component packFailure(String detail) {
     return Component.literal("Failed to apply required server resource pack " + detail);
   }
 
+  /**
+   * Offers the native pack first, followed by the published archives in increasing priority.
+   *
+   * @param archives last complete publication.
+   * @throws IllegalArgumentException if the base URL cannot be resolved or a published archive duplicates the native offer ID.
+   */
   private void offer(List<AssetPackArchives.Archive> archives) {
     var base = delivery.baseUrl(channel);
     var offers = new ArrayList<Offer>();
@@ -193,6 +271,9 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     startOffers(offers);
   }
 
+  /**
+   * Rejects a required connection when publication is unavailable, or continues an optional connection with only the native offer if configured.
+   */
   private void publicationUnavailable() {
     phase = Phase.APPLYING;
     if (required) {
@@ -203,10 +284,21 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     }
   }
 
+  /**
+   * Converts the native configuration to a batch offer under the server-wide requirement policy.
+   *
+   * @param info native pack settings.
+   * @return offer for the pack from {@code server.properties}.
+   */
   private Offer configuredOffer(MinecraftServer.ServerResourcePackInfo info) {
     return new Offer(info.id(), info.url(), info.hash(), required, Optional.ofNullable(info.prompt()), "server.properties");
   }
 
+  /**
+   * Enters the application phase, sets its deadline, and sends the first batch.
+   *
+   * @param offers offers in increasing priority.
+   */
   private void startOffers(List<Offer> offers) {
     phase = Phase.APPLYING;
     deadline = Util.getMillis() + APPLICATION_TIMEOUT;
@@ -214,6 +306,10 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     sendBatch(offers);
   }
 
+  /**
+   * Removes the prior offers and resends the batch under fresh UUIDs in the same order.
+   * The original application deadline still applies.
+   */
   private void retry() {
     Constants.LOGGER.info("Retrying server resource pack batch after {}", retryableFailure);
     retryAllowed = false;
@@ -230,23 +326,58 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     sendBatch(offers);
   }
 
+  /**
+   * Records a batch as pending and sends its native push packets in order.
+   *
+   * @param offers offers in increasing priority.
+   */
   private void sendBatch(List<Offer> offers) {
     batch = List.copyOf(offers);
     offers.forEach(offer -> pending.put(offer.id(), offer.label()));
     offers.forEach(offer -> send.accept(new ClientboundResourcePackPushPacket(offer.id(), offer.url(), offer.hash(), offer.required(), offer.prompt())));
   }
 
+  /**
+   * Marks configuration rejected and closes the connection.
+   *
+   * @param message disconnect reason shown to the client.
+   */
   private void reject(Component message) {
     phase = Phase.REJECTED;
     disconnect.accept(message);
   }
 
+  /**
+   * Progress states for the native configuration task.
+   */
   private enum Phase {
+    /**
+     * Waiting for the first publication or its preparation deadline.
+     */
     PREPARING,
+    /**
+     * Processing the offer batch or its single retry.
+     */
     APPLYING,
+    /**
+     * Allowing native configuration to continue.
+     */
     COMPLETE,
+    /**
+     * Terminating configuration with a disconnect reason.
+     */
     REJECTED
   }
 
+  /**
+   * One native resource-pack offer in the batch.
+   *
+   * @param id UUID used by the current attempt.
+   * @param url public download URL.
+   * @param hash SHA-1 hash supplied to the native client.
+   * @param required whether applying this pack is mandatory.
+   * @param prompt optional native consent prompt.
+   * @param label pack name used in diagnostics.
+   */
   private record Offer(UUID id, String url, String hash, boolean required, Optional<Component> prompt, String label) {}
 }

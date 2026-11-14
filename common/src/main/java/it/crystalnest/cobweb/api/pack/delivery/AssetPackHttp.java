@@ -43,47 +43,92 @@ import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Serves immutable pack ZIPs over the game listener or a separate HTTP listener.
  */
 final class AssetPackHttp implements AutoCloseable {
+  /**
+   * Base path for the built-in archive endpoint.
+   */
   static final String ROUTE = "/cobweb/packs/";
 
+  /**
+   * Pipeline name of the timeout used while waiting for request headers.
+   */
   private static final String HTTP_TIMEOUT = "cobweb_asset_http_timeout";
 
+  /**
+   * Allowed archive file names, consisting of a lowercase SHA-256 digest and the ZIP extension.
+   */
   private static final Pattern ARCHIVE = Pattern.compile("[a-f0-9]{64}[.]zip");
 
-  private static final List<byte[]> HTTP_METHODS = List.of("GET ", "HEAD ", "POST ", "PUT ", "OPTIONS ", "DELETE ", "PATCH ", "TRACE ", "CONNECT ").stream()
-    .map(method -> method.getBytes(StandardCharsets.US_ASCII))
-    .toList();
+  /**
+   * Request method prefixes recognized by the shared-port detector, including methods the endpoint rejects.
+   */
+  private static final List<byte[]> HTTP_METHODS = Stream.of("GET ", "HEAD ", "POST ", "PUT ", "OPTIONS ", "DELETE ", "PATCH ", "TRACE ", "CONNECT ").map(method -> method.getBytes(StandardCharsets.US_ASCII)).toList();
 
+  /**
+   * Publication service that leases available archives.
+   */
   private final AssetDelivery delivery;
 
+  /**
+   * Owned workers for opening archives and reading outbound file chunks off the channel event loop.
+   */
   private final DefaultEventExecutorGroup files = new DefaultEventExecutorGroup(2, new DefaultThreadFactory("Cobweb asset files", true));
 
+  /**
+   * Owned HTTP channels, including any channel added after shutdown begins.
+   */
   private final DefaultChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
 
+  /**
+   * Maximum number of admitted requests for the built-in HTTP transport.
+   */
   private static final int MAX_DOWNLOADS = 8;
 
+  /**
+   * Maximum number of requests queued for a transfer slot.
+   */
   private static final int MAX_WAITING = 64;
 
+  /**
+   * Validated requests waiting for a slot in arrival order, guarded by this transport's monitor.
+   */
   private final ArrayDeque<Download> waiting = new ArrayDeque<>();
 
+  /**
+   * Number of occupied transfer slots, guarded by this transport's monitor.
+   */
   private int activeDownloads;
 
+  /**
+   * Owned event-loop group for a separate HTTP listener, or {@code null} until one is started.
+   */
   private MultiThreadIoEventLoopGroup listener;
 
+  /**
+   * @param delivery publication service that supplies archive leases.
+   */
   AssetPackHttp(AssetDelivery delivery) {
     this.delivery = delivery;
   }
 
+  /**
+   * Binds a dedicated HTTP listener and waits for the bind to complete.
+   *
+   * @param bind local address, or an empty string to bind to all interfaces.
+   * @param port local HTTP port.
+   * @throws IllegalStateException if the listener cannot bind.
+   */
   void listen(String bind, int port) {
     listener = new MultiThreadIoEventLoopGroup(2, new DefaultThreadFactory("Cobweb asset HTTP", true), NioIoHandler.newFactory());
     var address = bind.isEmpty() ? new InetSocketAddress(port) : new InetSocketAddress(bind, port);
     var binding = new ServerBootstrap().group(listener)
       .channel(NioServerSocketChannel.class)
-      .childHandler(new ChannelInitializer<Channel>() {
+      .childHandler(new ChannelInitializer<>() {
         @Override
         protected void initChannel(Channel channel) {
           install(channel);
@@ -98,10 +143,22 @@ final class AssetPackHttp implements AutoCloseable {
     Constants.LOGGER.info("Serving Cobweb asset packs on {}", binding.channel().localAddress());
   }
 
+  /**
+   * Installs the HTTP detector before the Minecraft packet handlers on the game port.
+   *
+   * @param channel newly accepted TCP channel.
+   */
   void detect(Channel channel) {
     channel.pipeline().addLast("cobweb_asset_http_detector", new Detect());
   }
 
+  /**
+   * Installs the HTTP pipeline and schedules the 90-second connection deadline on the channel's event loop.
+   * The loop is borrowed from the channel, and closing the connection cancels only its deadline task.
+   * Both the request and chunked-write handlers use the file workers so opening and streaming archives stay off the channel loop.
+   *
+   * @param channel connection identified as HTTP or accepted by the separate listener.
+   */
   private void install(Channel channel) {
     channels.add(channel);
     var deadline = channel.eventLoop().schedule((Runnable) channel::close, 90, TimeUnit.SECONDS);
@@ -116,6 +173,10 @@ final class AssetPackHttp implements AutoCloseable {
     pipeline.addLast(files, new Download());
   }
 
+  /**
+   * Closes the HTTP channels and starts shutdown of the owned file workers and separate listener, if present.
+   * Minecraft continues to own the game listener and its event loops.
+   */
   @Override
   public void close() {
     channels.close();
@@ -125,7 +186,18 @@ final class AssetPackHttp implements AutoCloseable {
     }
   }
 
+  /**
+   * Distinguishes an HTTP method prefix from Minecraft traffic without consuming the inspected bytes.
+   */
   private final class Detect extends ByteToMessageDecoder {
+    /**
+     * Waits for an unambiguous prefix and removes the detector to forward the buffered bytes.
+     * An HTTP prefix replaces the following Minecraft handlers with the HTTP pipeline.
+     *
+     * @param context detector context in the shared pipeline.
+     * @param input buffered connection bytes.
+     * @param output decoded messages, unused because the bytes are forwarded on removal.
+     */
     @Override
     protected void decode(ChannelHandlerContext context, ByteBuf input, List<Object> output) {
       boolean partial = false;
@@ -157,17 +229,42 @@ final class AssetPackHttp implements AutoCloseable {
     }
   }
 
+  /**
+   * Validates and serves at most one body-free request per HTTP connection.
+   */
   private final class Download extends SimpleChannelInboundHandler<HttpRequest> {
+    /**
+     * Whether this connection's first request has been handled.
+     */
     private boolean requested;
 
+    /**
+     * Handler context captured when a request passes validation.
+     */
     private ChannelHandlerContext context;
 
+    /**
+     * SHA-256 address of the requested archive once validated.
+     */
     private String address;
 
+    /**
+     * Whether the validated request is for response headers only.
+     */
     private boolean head;
 
+    /**
+     * Whether this request holds a transfer slot, guarded by the transport's monitor.
+     */
     private boolean admitted;
 
+    /**
+     * Validates the request and admits or queues it.
+     * Additional messages are ignored, and a full queue receives HTTP 503.
+     *
+     * @param context download handler context.
+     * @param request decoded HTTP request.
+     */
     @Override
     protected void channelRead0(ChannelHandlerContext context, HttpRequest request) {
       if (requested) {
@@ -210,6 +307,10 @@ final class AssetPackHttp implements AutoCloseable {
       }
     }
 
+    /**
+     * Reserves a transfer slot and schedules serving on the handler's borrowed file executor.
+     * The transport monitor must be held. Closes the connection and returns the slot if scheduling is rejected.
+     */
     private void admit() {
       context.channel().config().setAutoRead(false);
       admitted = true;
@@ -222,6 +323,9 @@ final class AssetPackHttp implements AutoCloseable {
       }
     }
 
+    /**
+     * Removes this request from the queue or releases its slot, then admits waiting connections in arrival order.
+     */
     private void release() {
       synchronized (AssetPackHttp.this) {
         waiting.remove(this);
@@ -238,6 +342,10 @@ final class AssetPackHttp implements AutoCloseable {
       }
     }
 
+    /**
+     * Leases the archive for the remaining connection lifetime and sends headers or streams its contents.
+     * After handoff, the chunked-write handler owns the file input.
+     */
     private void serve() {
       if (!context.channel().isActive()) {
         return;
@@ -280,6 +388,12 @@ final class AssetPackHttp implements AutoCloseable {
       context.close();
     }
 
+    /**
+     * Sends an empty error response and closes the connection after the write.
+     *
+     * @param context download handler context.
+     * @param status HTTP status for the failure.
+     */
     private void fail(ChannelHandlerContext context, HttpResponseStatus status) {
       var response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
       response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
