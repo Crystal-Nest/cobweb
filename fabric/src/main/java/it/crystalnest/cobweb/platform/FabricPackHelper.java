@@ -1,6 +1,5 @@
 package it.crystalnest.cobweb.platform;
 
-import it.crystalnest.cobweb.api.pack.BundledPackResources;
 import it.crystalnest.cobweb.api.pack.PackSources;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.fabricmc.loader.api.FabricLoader;
@@ -83,11 +82,10 @@ public final class FabricPackHelper extends PackHelper {
 
   @Override
   @Nullable
-  public BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root) {
+  public BundledResources openBundledPack(PackLocationInfo location, String owner, String root) {
     return FabricLoader.getInstance().getModContainer(owner).map(container -> {
       var path = container.findPath(root).orElseGet(() -> container.getRootPaths().getFirst().resolve(root));
-      return new BundledPackResources(new PathPackResources(location, path),
-        (type, namespace, output) -> PathPackResources.listPath(namespace, path.resolve(type.getDirectory()).resolve(namespace), List.of(), output));
+      return new BundledResources(new PathPackResources(location, path), (type, namespace, output) -> PathPackResources.listPath(namespace, path.resolve(type.getDirectory()).resolve(namespace), List.of(), output));
     }).orElse(null);
   }
 }

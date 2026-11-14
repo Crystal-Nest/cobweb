@@ -1,6 +1,5 @@
 package it.crystalnest.cobweb.platform;
 
-import it.crystalnest.cobweb.api.pack.BundledPackResources;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
@@ -46,10 +45,10 @@ public final class NeoForgePackHelper extends PackHelper {
 
   @Override
   @Nullable
-  public BundledPackResources openBundledPack(PackLocationInfo location, String owner, String root) {
+  public BundledResources openBundledPack(PackLocationInfo location, String owner, String root) {
     return ModList.get().getModContainerById(owner).map(container -> {
       var contents = container.getModInfo().getOwningFile().getFile().getContents();
-      return new BundledPackResources(new JarContentsPackResources(location, contents, root), (type, namespace, output) -> {
+      return new BundledResources(new JarContentsPackResources(location, contents, root), (type, namespace, output) -> {
         var prefix = root + "/" + type.getDirectory() + "/" + namespace + "/";
         contents.visitContent(prefix, (path, resource) -> {
           var id = Identifier.tryBuild(namespace, path.substring(prefix.length()));

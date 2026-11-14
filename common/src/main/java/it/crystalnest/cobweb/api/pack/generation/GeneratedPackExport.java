@@ -2,8 +2,8 @@ package it.crystalnest.cobweb.api.pack.generation;
 
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
@@ -115,7 +115,7 @@ public final class GeneratedPackExport {
   static void writeContents(GeneratedPackResources snapshot, boolean inspection, EntryWriter writer) throws IOException {
     var type = snapshot.definition.type();
     var section = PackMetadataSection.forPackType(type);
-    var metadata = PackMetadataOverrides.readFile(snapshot);
+    var metadata = PackHelper.readMetadataFile(snapshot);
     metadata.remove("overlays");
     metadata.remove("neoforge:overlays");
     metadata.add(section.name(), section.codec().encodeStart(JsonOps.INSTANCE, Objects.requireNonNull(snapshot.getMetadataSection(section))).getOrThrow());

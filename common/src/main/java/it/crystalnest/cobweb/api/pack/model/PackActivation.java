@@ -8,12 +8,10 @@ public enum PackActivation {
    * Optional and initially disabled.
    */
   DEFAULT_DISABLED,
-
   /**
    * Optional and initially enabled.
    */
   DEFAULT_ENABLED,
-
   /**
    * Required, independently of whether its position is movable.
    */

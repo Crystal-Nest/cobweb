@@ -1,12 +1,11 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
-import it.crystalnest.cobweb.api.pack.BundledPackResources;
-import it.crystalnest.cobweb.api.pack.PackMetadataOverrides;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
 import it.crystalnest.cobweb.mixin.OverlayedPackResourcesAccessor;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper.BundledResources;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.AbstractPackMetadataResources;
 import net.minecraft.server.packs.OverlayedPackResources;
@@ -19,6 +18,7 @@ import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.resources.IoSupplier;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -87,7 +87,7 @@ final class GeneratedPackResources implements PackResources {
         content = new OverlayedPackResources(snapshots == null ? base : snapshots.wrap(base), List.of(content));
       }
       if (!bundles.overlays.isEmpty()) {
-        var layers = bundles.overlays.stream().map(BundledPackResources::pack);
+        var layers = bundles.overlays.stream().map(BundledResources::pack);
         content = new OverlayedPackResources(content, (snapshots == null ? layers : layers.map(snapshots::wrap)).toList());
       }
     }
@@ -113,8 +113,8 @@ final class GeneratedPackResources implements PackResources {
     return new GeneratedPackResources(null, type, NativePackDependencies.info(type, pack).logicalId(), pack.location(), Map.of(), bundles, true);
   }
 
-  private static BundledPackResources nativeBundle(PackResources pack) {
-    return new BundledPackResources(pack, (type, namespace, output) -> pack.listResources(type, namespace, "", output));
+  private static BundledResources nativeBundle(PackResources pack) {
+    return new BundledResources(pack, (type, namespace, output) -> pack.listResources(type, namespace, "", output));
   }
 
   Object ownerKey() {
@@ -222,7 +222,7 @@ final class GeneratedPackResources implements PackResources {
   }
 
   @Override
-  public PackLocationInfo location() {
+  public @NonNull PackLocationInfo location() {
     if ((!rules.rules().isEmpty() || hasFiles()) && location.knownPackInfo().isPresent()) {
       return new PackLocationInfo(location.id(), location.title(), location.source(), java.util.Optional.empty());
     }
@@ -230,17 +230,17 @@ final class GeneratedPackResources implements PackResources {
   }
 
   @Override
-  public IoSupplier<InputStream> getRootResource(String... path) {
+  public IoSupplier<InputStream> getRootResource(String @NonNull ... path) {
     return bundles == null || bundles.base == null ? null : bundles.base.pack().getRootResource(path);
   }
 
   @Override
-  public IoSupplier<InputStream> getResource(PackType type, Identifier id) {
+  public IoSupplier<InputStream> getResource(@NonNull PackType type, @NonNull Identifier id) {
     return view.getResource(type, id);
   }
 
   @Override
-  public void listResources(PackType type, String namespace, String prefix, ResourceOutput output) {
+  public void listResources(@NonNull PackType type, @NonNull String namespace, @NonNull String prefix, @NonNull ResourceOutput output) {
     view.listResources(type, namespace, prefix, output);
   }
 
@@ -258,18 +258,18 @@ final class GeneratedPackResources implements PackResources {
     resolved.forEach(output::accept);
   }
 
-  private static void listBundle(BundledPackResources source, PackType type, Map<Identifier, IoSupplier<InputStream>> resolved) {
+  private static void listBundle(BundledResources source, PackType type, Map<Identifier, IoSupplier<InputStream>> resolved) {
     source.pack().getNamespaces(type).forEach(namespace -> source.listing().list(type, namespace, resolved::put));
   }
 
   @Override
-  public Set<String> getNamespaces(PackType type) {
+  public @NonNull Set<String> getNamespaces(@NonNull PackType type) {
     return view.getNamespaces(type);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T> T getMetadataSection(MetadataSectionType<T> type) throws IOException {
+  public <T> T getMetadataSection(@NonNull MetadataSectionType<T> type) throws IOException {
     var primary = bundles == null || bundles.base == null ? null : bundles.base.pack();
     if (definition != null && type.equals(PackMetadataSection.forPackType(this.type))) {
       return (T) PackMetadataOverrides.read(this.type, primary, definition.description(), definition.formats());
@@ -308,18 +308,18 @@ final class GeneratedPackResources implements PackResources {
     }
 
     @Override
-    public IoSupplier<InputStream> getRootResource(String... path) {
+    public IoSupplier<InputStream> getRootResource(String @NonNull ... path) {
       return null;
     }
 
     @Override
-    public IoSupplier<InputStream> getResource(PackType type, Identifier id) {
+    public IoSupplier<InputStream> getResource(@NonNull PackType type, @NonNull Identifier id) {
       File file = type == GeneratedPackResources.this.type ? files.get(id) : null;
       return file == null ? null : file.content::open;
     }
 
     @Override
-    public void listResources(PackType type, String namespace, String prefix, ResourceOutput output) {
+    public void listResources(@NonNull PackType type, @NonNull String namespace, @NonNull String prefix, @NonNull ResourceOutput output) {
       if (type == GeneratedPackResources.this.type) {
         String directory = prefix.isEmpty() ? "" : prefix + "/";
         files.forEach((id, file) -> {
@@ -331,7 +331,7 @@ final class GeneratedPackResources implements PackResources {
     }
 
     @Override
-    public Set<String> getNamespaces(PackType type) {
+    public @NonNull Set<String> getNamespaces(@NonNull PackType type) {
       if (type != GeneratedPackResources.this.type) {
         return Set.of();
       }
@@ -349,13 +349,13 @@ final class GeneratedPackResources implements PackResources {
 
   private static final class Bundles {
     @Nullable
-    private final BundledPackResources base;
+    private final BundledResources base;
 
-    private final List<BundledPackResources> overlays;
+    private final List<BundledResources> overlays;
 
     private int users = 1;
 
-    private Bundles(@Nullable BundledPackResources base, List<BundledPackResources> overlays) {
+    private Bundles(@Nullable BundledResources base, List<BundledResources> overlays) {
       this.base = base;
       this.overlays = overlays;
     }
@@ -382,12 +382,12 @@ final class GeneratedPackResources implements PackResources {
 
   record Supplier(ResourcePack definition) implements Pack.ResourcesSupplier {
     @Override
-    public PackMetadataResources openMetadata(PackLocationInfo location) {
+    public @NonNull PackMetadataResources openMetadata(@NonNull PackLocationInfo location) {
       return open(location, List.of());
     }
 
     @Override
-    public Stream<PackResources> openResources(PackLocationInfo location, Pack.Metadata metadata) {
+    public @NonNull Stream<PackResources> openResources(@NonNull PackLocationInfo location, Pack.Metadata metadata) {
       return Stream.of(open(location, metadata.overlays()));
     }
 
@@ -403,7 +403,7 @@ final class GeneratedPackResources implements PackResources {
     }
 
     @Nullable
-    private BundledPackResources bundled(PackLocationInfo location, String path) {
+    private BundledResources bundled(PackLocationInfo location, String path) {
       return Services.PACK.openBundledPack(location, definition.identifier().getNamespace(), path);
     }
   }

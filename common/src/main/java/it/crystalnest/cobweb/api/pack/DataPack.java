@@ -7,6 +7,9 @@ import net.minecraft.server.packs.PackType;
  * Supplies bundled or generated server data during native resource loading.
  */
 public final class DataPack extends ResourcePack {
+  /**
+   * @param registrar configuration for the asset pack.
+   */
   private DataPack(Registrar registrar) {
     super(registrar);
   }
