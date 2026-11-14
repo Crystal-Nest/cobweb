@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb;
 
-import it.crystalnest.cobweb.api.pack.query.PackExportCommand;
+import it.crystalnest.cobweb.api.pack.command.PackExportCommand;
 import it.crystalnest.cobweb.platform.NeoForgePackHelper;
 import it.crystalnest.cobweb.platform.NeoForgeRegistryHelper;
 import it.crystalnest.cobweb.platform.Services;
@@ -25,6 +25,6 @@ public final class ModLoader {
     ((NeoForgeRegistryHelper) Services.REGISTRY).register(bus);
     ((NeoForgePackHelper) Services.PACK).register(bus);
     CommonModLoader.init();
-    NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PackExportCommand.register(event.getDispatcher()));
+    NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PackExportCommand.registerServer(event.getDispatcher()));
   }
 }
