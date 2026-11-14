@@ -21,6 +21,7 @@ import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -591,9 +592,9 @@ public abstract class ResourcePack {
       return false;
     }
     for (Input input : inputs.values()) {
-      if (input instanceof Input.Native nativeInput) {
-        Phase ready = kind == LoadKind.FULL_LOAD ? nativeInput.readiness() : nativeInput.reloadReadiness();
-        if (ready.type() != type || candidate.ordinal() < ready.ordinal() || nativeInput.completeSource() && candidate != ready) {
+      if (input instanceof Input.Native(Phase readiness, Phase reloadReadiness, boolean completeSource)) {
+        Phase ready = kind == LoadKind.FULL_LOAD ? readiness : reloadReadiness;
+        if (ready.type() != type || candidate.ordinal() < ready.ordinal() || completeSource && candidate != ready) {
           return false;
         }
       }
@@ -1068,11 +1069,30 @@ public abstract class ResourcePack {
      */
     public abstract P register();
 
+    /**
+     * Installs a pack definition during mod initialization.
+     *
+     * @param pack pack definition to install.
+     * @return the registered pack definition.
+     * @throws IllegalStateException if registration has closed or the native ID is already registered.
+     */
     final P install(P pack) {
+      return install(pack, null);
+    }
+
+    /**
+     * Installs a pack definition with its optional server asset publication callbacks.
+     *
+     * @param pack pack definition to install.
+     * @param publication server asset publication callbacks, or null if absent.
+     * @return the registered pack definition.
+     * @throws IllegalStateException if registration has closed or the native ID is already registered.
+     */
+    final P install(P pack, @Nullable PackHelper.PublicationCallbacks<?> publication) {
       if (DynamicPackLoads.declarationsClosed()) {
         throw new IllegalStateException("Pack registration closed before " + pack.identifier());
       }
-      Services.PACK.registerCobwebPack(pack);
+      Services.PACK.registerCobwebPack(pack, publication);
       return pack;
     }
   }

@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.pack;
 
-import it.crystalnest.cobweb.api.pack.AssetPackPublication.Publication;
 import it.crystalnest.cobweb.api.pack.generation.AssetPublicationOutput;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
@@ -13,22 +13,15 @@ import java.util.function.Function;
 
 /**
  * Supplies bundled or generated client assets.
- * <p>A dedicated server can publish the bundled assets and any output from {@link Registrar#onPublish(Function, PublicationCallback)}
- * when the operator selects this pack for delivery.
+ * <p>
+ * A dedicated server can publish the bundled assets and any output from {@link Registrar#onPublish(Function, PublicationCallback)} when the operator selects this pack for delivery.
  */
 public final class AssetPack extends ResourcePack {
   /**
-   * Optional server-thread capture that binds detached inputs to a publication job.
-   */
-  @Nullable
-  private final Function<MinecraftServer, Publication> capture;
-
-  /**
-   * @param registrar configuration for the asset pack and its optional publication callback.
+   * @param registrar configuration for the asset pack.
    */
   private AssetPack(Registrar registrar) {
     super(registrar);
-    capture = registrar.capture;
   }
 
   /**
@@ -40,17 +33,6 @@ public final class AssetPack extends ResourcePack {
    */
   public static Registrar registrar(Identifier id) {
     return new Registrar(id);
-  }
-
-  /**
-   * Captures the applied state needed for one publication on the server thread.
-   *
-   * @param server running server whose applied data is available to the capture callback.
-   * @return publication job bound to detached inputs, or null if no publication callback was declared.
-   */
-  @Nullable
-  Publication capturePublication(MinecraftServer server) {
-    return capture == null ? null : capture.apply(server);
   }
 
   /**
@@ -78,7 +60,7 @@ public final class AssetPack extends ResourcePack {
      * Optional server-state capture and worker callback configured for this pack.
      */
     @Nullable
-    private Function<MinecraftServer, Publication> capture;
+    private PackHelper.PublicationCallbacks<?> publication;
 
     /**
      * @param id logical identifier of the asset pack to register.
@@ -104,13 +86,10 @@ public final class AssetPack extends ResourcePack {
     public <T> Registrar onPublish(Function<MinecraftServer, T> capture, PublicationCallback<T> callback) {
       Objects.requireNonNull(capture);
       Objects.requireNonNull(callback);
-      if (this.capture != null) {
+      if (publication != null) {
         throw new IllegalStateException("Asset pack publication generation is already declared");
       }
-      this.capture = server -> {
-        T captured = capture.apply(server);
-        return output -> callback.generate(captured, output);
-      };
+      publication = new PackHelper.PublicationCallbacks<>(capture, callback);
       return this;
     }
 
@@ -121,7 +100,7 @@ public final class AssetPack extends ResourcePack {
 
     @Override
     public AssetPack register() {
-      return install(new AssetPack(this));
+      return install(new AssetPack(this), publication);
     }
   }
 }

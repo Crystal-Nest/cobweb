@@ -36,6 +36,9 @@ import java.util.stream.Stream;
  * Native resource opening owned by one pack and resource load.
  */
 final class GeneratedPackResources implements PackResources {
+  /**
+   * Registered definition, or {@code null} for an ordinary file pack wrapped to run JSON rules.
+   */
   @Nullable
   final ResourcePack definition;
 

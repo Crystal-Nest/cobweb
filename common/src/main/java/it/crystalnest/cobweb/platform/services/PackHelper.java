@@ -2,17 +2,20 @@ package it.crystalnest.cobweb.platform.services;
 
 import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.api.pack.BundledPackResources;
-import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import it.crystalnest.cobweb.api.pack.PackDeclaration;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
+import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -20,9 +23,9 @@ import java.util.function.Supplier;
  */
 public abstract class PackHelper {
   /**
-   * Registered definitions indexed by type and native ID.
+   * Registrations indexed by type and native ID.
    */
-  private final Map<PackType, Map<String, ResourcePack>> packs = new ConcurrentHashMap<>();
+  private final Map<PackType, Map<String, RegisteredPack>> packs = new ConcurrentHashMap<>();
 
   /**
    * Adds a source to the native repository for the given pack type.
@@ -36,15 +39,16 @@ public abstract class PackHelper {
    * Registers a definition and reserves its native pack identity.
    *
    * @param pack pack definition to register.
+   * @param publication server asset publication callbacks, or null if absent.
    * @throws IllegalStateException if the native ID is already registered for this pack type.
    */
-  public final synchronized void registerCobwebPack(ResourcePack pack) {
+  public final synchronized void registerCobwebPack(ResourcePack pack, @Nullable PublicationCallbacks<?> publication) {
     var byId = packs.computeIfAbsent(pack.type(), type -> new ConcurrentHashMap<>());
     if (byId.containsKey(pack.packId())) {
       throw new IllegalStateException("Pack already registered for " + pack.type() + ": " + pack.identifier());
     }
     addPackSource(pack.type(), pack::toPack);
-    byId.put(pack.packId(), pack);
+    byId.put(pack.packId(), new RegisteredPack(pack, publication));
   }
 
   /**
@@ -56,8 +60,8 @@ public abstract class PackHelper {
    */
   @Nullable
   public final PackActivation activation(PackType type, String id) {
-    ResourcePack pack = packs.getOrDefault(type, Map.of()).get(id);
-    return pack == null ? null : pack.activation();
+    var registration = packs.getOrDefault(type, Map.of()).get(id);
+    return registration == null ? null : registration.pack().activation();
   }
 
   /**
@@ -69,21 +73,25 @@ public abstract class PackHelper {
    */
   @Nullable
   public final PackDeclaration packDeclaration(PackType type, String nativeId) {
-    ResourcePack pack = packs.getOrDefault(type, Map.of()).get(nativeId);
-    return pack == null ? null : new PackDeclaration(pack.identifier(), pack.dependencySettings(), pack.loadObserver(), pack.icon(), pack.presentation(), pack.hasExplicitTitle(), pack.hasExplicitDescription());
+    var registration = packs.getOrDefault(type, Map.of()).get(nativeId);
+    if (registration == null) {
+      return null;
+    }
+    var pack = registration.pack();
+    return new PackDeclaration(pack.identifier(), pack.dependencySettings(), pack.loadObserver(), pack.icon(), pack.presentation(), pack.hasExplicitTitle(), pack.hasExplicitDescription());
   }
 
   /**
    * Resolves an asset pack selected for publication by its logical identifier.
    *
    * @param id logical pack identifier.
-   * @return matching registered pack, or null if absent.
+   * @return matching registration, including its publication callbacks if present, or null if absent.
    */
   @Nullable
-  public final AssetPack assetPack(Identifier id) {
-    for (var pack : packs.getOrDefault(PackType.CLIENT_RESOURCES, Map.of()).values()) {
-      if (pack instanceof AssetPack asset && asset.identifier().equals(id)) {
-        return asset;
+  public final RegisteredPack assetPack(Identifier id) {
+    for (var registration : packs.getOrDefault(PackType.CLIENT_RESOURCES, Map.of()).values()) {
+      if (registration.pack() instanceof AssetPack asset && asset.identifier().equals(id)) {
+        return registration;
       }
     }
     return null;
@@ -106,4 +114,21 @@ public abstract class PackHelper {
    * @return loader-specific known-pack namespace.
    */
   public abstract String bundledKnownPackNamespace();
+
+  /**
+   * Associates a pack definition with its optional server asset publication callbacks.
+   *
+   * @param pack registered pack definition.
+   * @param publication server asset publication callbacks, or null if absent.
+   */
+  public record RegisteredPack(ResourcePack pack, @Nullable PublicationCallbacks<?> publication) {}
+
+  /**
+   * Pairs the server-thread capture with the worker callback that consumes its detached inputs.
+   *
+   * @param capture reads applied server state and returns detached inputs.
+   * @param generate writes assets from the detached inputs on a worker.
+   * @param <T> detached capture type.
+   */
+  public record PublicationCallbacks<T>(Function<MinecraftServer, T> capture, AssetPack.PublicationCallback<T> generate) {}
 }

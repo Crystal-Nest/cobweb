@@ -2,13 +2,15 @@ package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.AssetPack;
-import it.crystalnest.cobweb.api.pack.AssetPackPublication;
+import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackResources;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -54,11 +56,11 @@ public final class AssetPackArchives {
    * Captures the applied server state needed for publication.
    *
    * @param server server on its main thread after a successful load.
-   * @param packs selected asset packs in increasing priority.
+   * @param packs selected asset pack registrations in increasing priority.
    * @param warnClientCallbacks whether to report client-only output.
    * @return detached publication job.
    */
-  public static Build capture(MinecraftServer server, List<AssetPack> packs, boolean warnClientCallbacks) {
+  public static Build capture(MinecraftServer server, List<PackHelper.RegisteredPack> packs, boolean warnClientCallbacks) {
     return capture(server, packs, warnClientCallbacks, new Reuse(), () -> true);
   }
 
@@ -66,20 +68,21 @@ public final class AssetPackArchives {
    * Captures a cancellable publication with reusable static archives.
    *
    * @param server server on its main thread after a successful load.
-   * @param packs selected packs in increasing priority.
+   * @param packs selected asset pack registrations in increasing priority.
    * @param warnClientCallbacks whether to report client-only output.
    * @param reuse archive records owned by this publisher.
    * @param current whether the requested revision is still current.
    * @return detached publication job.
    */
-  public static Build capture(MinecraftServer server, List<AssetPack> packs, boolean warnClientCallbacks, Reuse reuse, BooleanSupplier current) {
+  public static Build capture(MinecraftServer server, List<PackHelper.RegisteredPack> packs, boolean warnClientCallbacks, Reuse reuse, BooleanSupplier current) {
     var captures = new ArrayList<Captured>();
-    for (AssetPack pack : packs) {
-      var publication = AssetPackPublication.capture(pack, server);
-      if (publication == null && warnClientCallbacks && pack.generates()) {
+    for (var registration : packs) {
+      var pack = registration.pack();
+      var callbacks = registration.publication();
+      if (callbacks == null && warnClientCallbacks && pack.generates()) {
         Constants.LOGGER.warn("Publishing only bundled assets of {} because its callbacks run on the client", pack.identifier());
       }
-      captures.add(new Captured(pack, publication));
+      captures.add(new Captured(pack, callbacks == null ? null : CapturedPublication.capture(server, callbacks)));
     }
     return (directory, staging) -> write(directory, staging, captures, reuse, current);
   }
@@ -104,6 +107,7 @@ public final class AssetPackArchives {
       for (int index = 0; index < resources.size(); index++) {
         checkCurrent(current);
         var capture = captures.get(index);
+        var id = capture.pack.identifier();
         var pack = (GeneratedPackResources) resources.get(index);
         if (capture.publication != null) {
           var output = new AssetPublicationOutput(pack);
@@ -114,14 +118,14 @@ public final class AssetPackArchives {
             output.close();
           }
         }
-        var previous = capture.publication == null ? reuse.staticArchives.get(capture.pack.identifier()) : null;
+        var previous = capture.publication == null ? reuse.staticArchives.get(id) : null;
         if (previous != null && previous.contents.equals(fingerprint(pack, current)) && intact(previous.archive, current)) {
           archives.add(previous.archive);
         } else {
-          var written = writeArchive(directory, staging, pack, current);
+          var written = writeArchive(directory, staging, id, pack, current);
           archives.add(written.archive);
           if (capture.publication == null) {
-            reuse.staticArchives.put(capture.pack.identifier(), written);
+            reuse.staticArchives.put(id, written);
           }
         }
       }
@@ -131,7 +135,18 @@ public final class AssetPackArchives {
     }
   }
 
-  private static CachedArchive writeArchive(Path directory, Path scratch, GeneratedPackResources pack, BooleanSupplier current) throws IOException {
+  /**
+   * Writes a publication ZIP and derives its stable network offer ID from the registered pack identifier.
+   *
+   * @param directory publication storage directory.
+   * @param scratch temporary storage on the same file system.
+   * @param id registered asset pack identifier.
+   * @param pack opened resources to archive.
+   * @param current whether the requested revision is still current.
+   * @return archive and its content fingerprint.
+   * @throws IOException if reading or writing the archive fails.
+   */
+  private static CachedArchive writeArchive(Path directory, Path scratch, Identifier id, GeneratedPackResources pack, BooleanSupplier current) throws IOException {
     checkCurrent(current);
     var contentHash = CacheObservations.digest();
     Path staging = Files.createTempFile(scratch, ".pending-", ".zip");
@@ -170,7 +185,6 @@ public final class AssetPackArchives {
           Files.move(staging, destination, StandardCopyOption.REPLACE_EXISTING);
         }
       }
-      var id = pack.definition.identifier();
       var uuid = UUID.nameUUIDFromBytes(("cobweb:published-assets/" + id).getBytes(StandardCharsets.UTF_8));
       return new CachedArchive(CacheObservations.hex(contentHash), new Archive(id, uuid, address, HexFormat.of().formatHex(sha1.digest()), destination, size));
     } finally {
@@ -273,7 +287,44 @@ public final class AssetPackArchives {
    */
   public record Archive(Identifier id, UUID uuid, String address, String sha1, Path path, long size) {}
 
-  private record Captured(AssetPack pack, @Nullable AssetPackPublication.Publication publication) {}
+  /**
+   * Holds a pack and its optional worker input for one publication.
+   *
+   * @param pack asset pack definition.
+   * @param publication captured callback inputs and worker callback, or null if absent.
+   */
+  private record Captured(ResourcePack pack, @Nullable CapturedPublication<?> publication) {}
+
+  /**
+   * Holds a callback and its detached inputs for one archive build.
+   *
+   * @param inputs value produced on the server thread.
+   * @param callback generation callback to run on the publication worker.
+   * @param <T> detached capture type.
+   */
+  private record CapturedPublication<T>(T inputs, AssetPack.PublicationCallback<T> callback) {
+    /**
+     * Reads the inputs for a publication on the server thread.
+     *
+     * @param server server whose applied state the capture can read.
+     * @param callbacks capture and generation callbacks for this pack.
+     * @param <T> detached capture type.
+     * @return inputs paired with their generation callback.
+     */
+    private static <T> CapturedPublication<T> capture(MinecraftServer server, PackHelper.PublicationCallbacks<T> callbacks) {
+      return new CapturedPublication<>(callbacks.capture().apply(server), callbacks.generate());
+    }
+
+    /**
+     * Generates the pack's assets on the publication worker.
+     *
+     * @param output access to this pack's bundled assets and generated output.
+     * @throws IOException if reading or writing an asset fails.
+     */
+    private void generate(AssetPublicationOutput output) throws IOException {
+      callback.generate(inputs, output);
+    }
+  }
 
   private static final class LimitedOutput extends FilterOutputStream {
     private long remaining;
@@ -290,7 +341,7 @@ public final class AssetPackArchives {
     }
 
     @Override
-    public void write(byte[] bytes, int offset, int length) throws IOException {
+    public void write(byte @NonNull [] bytes, int offset, int length) throws IOException {
       reserve(length);
       out.write(bytes, offset, length);
     }

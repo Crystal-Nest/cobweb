@@ -4,9 +4,9 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.util.AttributeKey;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.api.pack.generation.AssetPackArchives;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.world.level.storage.LevelResource;
@@ -50,7 +50,10 @@ public final class AssetDelivery implements AutoCloseable {
 
   private final AssetDeliveryConfig config;
 
-  private final List<AssetPack> packs;
+  /**
+   * Asset pack registrations in the operator's chosen priority order.
+   */
+  private final List<PackHelper.RegisteredPack> packs;
 
   private final Path directory;
 
@@ -79,7 +82,12 @@ public final class AssetDelivery implements AutoCloseable {
 
   private boolean warned;
 
-  private AssetDelivery(DedicatedServer server, AssetDeliveryConfig config, List<AssetPack> packs) {
+  /**
+   * @param server dedicated server that owns this publisher.
+   * @param config operator's asset delivery configuration.
+   * @param packs asset pack registrations in increasing priority.
+   */
+  private AssetDelivery(DedicatedServer server, AssetDeliveryConfig config, List<PackHelper.RegisteredPack> packs) {
     this.server = server;
     this.config = config;
     this.packs = packs;
@@ -105,11 +113,11 @@ public final class AssetDelivery implements AutoCloseable {
     var config = AssetDeliveryConfig.read();
     if (!config.packs().isEmpty()) {
       var packs = config.packs().stream().map(id -> {
-        AssetPack pack = Services.PACK.assetPack(id);
-        if (pack == null) {
+        var registration = Services.PACK.assetPack(id);
+        if (registration == null) {
           throw new IllegalArgumentException("Unknown asset pack " + id + " in " + AssetDeliveryConfig.FILE);
         }
-        return pack;
+        return registration;
       }).toList();
       SERVERS.put(server, new AssetDelivery(server, config, packs));
     }
