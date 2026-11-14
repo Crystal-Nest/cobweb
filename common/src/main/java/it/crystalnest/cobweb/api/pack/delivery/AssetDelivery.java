@@ -127,7 +127,7 @@ public final class AssetDelivery implements AutoCloseable {
    * Finds the publication service for a server.
    *
    * @param server owning server.
-   * @return enabled service, or null if no packs are configured.
+   * @return enabled service, or {@code null} if no packs are configured.
    */
   @Nullable
   public static AssetDelivery get(MinecraftServer server) {

@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -14,11 +13,7 @@ public final class CallbackRegistration {
   @Nullable
   private volatile Policy policy;
 
-  /**
-   * Creates the options for one generation task.
-   */
-  @ApiStatus.Internal
-  public CallbackRegistration() {}
+  CallbackRegistration() {}
 
   /**
    * Enables reuse within the current process based on observable inputs.

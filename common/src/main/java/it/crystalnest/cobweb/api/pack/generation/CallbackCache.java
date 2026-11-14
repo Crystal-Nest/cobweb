@@ -3,7 +3,7 @@ package it.crystalnest.cobweb.api.pack.generation;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
 import it.crystalnest.cobweb.api.pack.generation.input.Input;
 import it.crystalnest.cobweb.platform.Services;
@@ -84,7 +84,7 @@ final class CallbackCache {
 
   private CallbackCache() {}
 
-  static Path address(Path root, GeneratedPackResources pack, ResourcePack.Task task, @Nullable CallbackRegistration.Policy policy) {
+  static Path address(Path root, GeneratedPackResources pack, Task task, @Nullable CallbackRegistration.Policy policy) {
     var digest = CacheObservations.digest();
     CacheObservations.text(digest, pack.type.toString());
     CacheObservations.text(digest, pack.packId());
@@ -98,7 +98,7 @@ final class CallbackCache {
   }
 
   @Nullable
-  static String fingerprint(ResourcePack.Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, @Nullable CallbackRegistration.Policy policy, boolean persistent) {
+  static String fingerprint(Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, @Nullable CallbackRegistration.Policy policy, boolean persistent) {
     var digest = CacheObservations.digest();
     String profile = persistent ? environment() : SESSION;
     if (profile == null) {

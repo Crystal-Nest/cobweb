@@ -34,7 +34,7 @@ public final class AssetPublicationOutput {
    * @param id namespaced path including its extension.
    * @param reader reads the asset within this call.
    * @param <T> result type.
-   * @return reader result, or null if the asset is absent.
+   * @return reader result, or {@code null} if the asset is absent.
    * @throws IOException if opening or reading the asset fails.
    */
   @Nullable

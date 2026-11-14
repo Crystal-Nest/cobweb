@@ -5,24 +5,33 @@ import com.google.gson.JsonParser;
 import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.PackDependencySettings;
+import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
 import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
+import it.crystalnest.cobweb.platform.Services;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.metadata.pack.PackFormat;
+import net.minecraft.server.packs.repository.KnownPack;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.util.InclusiveRange;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -40,7 +49,7 @@ public abstract class PackHelper {
   /**
    * Reads the pack's own metadata document.
    *
-   * @param resources opened primary resources, or null if absent.
+   * @param resources opened primary resources, or {@code null} if absent.
    * @return detached metadata document, or an empty object if the pack has no metadata file.
    * @throws IOException if the file cannot be read.
    */
@@ -65,17 +74,51 @@ public abstract class PackHelper {
   /**
    * Registers a definition and reserves its native pack identity.
    *
-   * @param pack pack definition to register.
-   * @param publication server asset publication callbacks, or null if absent.
+   * @param registration pack handle and its internal settings.
    * @throws IllegalStateException if the native ID is already registered for this pack type.
    */
-  public final synchronized void registerCobwebPack(ResourcePack pack, @Nullable PublicationCallbacks<?> publication) {
+  public final synchronized void registerCobwebPack(RegisteredPack registration) {
+    var pack = registration.pack();
     var byId = packs.computeIfAbsent(pack.type(), type -> new ConcurrentHashMap<>());
     if (byId.containsKey(pack.packId())) {
       throw new IllegalStateException("Pack already registered for " + pack.type() + ": " + pack.identifier());
     }
-    addPackSource(pack.type(), pack::toPack);
-    byId.put(pack.packId(), new RegisteredPack(pack, publication));
+    addPackSource(pack.type(), () -> toPack(registration));
+    byId.put(pack.packId(), registration);
+  }
+
+  /**
+   * Resolves a public pack handle and creates its native pack.
+   *
+   * @param pack registered pack handle.
+   * @return native pack, or {@code null} if Minecraft rejects the metadata or the required pack section is missing.
+   * @throws IllegalStateException if the handle has no matching registration.
+   */
+  @Nullable
+  public final Pack toPack(ResourcePack pack) {
+    var registration = packs.getOrDefault(pack.type(), Map.of()).get(pack.packId());
+    if (registration == null || registration.pack() != pack) {
+      throw new IllegalStateException("Pack is not registered: " + pack.identifier());
+    }
+    return toPack(registration);
+  }
+
+  /**
+   * Creates a native pack for repository discovery or server publication.
+   *
+   * @param registration registered pack whose current generation declarations determine its known-pack identity.
+   * @return native pack or {@code null} if its metadata is rejected.
+   */
+  @Nullable
+  public final Pack toPack(RegisteredPack registration) {
+    var location = registration.location();
+    var pack = registration.pack();
+    String owner = pack.identifier().getNamespace();
+    if (!registration.generation().generates() && Services.PLATFORM.isModLoaded(owner)) {
+      var known = new KnownPack(bundledKnownPackNamespace(), pack.packId(), Services.PLATFORM.getModVersion(owner));
+      location = new PackLocationInfo(location.id(), location.title(), location.source(), Optional.of(known));
+    }
+    return Pack.readMetaAndCreate(location, DynamicPackLoads.resources(registration), pack.type(), registration.selection());
   }
 
   /**
@@ -83,7 +126,7 @@ public abstract class PackHelper {
    *
    * @param type native resource type.
    * @param id native pack ID.
-   * @return activation policy or null for an unmanaged pack.
+   * @return activation policy or {@code null} for an unmanaged pack.
    */
   @Nullable
   public final PackActivation activation(PackType type, String id) {
@@ -96,23 +139,19 @@ public abstract class PackHelper {
    *
    * @param type native resource type.
    * @param nativeId ID in the selected native repository.
-   * @return pack declaration, or null for unmanaged packs.
+   * @return pack declaration, or {@code null} for unmanaged packs.
    */
   @Nullable
   public final PackDeclaration packDeclaration(PackType type, String nativeId) {
     var registration = packs.getOrDefault(type, Map.of()).get(nativeId);
-    if (registration == null) {
-      return null;
-    }
-    var pack = registration.pack();
-    return new PackDeclaration(pack.identifier(), pack.dependencySettings(), pack.loadObserver(), pack.icon(), pack.presentation(), pack.hasExplicitTitle(), pack.hasExplicitDescription());
+    return registration == null ? null : registration.declaration();
   }
 
   /**
    * Resolves an asset pack selected for publication by its logical identifier.
    *
    * @param id logical pack identifier.
-   * @return matching registration, including its publication callbacks if present, or null if absent.
+   * @return matching registration, including its publication callbacks if present, or {@code null} if absent.
    */
   @Nullable
   public final RegisteredPack assetPack(Identifier id) {
@@ -130,7 +169,7 @@ public abstract class PackHelper {
    * @param location native pack identity.
    * @param owner owning mod ID.
    * @param root bundled root relative to the owning mod.
-   * @return bundled resource opening, or null if the owner is absent.
+   * @return bundled resource opening, or {@code null} if the owner is absent.
    */
   @Nullable
   public abstract BundledResources openBundledPack(PackLocationInfo location, String owner, String root);
@@ -169,21 +208,38 @@ public abstract class PackHelper {
   }
 
   /**
-   * Associates a pack definition with its optional server asset publication callbacks.
+   * Holds the information needed to discover and open a registered pack.
    *
-   * @param pack registered pack definition.
-   * @param publication server asset publication callbacks, or null if absent.
+   * @param pack consumer-facing pack handle.
+   * @param location native pack identity and base title.
+   * @param selection native selection and placement settings.
+   * @param declaration logical identity, dependencies, presentation, and observer.
+   * @param bundledRoot fixed path relative to the owning mod's resources.
+   * @param description Java description override, or {@code null} to inherit file metadata.
+   * @param formats Java pack format override, or {@code null} to inherit file metadata.
+   * @param generation shared generation settings and live callback declarations.
+   * @param publication server asset publication callbacks, or {@code null} if absent.
    */
-  public record RegisteredPack(ResourcePack pack, @Nullable PublicationCallbacks<?> publication) {}
+  public record RegisteredPack(
+    ResourcePack pack,
+    PackLocationInfo location,
+    PackSelectionConfig selection,
+    PackDeclaration declaration,
+    String bundledRoot,
+    @Nullable Component description,
+    @Nullable InclusiveRange<PackFormat> formats,
+    PackGeneration generation,
+    @Nullable PublicationCallbacks<?> publication
+  ) {}
 
   /**
    * Exposes the registered settings used by dependency resolution, presentation, and load notifications.
    *
    * @param id logical pack identifier.
    * @param dependencies dependency settings declared in Java.
-   * @param observer callback for native load outcomes, or null if absent.
-   * @param icon base icon declared in Java, or null if absent.
-   * @param presentation callback for pack editor presentation, or null if absent.
+   * @param observer callback for native load outcomes, or {@code null} if absent.
+   * @param icon base icon declared in Java, or {@code null} if absent.
+   * @param presentation callback for pack editor presentation, or {@code null} if absent.
    * @param explicitTitle whether Java supplies the base title.
    * @param explicitDescription whether Java supplies the base description.
    */

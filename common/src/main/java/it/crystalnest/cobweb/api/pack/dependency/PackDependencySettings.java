@@ -18,8 +18,8 @@ public record PackDependencySettings(@Nullable String version, @Nullable List<Pa
    * Copies the lists supplied by the Java registrar.
    *
    * @param version optional Java dependency version.
-   * @param packs replacement pack requirements, or null to inherit the file list.
-   * @param mods replacement mod requirements, or null to inherit the file list.
+   * @param packs replacement pack requirements, or {@code null} to inherit the file list.
+   * @param mods replacement mod requirements, or {@code null} to inherit the file list.
    */
   public PackDependencySettings {
     packs = packs == null ? null : List.copyOf(packs);

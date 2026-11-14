@@ -6,9 +6,9 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Immutable partial replacement for a pack's visible title, description and icon.
  *
- * @param title title override, or null to keep the base title.
- * @param description description override, or null to keep the base description.
- * @param icon icon override, or null to keep the base icon.
+ * @param title title override, or {@code null} to keep the base title.
+ * @param description description override, or {@code null} to keep the base description.
+ * @param icon icon override, or {@code null} to keep the base icon.
  */
 public record PackPresentation(@Nullable Component title, @Nullable Component description, @Nullable PackIcon icon) {
   /**
@@ -26,7 +26,7 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
   /**
    * Returns the override as an independent component.
    *
-   * @return title override, or null to keep the base title.
+   * @return title override, or {@code null} to keep the base title.
    */
   @Override
   @Nullable
@@ -37,7 +37,7 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
   /**
    * Returns the override as an independent component.
    *
-   * @return description override, or null to keep the base description.
+   * @return description override, or {@code null} to keep the base description.
    */
   @Override
   @Nullable

@@ -41,7 +41,7 @@ public final class ImageTransforms {
    *
    * @param template RGBA image to recolor.
    * @param reference RGBA image supplying visible RGB shades. Its dimensions may differ from the template's.
-   * @param mask RGBA image matching the template's dimensions, or null to recolor all visible template pixels.
+   * @param mask RGBA image matching the template's dimensions, or {@code null} to recolor all visible template pixels.
    * @return a new image with the template's dimensions and alpha, which the caller must close.
    * @throws IllegalArgumentException if the mask dimensions differ, an image read by the operation is not RGBA, or eligible template pixels have no visible reference colors.
    */
@@ -89,7 +89,7 @@ public final class ImageTransforms {
    * Collects distinct RGB shades from eligible pixels and sorts them by brightness, breaking ties by packed RGB value.
    *
    * @param image image supplying colors.
-   * @param mask matching region mask, or null to use every visible pixel.
+   * @param mask matching region mask, or {@code null} to use every visible pixel.
    * @return sorted array of RGB shades with the alpha byte cleared.
    */
   private static int[] palette(NativeImage image, @Nullable NativeImage mask) {
@@ -110,7 +110,7 @@ public final class ImageTransforms {
    * Checks whether a pixel contributes to the palette or can be recolored.
    *
    * @param pixel packed ARGB pixel from the image.
-   * @param mask matching region mask, or null if every visible pixel is eligible.
+   * @param mask matching region mask, or {@code null} if every visible pixel is eligible.
    * @param x pixel column in the image and mask.
    * @param y pixel row in the image and mask.
    * @return whether the pixel and, when supplied, the mask pixel have nonzero alpha.

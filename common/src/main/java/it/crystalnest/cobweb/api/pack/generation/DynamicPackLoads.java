@@ -1,8 +1,8 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
@@ -10,6 +10,7 @@ import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper.RegisteredPack;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.LayeredRegistryAccess;
@@ -74,7 +75,7 @@ public final class DynamicPackLoads {
    * @param definition registered pack definition.
    * @return supplier for bundled and generated resources.
    */
-  public static Pack.ResourcesSupplier resources(ResourcePack definition) {
+  public static Pack.ResourcesSupplier resources(RegisteredPack definition) {
     return new GeneratedPackResources.Supplier(definition);
   }
 
@@ -167,7 +168,7 @@ public final class DynamicPackLoads {
    * Resolves cache storage for a saved world.
    *
    * @param repository data pack repository for this load.
-   * @return world cache path, or null for a transient preview.
+   * @return world cache path, or {@code null} for a transient preview.
    */
   @Nullable
   public static Path worldCache(PackRepository repository) {
@@ -589,7 +590,7 @@ public final class DynamicPackLoads {
     /**
      * Reports the native result after its full application or failure.
      *
-     * @param failure load failure, or null on success.
+     * @param failure load failure, or {@code null} on success.
      */
     public void finish(@Nullable Throwable failure) {
       if (!reported.compareAndSet(false, true)) {
@@ -640,7 +641,7 @@ public final class DynamicPackLoads {
       Map<GeneratedPackResources, CompletableFuture<Void>> finished = new LinkedHashMap<>();
       for (var entry : plan.order.entrySet()) {
         GeneratedPackResources pack = entry.getKey();
-        List<ResourcePack.Task> tasks = pack.javaTasks().stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
+        List<Task> tasks = pack.javaTasks().stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
         var rules = plan.fileTasks.get(pack).stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
         CompletableFuture<Void> ready = all(entry.getValue().stream().map(finished::get).toList());
         if (tasks.isEmpty() && rules.isEmpty()) {
@@ -674,7 +675,7 @@ public final class DynamicPackLoads {
       });
     }
 
-    private CompletableFuture<Void> invoke(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, ResourceManager manager,
+    private CompletableFuture<Void> invoke(GeneratedPackResources pack, Task task, Phase phase, ResourceManager manager,
       HolderLookup.Provider registries, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions) {
       Map<CapturedInput<?>, Object> values = new IdentityHashMap<>();
       task.inputs().values().forEach(input -> {
@@ -738,14 +739,14 @@ public final class DynamicPackLoads {
       });
     }
 
-    private void submit(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
+    private void submit(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, PackContribution contribution) {
       validateSubmission(pack, task, phase, contribution);
       record(task, submissions, recorded, contribution);
       pack.adoptBatch(List.of(contribution));
     }
 
-    private void record(ResourcePack.Task task, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
+    private void record(Task task, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, PackContribution contribution) {
       long order = sequence.incrementAndGet();
       ContributionMerger.Operation operation = switch (contribution) {
@@ -762,7 +763,7 @@ public final class DynamicPackLoads {
       recorded.add(new Recorded(order, contribution));
     }
 
-    private boolean replay(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
+    private boolean replay(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, CallbackCache.Batch batch) {
       try {
         batch.values().forEach(contribution -> validateSubmission(pack, task, phase, contribution));
@@ -776,9 +777,9 @@ public final class DynamicPackLoads {
       return true;
     }
 
-    private void validateSubmission(GeneratedPackResources pack, ResourcePack.Task task, Phase phase, PackContribution contribution) {
+    private void validateSubmission(GeneratedPackResources pack, Task task, Phase phase, PackContribution contribution) {
       Identifier id = contribution.id();
-      if (!task.fileRule() && !Objects.requireNonNull(pack.definition).namespaces().contains(id.getNamespace())) {
+      if (!task.fileRule() && !Objects.requireNonNull(pack.definition).generation().namespaces.contains(id.getNamespace())) {
         throw new IllegalArgumentException("Undeclared resource namespace in " + pack.packId() + ": " + id);
       }
       checkActive();

@@ -15,7 +15,7 @@ public interface DedicatedServerPropertiesAccessor {
    * Parses a resource pack prompt using Minecraft's server properties rules.
    *
    * @param prompt serialized text component.
-   * @return decoded prompt, or null when absent or invalid.
+   * @return decoded prompt, or {@code null} when absent or invalid.
    */
   @Nullable
   @Invoker("parseResourcePackPrompt")

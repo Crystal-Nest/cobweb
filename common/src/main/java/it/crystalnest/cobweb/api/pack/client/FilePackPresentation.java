@@ -33,7 +33,7 @@ final class FilePackPresentation {
    * @param pack displayed pack.
    * @param queries current editor observations.
    * @param evaluateConditions whether to apply file conditions.
-   * @return file fields, or null when absent or invalid.
+   * @return file fields, or {@code null} when absent or invalid.
    */
   @Nullable
   static PackPresentation read(Pack pack, PackQueries queries, boolean evaluateConditions) {

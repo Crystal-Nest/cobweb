@@ -1,11 +1,12 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
-import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
 import it.crystalnest.cobweb.mixin.OverlayedPackResourcesAccessor;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.PackHelper.BundledResources;
+import it.crystalnest.cobweb.platform.services.PackHelper.RegisteredPack;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.AbstractPackMetadataResources;
 import net.minecraft.server.packs.OverlayedPackResources;
@@ -40,7 +41,7 @@ final class GeneratedPackResources implements PackResources {
    * Registered definition, or {@code null} for an ordinary file pack wrapped to run JSON rules.
    */
   @Nullable
-  final ResourcePack definition;
+  final RegisteredPack definition;
 
   final PackType type;
 
@@ -66,12 +67,12 @@ final class GeneratedPackResources implements PackResources {
 
   private boolean closed;
 
-  private GeneratedPackResources(@Nullable ResourcePack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
+  private GeneratedPackResources(@Nullable RegisteredPack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
     Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles) {
     this(definition, type, logicalId, location, files, bundles, ownsBundles, null);
   }
 
-  private GeneratedPackResources(@Nullable ResourcePack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
+  private GeneratedPackResources(@Nullable RegisteredPack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
     Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles, @Nullable StageResourceSnapshots snapshots) {
     this.definition = definition;
     this.type = type;
@@ -118,19 +119,19 @@ final class GeneratedPackResources implements PackResources {
   }
 
   Object ownerKey() {
-    return definition == null ? packId() : definition;
+    return definition == null ? packId() : definition.pack();
   }
 
   boolean generates() {
-    return definition != null && definition.generates() || !rules.rules().isEmpty() || !files.isEmpty();
+    return definition != null && definition.generation().generates() || !rules.rules().isEmpty() || !files.isEmpty();
   }
 
   boolean hasFiles() {
     return !files.isEmpty();
   }
 
-  List<ResourcePack.Task> javaTasks() {
-    return definition == null ? List.of() : definition.tasks();
+  List<Task> javaTasks() {
+    return definition == null ? List.of() : definition.generation().tasks();
   }
 
   File file(Identifier id) {
@@ -336,8 +337,8 @@ final class GeneratedPackResources implements PackResources {
         return Set.of();
       }
       var namespaces = new HashSet<>(rules.namespaces());
-      if (definition != null && definition.generates()) {
-        namespaces.addAll(definition.namespaces());
+      if (definition != null && definition.generation().generates()) {
+        namespaces.addAll(definition.generation().namespaces);
       }
       files.keySet().forEach(id -> namespaces.add(id.getNamespace()));
       return namespaces;
@@ -380,7 +381,7 @@ final class GeneratedPackResources implements PackResources {
     }
   }
 
-  record Supplier(ResourcePack definition) implements Pack.ResourcesSupplier {
+  record Supplier(RegisteredPack definition) implements Pack.ResourcesSupplier {
     @Override
     public @NonNull PackMetadataResources openMetadata(@NonNull PackLocationInfo location) {
       return open(location, List.of());
@@ -399,12 +400,12 @@ final class GeneratedPackResources implements PackResources {
         }
         return bundled(location, definition.bundledRoot() + "/" + path);
       }).filter(Objects::nonNull).toList();
-      return new GeneratedPackResources(definition, definition.type(), definition.identifier(), location, Map.of(), new Bundles(base, active), true);
+      return new GeneratedPackResources(definition, definition.pack().type(), definition.declaration().id(), location, Map.of(), new Bundles(base, active), true);
     }
 
     @Nullable
     private BundledResources bundled(PackLocationInfo location, String path) {
-      return Services.PACK.openBundledPack(location, definition.identifier().getNamespace(), path);
+      return Services.PACK.openBundledPack(location, definition.declaration().id().getNamespace(), path);
     }
   }
 }

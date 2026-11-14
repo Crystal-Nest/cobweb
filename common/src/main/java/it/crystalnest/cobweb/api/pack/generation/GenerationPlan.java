@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
-import it.crystalnest.cobweb.api.pack.ResourcePack;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration.TaskOrigin;
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
 import it.crystalnest.cobweb.api.pack.generation.input.Inputs;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
@@ -40,11 +41,11 @@ import java.util.stream.Stream;
 final class GenerationPlan {
   final Map<GeneratedPackResources, List<GeneratedPackResources>> order;
 
-  final Map<GeneratedPackResources, List<ResourcePack.Task>> fileTasks;
+  final Map<GeneratedPackResources, List<Task>> fileTasks;
 
   final Map<CapturedInput<?>, Object> captured;
 
-  final Map<ResourcePack.Task, TaskCachePolicy> caching;
+  final Map<Task, TaskCachePolicy> caching;
 
   private final List<FileRule> fileRules = new ArrayList<>();
 
@@ -55,9 +56,9 @@ final class GenerationPlan {
   GenerationPlan(PackType type, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind, @Nullable Path cacheRoot) {
     this.type = type;
     this.kind = kind;
-    Map<ResourcePack.Task, TaskCachePolicy> caching = new IdentityHashMap<>();
+    Map<Task, TaskCachePolicy> caching = new IdentityHashMap<>();
     Map<CapturedInput<?>, Object> captured = new IdentityHashMap<>();
-    Map<GeneratedPackResources, List<ResourcePack.Task>> fileTasks = new IdentityHashMap<>();
+    Map<GeneratedPackResources, List<Task>> fileTasks = new IdentityHashMap<>();
     Map<GeneratedPackResources, List<GeneratedPackResources>> order = new LinkedHashMap<>();
     if (type == PackType.SERVER_DATA) {
       Services.REGISTRY.worldRegistries().forEach(entry -> addRegistryRules(entry.key(), Phase.STATIC_TAGS_READY, ResourceLifetime.FULL_LOAD));
@@ -86,8 +87,9 @@ final class GenerationPlan {
       var after = new LinkedHashSet<>(pack.rules.after());
       var before = new LinkedHashSet<>(pack.rules.before());
       if (pack.definition != null) {
-        after.addAll(pack.definition.after());
-        before.addAll(pack.definition.before());
+        var generation = pack.definition.generation();
+        after.addAll(generation.after);
+        before.addAll(generation.before);
       }
       for (Identifier id : after) {
         addPredecessor(edges, pack, selected.get(id));
@@ -101,7 +103,7 @@ final class GenerationPlan {
       visit(pack, edges, path, order);
       Set<String> cacheKeys = new HashSet<>();
       fileTasks.put(pack, compileRules(pack));
-      for (ResourcePack.Task task : pack.javaTasks()) {
+      for (Task task : pack.javaTasks()) {
         var policy = task.registration().policy();
         if (policy != null && policy.key() != null && !cacheKeys.add(policy.key())) {
           throw new IllegalStateException("Duplicate callback cache key in " + pack.packId() + ": " + policy.key());
@@ -120,8 +122,8 @@ final class GenerationPlan {
     this.caching = java.util.Collections.unmodifiableMap(caching);
   }
 
-  private List<ResourcePack.Task> compileRules(GeneratedPackResources pack) {
-    var tasks = new ArrayList<ResourcePack.Task>();
+  private List<Task> compileRules(GeneratedPackResources pack) {
+    var tasks = new ArrayList<Task>();
     for (var rule : pack.rules.rules()) {
       try {
         Output destination = type == PackType.CLIENT_RESOURCES ? Output.ASSETS : fileRules.stream().filter(entry -> entry.matches(rule.to())).map(FileRule::output)
@@ -133,7 +135,7 @@ final class GenerationPlan {
         if (kind == LoadKind.RELOAD && destination.lifetime() == ResourceLifetime.FULL_LOAD) {
           continue;
         }
-        tasks.add(new ResourcePack.Task(Map.of(kind, phase), rule.stage(), destination.lifetime(), Inputs.NONE, Outputs.UNSPECIFIED, (context, output) -> {
+        tasks.add(new Task(Map.of(kind, phase), rule.stage(), destination.lifetime(), Inputs.NONE, Outputs.UNSPECIFIED, (context, output) -> {
           try {
             rule.generate(context, output);
             return CompletableFuture.completedFuture(null);
@@ -141,7 +143,7 @@ final class GenerationPlan {
             var route = rule.from() == null ? rule.to().toString() : rule.from() + " -> " + rule.to();
             throw new IllegalArgumentException("cobweb/rules.json rule " + rule.index() + " (" + route + "): " + failure.getMessage(), failure);
           }
-        }, new CallbackRegistration(), rule.index(), ResourcePack.TaskOrigin.FILE_RULE, rule.fingerprint()));
+        }, new CallbackRegistration(), rule.index(), TaskOrigin.FILE_RULE, rule.fingerprint()));
       } catch (RuntimeException failure) {
         throw new IllegalArgumentException(pack.packId() + "/cobweb/rules.json rule " + rule.index() + ": " + failure.getMessage(), failure);
       }
@@ -161,7 +163,7 @@ final class GenerationPlan {
     fileRules.add(new FileRule(Registries.tagsDirPath(key), ".json", new Output(tagDeadline, ResourceLifetime.RELOADABLE, null)));
   }
 
-  void checkOutput(ResourcePack.Task task, Phase phase, Identifier id) {
+  void checkOutput(Task task, Phase phase, Identifier id) {
     if (type != PackType.SERVER_DATA) {
       return;
     }

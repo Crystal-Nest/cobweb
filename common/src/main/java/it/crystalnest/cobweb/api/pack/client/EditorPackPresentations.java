@@ -42,7 +42,7 @@ public final class EditorPackPresentations {
    * @param pack native pack.
    * @param repository editor repository.
    * @param selected selected packs in editor order.
-   * @return presentation fields or null when the pack has no custom presentation.
+   * @return presentation fields or {@code null} when the pack has no custom presentation.
    */
   @Nullable
   public Display display(Pack pack, PackRepository repository, List<Pack> selected) {

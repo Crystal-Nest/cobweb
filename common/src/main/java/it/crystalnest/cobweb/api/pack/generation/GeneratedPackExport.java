@@ -113,14 +113,14 @@ public final class GeneratedPackExport {
   }
 
   static void writeContents(GeneratedPackResources snapshot, boolean inspection, EntryWriter writer) throws IOException {
-    var type = snapshot.definition.type();
+    var type = snapshot.type;
     var section = PackMetadataSection.forPackType(type);
     var metadata = PackHelper.readMetadataFile(snapshot);
     metadata.remove("overlays");
     metadata.remove("neoforge:overlays");
     metadata.add(section.name(), section.codec().encodeStart(JsonOps.INSTANCE, Objects.requireNonNull(snapshot.getMetadataSection(section))).getOrThrow());
     if (inspection) {
-      NativePackDependencies.exportMetadata(metadata, snapshot.definition);
+      NativePackDependencies.exportMetadata(metadata, Objects.requireNonNull(snapshot.definition).declaration());
     } else {
       // The downloaded copy can coexist with a locally registered pack of the same logical ID.
       metadata.remove("cobweb");

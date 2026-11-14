@@ -29,7 +29,7 @@ public final class AssetPack extends ResourcePack {
    *
    * @param id logical pack identifier whose namespace identifies the owning mod.
    * @return a new registrar for the asset pack.
-   * @throws NullPointerException if the identifier is null.
+   * @throws NullPointerException if the identifier is {@code null}.
    */
   public static Registrar registrar(Identifier id) {
     return new Registrar(id);
@@ -80,7 +80,7 @@ public final class AssetPack extends ResourcePack {
      * @param callback generates files from the captured inputs and the pack's bundled assets.
      * @param <T> detached capture type.
      * @return this registrar.
-     * @throws NullPointerException if either callback is null.
+     * @throws NullPointerException if either callback is {@code null}.
      * @throws IllegalStateException if publication generation was already declared.
      */
     public <T> Registrar onPublish(Function<MinecraftServer, T> capture, PublicationCallback<T> callback) {

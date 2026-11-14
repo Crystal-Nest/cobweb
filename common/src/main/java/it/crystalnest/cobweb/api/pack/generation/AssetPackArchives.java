@@ -2,8 +2,8 @@ package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.AssetPack;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -77,12 +77,11 @@ public final class AssetPackArchives {
   public static Build capture(MinecraftServer server, List<PackHelper.RegisteredPack> packs, boolean warnClientCallbacks, Reuse reuse, BooleanSupplier current) {
     var captures = new ArrayList<Captured>();
     for (var registration : packs) {
-      var pack = registration.pack();
       var callbacks = registration.publication();
-      if (callbacks == null && warnClientCallbacks && pack.generates()) {
-        Constants.LOGGER.warn("Publishing only bundled assets of {} because its callbacks run on the client", pack.identifier());
+      if (callbacks == null && warnClientCallbacks && registration.generation().generates()) {
+        Constants.LOGGER.warn("Publishing only bundled assets of {} because its callbacks run on the client", registration.pack().identifier());
       }
-      captures.add(new Captured(pack, callbacks == null ? null : CapturedPublication.capture(server, callbacks)));
+      captures.add(new Captured(registration, callbacks == null ? null : CapturedPublication.capture(server, callbacks)));
     }
     return (directory, staging) -> write(directory, staging, captures, reuse, current);
   }
@@ -94,9 +93,9 @@ public final class AssetPackArchives {
     try {
       for (var capture : captures) {
         checkCurrent(current);
-        var nativePack = capture.pack.toPack();
+        var nativePack = Services.PACK.toPack(capture.registration);
         if (nativePack == null || !nativePack.getCompatibility().isCompatible()) {
-          throw new IOException("Invalid or incompatible asset pack metadata for " + capture.pack.identifier());
+          throw new IOException("Invalid or incompatible asset pack metadata for " + capture.registration.pack().identifier());
         }
         try (var openings = nativePack.open()) {
           openings.forEach(resources::add);
@@ -107,7 +106,7 @@ public final class AssetPackArchives {
       for (int index = 0; index < resources.size(); index++) {
         checkCurrent(current);
         var capture = captures.get(index);
-        var id = capture.pack.identifier();
+        var id = capture.registration.pack().identifier();
         var pack = (GeneratedPackResources) resources.get(index);
         if (capture.publication != null) {
           var output = new AssetPublicationOutput(pack);
@@ -290,10 +289,10 @@ public final class AssetPackArchives {
   /**
    * Holds a pack and its optional worker input for one publication.
    *
-   * @param pack asset pack definition.
-   * @param publication captured callback inputs and worker callback, or null if absent.
+   * @param registration asset pack registration.
+   * @param publication captured callback inputs and worker callback, or {@code null} if absent.
    */
-  private record Captured(ResourcePack pack, @Nullable CapturedPublication<?> publication) {}
+  private record Captured(PackHelper.RegisteredPack registration, @Nullable CapturedPublication<?> publication) {}
 
   /**
    * Holds a callback and its detached inputs for one archive build.

@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
@@ -41,14 +41,14 @@ final class ContributionMerger {
 
   record ClearMetadata() implements Operation {}
 
-  record Submission(long sequence, ResourcePack.Task task, Operation operation) {}
+  record Submission(long sequence, Task task, Operation operation) {}
 
   static GeneratedPackResources.File merge(GeneratedPackResources pack, Identifier id, Collection<Submission> operations, Phase phase, Stage stage, StageResourceSnapshots snapshots) {
     GeneratedPackResources.File result = pack.file(id);
-    ResourcePack.Task lastReplacement = null;
+    Task lastReplacement = null;
     TagFile tag = null;
     JsonObject members = null;
-    Map<String, ResourcePack.Task> memberOwners = new HashMap<>();
+    Map<String, Task> memberOwners = new HashMap<>();
     ResourceLifetime lifetime = ResourceLifetime.RELOADABLE;
     for (Submission submission : operations.stream().sorted(Comparator.comparingLong(Submission::sequence)).toList()) {
       if (submission.operation instanceof Member member) {

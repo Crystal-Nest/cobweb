@@ -5,10 +5,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper.PackDeclaration;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.PackResources;
@@ -44,12 +44,12 @@ public final class NativePackDependencies {
    * Writes the effective registered identity and Java dependency overrides into an inspection export.
    *
    * @param document detached pack metadata.
-   * @param pack registered pack definition.
+   * @param declaration registered pack declaration.
    */
-  public static void exportMetadata(JsonObject document, ResourcePack pack) {
+  public static void exportMetadata(JsonObject document, PackDeclaration declaration) {
     var section = object(document, "cobweb");
-    section.addProperty("id", pack.identifier().toString());
-    var settings = pack.dependencySettings();
+    section.addProperty("id", declaration.id().toString());
+    var settings = declaration.dependencies();
     if (settings.version() != null) {
       section.addProperty("version", settings.version());
     }

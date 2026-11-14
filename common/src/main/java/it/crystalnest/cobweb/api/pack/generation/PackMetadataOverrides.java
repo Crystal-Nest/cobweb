@@ -26,7 +26,7 @@ final class PackMetadataOverrides {
    * @param resources native bundled metadata, if available.
    * @param description optional Java description.
    * @param formats optional Java format interval.
-   * @return effective primary metadata, or null if absent.
+   * @return effective primary metadata, or {@code null} if absent.
    * @throws IOException if the bundled file cannot be read.
    */
   @Nullable

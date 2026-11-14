@@ -100,11 +100,11 @@ public final class CobwebRegistry {
    * @param key native registry key.
    * @param codec codec for complete entries in data packs.
    * @param lifetime when Minecraft loads the registry's entries.
-   * @param networkCodec synchronization codec for a world registry, or null to leave entries unsynchronized.
+   * @param networkCodec synchronization codec for a world registry, or {@code null} to leave entries unsynchronized.
    * @param <T> entry type.
    * @return registered data pack registry definition.
    * @throws IllegalStateException if declarations have closed or Cobweb already registered the key.
-   * @throws NullPointerException if the registry key or entry codec is null.
+   * @throws NullPointerException if the registry key or entry codec is {@code null}.
    */
   private static <T> CobwebDataPackRegistry<T> createDataPack(ResourceKey<Registry<T>> key, Codec<T> codec, CobwebDataPackRegistry.Lifetime lifetime, @Nullable Codec<T> networkCodec) {
     var definition = new CobwebDataPackRegistry<>(key, codec, lifetime);

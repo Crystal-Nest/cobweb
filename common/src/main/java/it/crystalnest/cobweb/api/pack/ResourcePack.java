@@ -7,15 +7,12 @@ import it.crystalnest.cobweb.api.pack.generation.CallbackRegistration;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.api.pack.generation.GenerationContext;
 import it.crystalnest.cobweb.api.pack.generation.GenerationOutput;
-import it.crystalnest.cobweb.api.pack.generation.input.Input;
+import it.crystalnest.cobweb.api.pack.generation.PackGeneration;
 import it.crystalnest.cobweb.api.pack.generation.input.Inputs;
-import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
-import it.crystalnest.cobweb.api.pack.generation.output.Output;
 import it.crystalnest.cobweb.api.pack.generation.output.Outputs;
-import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
 import it.crystalnest.cobweb.api.pack.model.PackActivation;
 import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
@@ -29,19 +26,14 @@ import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackFormat;
-import net.minecraft.server.packs.repository.KnownPack;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.util.FileUtil;
 import net.minecraft.util.InclusiveRange;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -54,60 +46,47 @@ import java.util.function.Function;
  * Registered definition of a bundled pack with optional native generation callbacks.
  */
 public abstract class ResourcePack {
+  /**
+   * Logical identifier supplied during registration.
+   */
   private final Identifier identifier;
 
+  /**
+   * Native type of the pack's content.
+   */
   private final PackType type;
 
+  /**
+   * Base title, source, and ID used in the native repository.
+   */
   private final PackLocationInfo location;
 
-  private final boolean explicitTitle;
-
-  @Nullable
-  private final Component description;
-
-  @Nullable
-  private final InclusiveRange<PackFormat> formats;
-
+  /**
+   * Default placement and required selection settings.
+   */
   private final PackSelectionConfig selection;
 
+  /**
+   * Initial activation policy.
+   */
   private final PackActivation activation;
 
-  private final Set<String> namespaces;
+  /**
+   * Generation settings and callbacks shared with the internal registration.
+   */
+  private final PackGeneration generation;
 
-  private final Set<Identifier> after;
-
-  private final Set<Identifier> before;
-
-  private final PackDependencySettings dependencies;
-
-  @Nullable
-  private final Consumer<PackLoadOutcome> observer;
-
-  @Nullable
-  private final PackIcon icon;
-
-  @Nullable
-  private final Function<PackPresentationContext, PackPresentation> presentation;
-
-  private final List<Task> tasks = new ArrayList<>();
-
+  /**
+   * @param registrar configuration for this pack.
+   */
   ResourcePack(Registrar<?, ?> registrar) {
     identifier = registrar.identifier;
     FileUtil.decomposePath(identifier.getPath()).getOrThrow();
     type = registrar.type;
-    location = new PackLocationInfo("mod/" + identifier.getNamespace() + ":" + bundledRoot(), registrar.title.copy(), registrar.source, Optional.empty());
-    explicitTitle = registrar.explicitTitle;
-    description = registrar.description == null ? null : registrar.description.copy();
-    formats = registrar.formats;
+    location = new PackLocationInfo("mod/" + identifier.getNamespace() + ":" + registrar.bundledRoot(), registrar.title.copy(), registrar.source, Optional.empty());
     activation = registrar.activation;
     selection = new PackSelectionConfig(activation == PackActivation.ALWAYS_ACTIVE, registrar.position, registrar.fixedPosition);
-    namespaces = Set.copyOf(registrar.namespaces);
-    after = Set.copyOf(registrar.after);
-    before = Set.copyOf(registrar.before);
-    dependencies = new PackDependencySettings(registrar.version, registrar.requiredPacks, registrar.requiredMods);
-    observer = registrar.observer;
-    icon = registrar.icon;
-    presentation = registrar.presentation;
+    generation = new PackGeneration(identifier, type, registrar.namespaces, registrar.after, registrar.before);
   }
 
   /**
@@ -156,26 +135,6 @@ public abstract class ResourcePack {
   }
 
   /**
-   * Checks whether the registrar supplies a title for the editor.
-   *
-   * @return whether Java supplies the base title.
-   */
-  @ApiStatus.Internal
-  public final boolean hasExplicitTitle() {
-    return explicitTitle;
-  }
-
-  /**
-   * Checks whether the registrar supplies a description for the editor.
-   *
-   * @return whether Java supplies the base description.
-   */
-  @ApiStatus.Internal
-  public final boolean hasExplicitDescription() {
-    return description != null;
-  }
-
-  /**
    * Returns the native pack source.
    *
    * @return pack source.
@@ -203,20 +162,14 @@ public abstract class ResourcePack {
   }
 
   /**
-   * Creates the native pack for repository discovery.
+   * Creates a native {@link Pack} from the registered definition using the same metadata and generation declarations as repository discovery.
+   * The conversion does not register or select the resulting pack.
    *
-   * @return discovered native pack or null if native metadata is rejected.
+   * @return the native pack, or {@code null} if Minecraft rejects the metadata or the required pack section is missing.
    */
   @Nullable
-  @ApiStatus.Internal
   public final Pack toPack() {
-    PackLocationInfo discovered = location;
-    String owner = identifier.getNamespace();
-    if (!generates() && Services.PLATFORM.isModLoaded(owner)) {
-      var known = new KnownPack(Services.PACK.bundledKnownPackNamespace(), packId(), Services.PLATFORM.getModVersion(owner));
-      discovered = new PackLocationInfo(location.id(), location.title(), location.source(), Optional.of(known));
-    }
-    return Pack.readMetaAndCreate(discovered, DynamicPackLoads.resources(this), type, selection);
+    return Services.PACK.toPack(this);
   }
 
   /**
@@ -227,7 +180,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepare(Phase phase, Callback callback) {
-    return add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.PREPARATION, completed(callback));
+    return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.PREPARATION, completed(callback));
   }
 
   /**
@@ -239,7 +192,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepare(Phase phase, Outputs outputs, Callback callback) {
-    return add(phase, Inputs.NONE, outputs, Stage.PREPARATION, completed(callback));
+    return generation.add(phase, Inputs.NONE, outputs, Stage.PREPARATION, completed(callback));
   }
 
   /**
@@ -252,7 +205,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepare(Phase phase, Inputs inputs, Outputs outputs, Callback callback) {
-    return add(phase, inputs, outputs, Stage.PREPARATION, completed(callback));
+    return generation.add(phase, inputs, outputs, Stage.PREPARATION, completed(callback));
   }
 
   /**
@@ -264,7 +217,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepare(Inputs inputs, Outputs outputs, Callback callback) {
-    return add(null, inputs, outputs, Stage.PREPARATION, completed(callback));
+    return generation.add(null, inputs, outputs, Stage.PREPARATION, completed(callback));
   }
 
   /**
@@ -275,7 +228,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepareAsync(Phase phase, AsyncCallback callback) {
-    return add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.PREPARATION, callback);
+    return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.PREPARATION, callback);
   }
 
   /**
@@ -287,7 +240,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepareAsync(Phase phase, Outputs outputs, AsyncCallback callback) {
-    return add(phase, Inputs.NONE, outputs, Stage.PREPARATION, callback);
+    return generation.add(phase, Inputs.NONE, outputs, Stage.PREPARATION, callback);
   }
 
   /**
@@ -300,7 +253,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepareAsync(Phase phase, Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(phase, inputs, outputs, Stage.PREPARATION, callback);
+    return generation.add(phase, inputs, outputs, Stage.PREPARATION, callback);
   }
 
   /**
@@ -312,7 +265,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onPrepareAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(null, inputs, outputs, Stage.PREPARATION, callback);
+    return generation.add(null, inputs, outputs, Stage.PREPARATION, callback);
   }
 
   /**
@@ -323,7 +276,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerate(Phase phase, Callback callback) {
-    return add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.GENERATION, completed(callback));
+    return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.GENERATION, completed(callback));
   }
 
   /**
@@ -335,7 +288,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerate(Phase phase, Outputs outputs, Callback callback) {
-    return add(phase, Inputs.NONE, outputs, Stage.GENERATION, completed(callback));
+    return generation.add(phase, Inputs.NONE, outputs, Stage.GENERATION, completed(callback));
   }
 
   /**
@@ -348,7 +301,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerate(Phase phase, Inputs inputs, Outputs outputs, Callback callback) {
-    return add(phase, inputs, outputs, Stage.GENERATION, completed(callback));
+    return generation.add(phase, inputs, outputs, Stage.GENERATION, completed(callback));
   }
 
   /**
@@ -360,7 +313,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerate(Inputs inputs, Outputs outputs, Callback callback) {
-    return add(null, inputs, outputs, Stage.GENERATION, completed(callback));
+    return generation.add(null, inputs, outputs, Stage.GENERATION, completed(callback));
   }
 
   /**
@@ -371,7 +324,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerateAsync(Phase phase, AsyncCallback callback) {
-    return add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.GENERATION, callback);
+    return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.GENERATION, callback);
   }
 
   /**
@@ -383,7 +336,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerateAsync(Phase phase, Outputs outputs, AsyncCallback callback) {
-    return add(phase, Inputs.NONE, outputs, Stage.GENERATION, callback);
+    return generation.add(phase, Inputs.NONE, outputs, Stage.GENERATION, callback);
   }
 
   /**
@@ -396,7 +349,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerateAsync(Phase phase, Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(phase, inputs, outputs, Stage.GENERATION, callback);
+    return generation.add(phase, inputs, outputs, Stage.GENERATION, callback);
   }
 
   /**
@@ -408,7 +361,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onGenerateAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(null, inputs, outputs, Stage.GENERATION, callback);
+    return generation.add(null, inputs, outputs, Stage.GENERATION, callback);
   }
 
   /**
@@ -419,7 +372,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransform(Phase phase, Callback callback) {
-    return add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.TRANSFORMATION, completed(callback));
+    return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.TRANSFORMATION, completed(callback));
   }
 
   /**
@@ -431,7 +384,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransform(Phase phase, Outputs outputs, Callback callback) {
-    return add(phase, Inputs.NONE, outputs, Stage.TRANSFORMATION, completed(callback));
+    return generation.add(phase, Inputs.NONE, outputs, Stage.TRANSFORMATION, completed(callback));
   }
 
   /**
@@ -444,7 +397,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransform(Phase phase, Inputs inputs, Outputs outputs, Callback callback) {
-    return add(phase, inputs, outputs, Stage.TRANSFORMATION, completed(callback));
+    return generation.add(phase, inputs, outputs, Stage.TRANSFORMATION, completed(callback));
   }
 
   /**
@@ -456,7 +409,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransform(Inputs inputs, Outputs outputs, Callback callback) {
-    return add(null, inputs, outputs, Stage.TRANSFORMATION, completed(callback));
+    return generation.add(null, inputs, outputs, Stage.TRANSFORMATION, completed(callback));
   }
 
   /**
@@ -467,7 +420,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransformAsync(Phase phase, AsyncCallback callback) {
-    return add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.TRANSFORMATION, callback);
+    return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.TRANSFORMATION, callback);
   }
 
   /**
@@ -479,7 +432,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransformAsync(Phase phase, Outputs outputs, AsyncCallback callback) {
-    return add(phase, Inputs.NONE, outputs, Stage.TRANSFORMATION, callback);
+    return generation.add(phase, Inputs.NONE, outputs, Stage.TRANSFORMATION, callback);
   }
 
   /**
@@ -492,7 +445,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransformAsync(Phase phase, Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(phase, inputs, outputs, Stage.TRANSFORMATION, callback);
+    return generation.add(phase, inputs, outputs, Stage.TRANSFORMATION, callback);
   }
 
   /**
@@ -504,7 +457,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onTransformAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(null, inputs, outputs, Stage.TRANSFORMATION, callback);
+    return generation.add(null, inputs, outputs, Stage.TRANSFORMATION, callback);
   }
 
   /**
@@ -516,7 +469,7 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onStage(Inputs inputs, Outputs outputs, Callback callback) {
-    return add(null, inputs, outputs, null, completed(callback));
+    return generation.add(null, inputs, outputs, null, completed(callback));
   }
 
   /**
@@ -528,246 +481,21 @@ public abstract class ResourcePack {
    * @return callback registration options.
    */
   public final CallbackRegistration onStageAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
-    return add(null, inputs, outputs, null, callback);
+    return generation.add(null, inputs, outputs, null, callback);
   }
 
+  /**
+   * Adapts a synchronous callback to the common callback contract.
+   *
+   * @param callback synchronous generation callback.
+   * @return callback that completes when generation returns.
+   */
   private static AsyncCallback completed(Callback callback) {
     Objects.requireNonNull(callback);
     return (context, output) -> {
       callback.generate(context, output);
       return CompletableFuture.completedFuture(null);
     };
-  }
-
-  private synchronized CallbackRegistration add(@Nullable Phase explicit, Inputs inputs, Outputs outputs, @Nullable Stage requestedStage, AsyncCallback callback) {
-    if (DynamicPackLoads.declarationsClosed()) {
-      throw new IllegalStateException("Pack callback declarations have closed: " + identifier);
-    }
-    Objects.requireNonNull(callback);
-    boolean complete = inputs.values().stream().anyMatch(input -> input instanceof Input.Native nativeInput && nativeInput.completeSource());
-    Stage stage = requestedStage == null ? complete ? Stage.TRANSFORMATION : Stage.GENERATION : requestedStage;
-    if (complete && stage != Stage.TRANSFORMATION) {
-      throw new IllegalArgumentException("Completed ordinary sources require the transformation stage");
-    }
-    if (explicit == null && outputs.values().isEmpty()) {
-      throw new IllegalArgumentException("Generic output requires an explicit phase");
-    }
-    ResourceLifetime lifetime = outputs.rawLifetime();
-    for (Output output : outputs.values()) {
-      if (lifetime != null && lifetime != output.lifetime()) {
-        throw new IllegalArgumentException("One callback cannot mix full-load and reloadable output");
-      }
-      lifetime = output.lifetime();
-    }
-    if (lifetime == null) {
-      lifetime = explicit != null && explicit.fullLoadOnly() ? ResourceLifetime.FULL_LOAD : ResourceLifetime.RELOADABLE;
-    }
-    if (type == PackType.CLIENT_RESOURCES && lifetime == ResourceLifetime.FULL_LOAD) {
-      throw new IllegalArgumentException("Client assets must be available on reloads");
-    }
-    Map<LoadKind, Phase> phases = new EnumMap<>(LoadKind.class);
-    for (LoadKind kind : LoadKind.values()) {
-      if (kind == LoadKind.RELOAD && lifetime == ResourceLifetime.FULL_LOAD) {
-        continue;
-      }
-      Phase selected = null;
-      for (Phase candidate : Phase.values()) {
-        if ((explicit == null || candidate == explicit) && compatible(candidate, kind, inputs, outputs)) {
-          selected = candidate;
-          break;
-        }
-      }
-      if (selected == null) {
-        throw new IllegalArgumentException("No compatible " + kind + " phase for " + identifier + " with " + inputs + " and " + outputs);
-      }
-      phases.put(kind, selected);
-    }
-    var registration = new CallbackRegistration();
-    tasks.add(new Task(Map.copyOf(phases), stage, lifetime, inputs, outputs, callback, registration, tasks.size(), TaskOrigin.JAVA, null));
-    return registration;
-  }
-
-  private boolean compatible(Phase candidate, LoadKind kind, Inputs inputs, Outputs outputs) {
-    if (candidate.type() != type || kind == LoadKind.RELOAD && candidate.fullLoadOnly()) {
-      return false;
-    }
-    for (Input input : inputs.values()) {
-      if (input instanceof Input.Native(Phase readiness, Phase reloadReadiness, boolean completeSource)) {
-        Phase ready = kind == LoadKind.FULL_LOAD ? readiness : reloadReadiness;
-        if (ready.type() != type || candidate.ordinal() < ready.ordinal() || completeSource && candidate != ready) {
-          return false;
-        }
-      }
-    }
-    return outputs.values().stream().allMatch(output -> output.deadline().type() == type && candidate.ordinal() <= output.deadline().ordinal());
-  }
-
-  /**
-   * Returns the Java callbacks declared for this pack.
-   *
-   * @return snapshot of the declared tasks.
-   */
-  @ApiStatus.Internal
-  public final synchronized List<Task> tasks() {
-    return List.copyOf(tasks);
-  }
-
-  /**
-   * Indicates whether this pack has local Java generation callbacks.
-   *
-   * @return whether any Java callbacks are declared.
-   */
-  @ApiStatus.Internal
-  public final synchronized boolean generates() {
-    return !tasks.isEmpty();
-  }
-
-  /**
-   * Returns the namespaces declared for Java generation.
-   *
-   * @return immutable set of allowed output namespaces.
-   */
-  @ApiStatus.Internal
-  public final Set<String> namespaces() {
-    return namespaces;
-  }
-
-  /**
-   * Returns the Java description override used during native discovery.
-   *
-   * @return description override, or null to inherit file metadata.
-   */
-  @Nullable
-  @ApiStatus.Internal
-  public final Component description() {
-    return description;
-  }
-
-  /**
-   * Returns the Java format override used during native discovery.
-   *
-   * @return supported formats, or null to inherit file metadata.
-   */
-  @Nullable
-  @ApiStatus.Internal
-  public final InclusiveRange<PackFormat> formats() {
-    return formats;
-  }
-
-  /**
-   * Returns the fixed path of this pack within its owning mod.
-   *
-   * @return relative path beneath the mod resource root.
-   */
-  @ApiStatus.Internal
-  public final String bundledRoot() {
-    return (type == PackType.SERVER_DATA ? "datapack/" : "texturepack/") + identifier.getPath();
-  }
-
-  /**
-   * Returns the Java-declared generation predecessors.
-   *
-   * @return immutable set of logical pack IDs.
-   */
-  @ApiStatus.Internal
-  public final Set<Identifier> after() {
-    return after;
-  }
-
-  /**
-   * Returns the Java-declared generation successors.
-   *
-   * @return immutable set of logical pack IDs.
-   */
-  @ApiStatus.Internal
-  public final Set<Identifier> before() {
-    return before;
-  }
-
-  /**
-   * Returns explicitly supplied dependency metadata.
-   *
-   * @return dependency overrides for native loading.
-   */
-  @ApiStatus.Internal
-  public final PackDependencySettings dependencySettings() {
-    return dependencies;
-  }
-
-  /**
-   * Returns the configured native load observer.
-   *
-   * @return observer, if declared.
-   */
-  @Nullable
-  @ApiStatus.Internal
-  public final Consumer<PackLoadOutcome> loadObserver() {
-    return observer;
-  }
-
-  /**
-   * Returns the declared base icon, if any.
-   *
-   * @return explicit icon, or null to use the native icon.
-   */
-  @Nullable
-  @ApiStatus.Internal
-  public final PackIcon icon() {
-    return icon;
-  }
-
-  /**
-   * Returns the pack's display callback.
-   *
-   * @return display callback, if present.
-   */
-  @Nullable
-  @ApiStatus.Internal
-  public final Function<PackPresentationContext, PackPresentation> presentation() {
-    return presentation;
-  }
-
-  /**
-   * Identifies where a generation task was declared.
-   */
-  @ApiStatus.Internal
-  public enum TaskOrigin {
-    /**
-     * Task registered by a Java callback.
-     */
-    JAVA,
-
-    /**
-     * Task compiled from a file rule.
-     */
-    FILE_RULE
-  }
-
-  /**
-   * Describes a generation task and its scheduling contracts.
-   *
-   * @param phases phase for each supported load kind.
-   * @param stage stage within the selected phase.
-   * @param lifetime lifetime of the submitted files.
-   * @param inputs input contracts.
-   * @param outputs output contracts.
-   * @param callback generation callback.
-   * @param registration callback options.
-   * @param index declaration index within the task origin.
-   * @param origin Java or file-rule declaration.
-   * @param fileRuleFingerprint fingerprint of a file rule, or null for a Java task.
-   */
-  @ApiStatus.Internal
-  public record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index,
-    TaskOrigin origin, @Nullable String fileRuleFingerprint) {
-    /**
-     * Indicates whether this task came from a declarative file rule.
-     *
-     * @return whether the declaration is a file rule.
-     */
-    public boolean fileRule() {
-      return origin == TaskOrigin.FILE_RULE;
-    }
   }
 
   /**
@@ -808,52 +536,113 @@ public abstract class ResourcePack {
    * @param <R> registrar type.
    */
   public abstract static class Registrar<P extends ResourcePack, R extends Registrar<P, R>> {
+    /**
+     * Logical identifier of the pack being configured.
+     */
     private final Identifier identifier;
 
+    /**
+     * Native type of the pack being configured.
+     */
     private final PackType type;
 
+    /**
+     * Base title used when the native repository discovers the pack.
+     */
     private Component title;
 
+    /**
+     * Whether Java supplied a base title that takes precedence in the editor.
+     */
     private boolean explicitTitle;
 
+    /**
+     * Java description override, or {@code null} to inherit file metadata.
+     */
     @Nullable
     private Component description;
 
+    /**
+     * Java pack format override, or {@code null} to inherit file metadata.
+     */
     @Nullable
     private InclusiveRange<PackFormat> formats;
 
+    /**
+     * Source that Minecraft attributes to the pack.
+     */
     private PackSource source = PackSource.BUILT_IN;
 
+    /**
+     * Initial activation policy.
+     */
     private PackActivation activation = PackActivation.DEFAULT_DISABLED;
 
+    /**
+     * Default placement within the native selection.
+     */
     private Pack.Position position = Pack.Position.TOP;
 
+    /**
+     * Whether the editor anchors this pack in its native position group.
+     */
     private boolean fixedPosition;
 
+    /**
+     * Namespaces allowed for Java output.
+     */
     private final Set<String> namespaces = new LinkedHashSet<>();
 
+    /**
+     * Logical IDs of preferred generation predecessors.
+     */
     private final Set<Identifier> after = new LinkedHashSet<>();
 
+    /**
+     * Logical IDs of preferred generation successors.
+     */
     private final Set<Identifier> before = new LinkedHashSet<>();
 
+    /**
+     * Logical pack version, or {@code null} if Java supplies no override.
+     */
     @Nullable
     private String version;
 
+    /**
+     * Java pack requirements, or {@code null} to inherit the file list.
+     */
     @Nullable
     private List<PackRequirement> requiredPacks;
 
+    /**
+     * Java mod requirements, or {@code null} to inherit the file list.
+     */
     @Nullable
     private List<ModRequirement> requiredMods;
 
+    /**
+     * Optional observer of native load outcomes.
+     */
     @Nullable
     private Consumer<PackLoadOutcome> observer;
 
+    /**
+     * Optional base icon for the selection editor.
+     */
     @Nullable
     private PackIcon icon;
 
+    /**
+     * Optional callback for conditional presentation in the selection editor.
+     */
     @Nullable
     private Function<PackPresentationContext, PackPresentation> presentation;
 
+    /**
+     * @param identifier logical pack identifier.
+     * @param type native type of the pack's content.
+     */
     Registrar(Identifier identifier, PackType type) {
       this.identifier = Objects.requireNonNull(identifier);
       this.type = type;
@@ -861,7 +650,21 @@ public abstract class ResourcePack {
       namespaces.add(identifier.getNamespace());
     }
 
+    /**
+     * Returns this registrar with its concrete type.
+     *
+     * @return this registrar.
+     */
     abstract R self();
+
+    /**
+     * Resolves the fixed root relative to the owning mod's resources.
+     *
+     * @return relative path of the bundled pack.
+     */
+    private String bundledRoot() {
+      return (type == PackType.SERVER_DATA ? "datapack/" : "texturepack/") + identifier.getPath();
+    }
 
     /**
      * Sets the pack's title.
@@ -1084,7 +887,7 @@ public abstract class ResourcePack {
      * Installs a pack definition with its optional server asset publication callbacks.
      *
      * @param pack pack definition to install.
-     * @param publication server asset publication callbacks, or null if absent.
+     * @param publication server asset publication callbacks, or {@code null} if absent.
      * @return the registered pack definition.
      * @throws IllegalStateException if registration has closed or the native ID is already registered.
      */
@@ -1092,7 +895,11 @@ public abstract class ResourcePack {
       if (DynamicPackLoads.declarationsClosed()) {
         throw new IllegalStateException("Pack registration closed before " + pack.identifier());
       }
-      Services.PACK.registerCobwebPack(pack, publication);
+      ResourcePack definition = pack;
+      var dependencies = new PackDependencySettings(version, requiredPacks, requiredMods);
+      var declaration = new PackHelper.PackDeclaration(identifier, dependencies, observer, icon, presentation, explicitTitle, description != null);
+      var registration = new PackHelper.RegisteredPack(pack, definition.location, definition.selection, declaration, bundledRoot(), description == null ? null : description.copy(), formats, definition.generation, publication);
+      Services.PACK.registerCobwebPack(registration);
       return pack;
     }
   }
