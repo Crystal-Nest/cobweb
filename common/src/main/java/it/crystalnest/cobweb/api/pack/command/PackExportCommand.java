@@ -61,19 +61,19 @@ public final class PackExportCommand {
    * Starts an export and reports the result on the owning game thread.
    *
    * @param target live pack query target.
-   * @param pack pack reference created from the supplied logical ID.
+   * @param pack logical reference created from the command argument.
    * @param feedbackThread executor for feedback on the owning game thread.
    * @param success receiver for the completed export message.
    * @param failure receiver for the error message.
    * @return Brigadier's success value for accepting the export request.
    */
-  private static int export(PackQueries target, PackReference pack, Executor feedbackThread, Consumer<Component> success, Consumer<Component> failure) {
+  private static int export(PackQueries target, PackReference.Logical pack, Executor feedbackThread, Consumer<Component> success, Consumer<Component> failure) {
     PackExports.export(target, pack).whenComplete((directory, error) -> feedbackThread.execute(() -> {
       if (error == null) {
         success.accept(Component.translatable("commands.cobweb.export.success", directory.getFileName().toString()));
       } else {
-        Constants.LOGGER.warn("Unable to export {}", pack.logicalId(), error);
-        failure.accept(Component.translatable("commands.cobweb.export.failed", pack.logicalId().toString()));
+        Constants.LOGGER.warn("Unable to export {}", pack.id(), error);
+        failure.accept(Component.translatable("commands.cobweb.export.failed", pack.id().toString()));
       }
     }));
     return 1;

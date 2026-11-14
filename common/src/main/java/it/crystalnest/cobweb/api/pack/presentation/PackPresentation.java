@@ -4,7 +4,8 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Immutable partial replacement for a pack's visible title, description and icon.
+ * Describes optional title, description, and icon overrides for a pack in the selection editor.
+ * Omitted fields retain their effective base values.
  *
  * @param title title override, or {@code null} to keep the base title.
  * @param description description override, or {@code null} to keep the base description.
@@ -12,11 +13,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public record PackPresentation(@Nullable Component title, @Nullable Component description, @Nullable PackIcon icon) {
   /**
-   * Captures the supplied presentation changes.
-   *
-   * @param title optional title component.
-   * @param description optional description component.
-   * @param icon optional icon source.
+   * @param title title component to copy, or {@code null} to keep the base title.
+   * @param description description component to copy, or {@code null} to keep the base description.
+   * @param icon icon source, or {@code null} to keep the base icon.
    */
   public PackPresentation {
     title = title == null ? null : title.copy();
@@ -24,7 +23,7 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
   }
 
   /**
-   * Returns the override as an independent component.
+   * Returns a copy of the title override.
    *
    * @return title override, or {@code null} to keep the base title.
    */
@@ -35,7 +34,7 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
   }
 
   /**
-   * Returns the override as an independent component.
+   * Returns a copy of the description override.
    *
    * @return description override, or {@code null} to keep the base description.
    */
@@ -46,9 +45,18 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
   }
 
   /**
-   * Creates a builder for an optional set of presentation changes.
+   * Returns the icon override.
    *
-   * @return empty patch builder.
+   * @return icon source, or {@code null} to keep the base icon.
+   */
+  public @Nullable PackIcon icon() {
+    return icon;
+  }
+
+  /**
+   * Creates an empty builder that inherits all base fields.
+   *
+   * @return new presentation builder.
    */
   public static Builder builder() {
     return new Builder();
@@ -58,12 +66,21 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
    * Collects the visible fields supplied by a presentation callback.
    */
   public static final class Builder {
+    /**
+     * Title override, or {@code null} to keep the base title.
+     */
     @Nullable
     private Component title;
 
+    /**
+     * Description override, or {@code null} to keep the base description.
+     */
     @Nullable
     private Component description;
 
+    /**
+     * Icon override, or {@code null} to keep the base icon.
+     */
     @Nullable
     private PackIcon icon;
 
@@ -72,8 +89,9 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
     /**
      * Replaces the displayed title.
      *
-     * @param value title component.
+     * @param value title component to copy.
      * @return this builder.
+     * @throws NullPointerException if the component is {@code null}.
      */
     public Builder title(Component value) {
       title = value.copy();
@@ -81,7 +99,7 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
     }
 
     /**
-     * Replaces the displayed title with a translation key.
+     * Replaces the displayed title with a translatable component.
      *
      * @param translationKey title key.
      * @return this builder.
@@ -93,8 +111,9 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
     /**
      * Replaces the displayed description.
      *
-     * @param value description component.
+     * @param value description component to copy.
      * @return this builder.
+     * @throws NullPointerException if the component is {@code null}.
      */
     public Builder description(Component value) {
       description = value.copy();
@@ -102,7 +121,7 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
     }
 
     /**
-     * Replaces the displayed description with a translation key.
+     * Replaces the displayed description with a translatable component.
      *
      * @param translationKey description key.
      * @return this builder.
@@ -114,10 +133,10 @@ public record PackPresentation(@Nullable Component title, @Nullable Component de
     /**
      * Replaces the displayed icon.
      *
-     * @param value icon resource.
+     * @param value icon source, or {@code null} to keep the base icon.
      * @return this builder.
      */
-    public Builder icon(PackIcon value) {
+    public Builder icon(@Nullable PackIcon value) {
       icon = value;
       return this;
     }

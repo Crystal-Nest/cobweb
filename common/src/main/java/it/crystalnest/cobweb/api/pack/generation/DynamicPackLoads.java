@@ -8,7 +8,7 @@ import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
-import it.crystalnest.cobweb.api.pack.query.PackQueries;
+import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.PackHelper.RegisteredPack;
 import net.minecraft.core.Holder;
@@ -308,7 +308,7 @@ public final class DynamicPackLoads {
   public static Attempt open(PackType type, List<PackResources> packs, LoadKind kind, @Nullable Path cacheRoot, PackRepository repository) {
     List<GeneratedPackResources> generated = generated(packs.stream());
     closeDeclarations();
-    var request = PackQueries.begin(type, repository, packs);
+    var request = PackQueryLifecycle.begin(type, repository, packs);
     try {
       var required = NativePackDependencies.validate(type, packs);
       return new Attempt(type, List.copyOf(packs), generated, required, kind, cacheRoot, request);
@@ -485,7 +485,7 @@ public final class DynamicPackLoads {
 
     private final LoadKind kind;
 
-    private final PackQueries.Request request;
+    private final PackQueryLifecycle.Request request;
 
     private final GenerationPlan plan;
 
@@ -515,7 +515,7 @@ public final class DynamicPackLoads {
     private FeatureFlagSet features = FeatureFlagSet.of();
 
     private Attempt(PackType type, List<PackResources> packs, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind,
-      @Nullable Path cacheRoot, PackQueries.Request request) {
+      @Nullable Path cacheRoot, PackQueryLifecycle.Request request) {
       this.type = type;
       this.packs = packs;
       this.kind = kind;

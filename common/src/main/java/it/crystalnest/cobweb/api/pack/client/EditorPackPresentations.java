@@ -7,6 +7,7 @@ import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
 import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
+import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -51,7 +52,7 @@ public final class EditorPackPresentations {
       var type = minecraft.getResourcePackRepository() == repository ? PackType.CLIENT_RESOURCES : PackType.SERVER_DATA;
       var definition = Services.PACK.packDeclaration(type, id);
       if (queries == null) {
-        queries = PackQueries.editor(type, repository, selected);
+        queries = PackQueryLifecycle.editor(type, repository, selected);
       }
       var callback = definition == null ? null : definition.presentation();
       var file = FilePackPresentation.read(pack, queries, callback == null);

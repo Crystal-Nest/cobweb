@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.api.pack.selection;
 
-import it.crystalnest.cobweb.api.pack.model.PackActivation;
+import it.crystalnest.cobweb.api.pack.query.PackActivation;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;

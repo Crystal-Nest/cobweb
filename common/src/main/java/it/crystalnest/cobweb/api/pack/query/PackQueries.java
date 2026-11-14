@@ -1,68 +1,59 @@
 package it.crystalnest.cobweb.api.pack.query;
 
-import com.google.common.collect.MapMaker;
-import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle.Snapshot;
+import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle.Target;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.packs.PackResources;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackRepository;
-import net.minecraft.server.packs.resources.ResourceManager;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.WeakHashMap;
 import java.util.function.Supplier;
 
 /**
- * Provides live or load-scoped observations of a native pack repository.
+ * Provides live and captured observations of pack selection and native priority.
+ * <p>
+ * The factory methods create live views. Generation and presentation callbacks receive views captured for the current load or editor state.
  */
 public final class PackQueries {
-  private static final Map<PackRepository, State> STATES = Collections.synchronizedMap(new WeakHashMap<>());
-
-  // Guava weak keys use object identity; native Pack equality compares locations instead.
-  private static final Map<Pack, Map<PackType, PackInfo>> IDENTITIES = new MapMaker().weakKeys().makeMap();
-
-  @Nullable
-  private static volatile Target client;
-
+  /**
+   * Supplies the observed pack states.
+   */
   private final Supplier<Snapshot> observation;
 
+  /**
+   * Supplies the live export target, or is {@code null} for a captured view.
+   */
   @Nullable
   private final Supplier<Target> target;
 
-  private PackQueries(Supplier<Snapshot> observation, @Nullable Supplier<Target> target) {
+  /**
+   * @param observation supplier of live or captured pack states.
+   * @param target supplier of the live export target, or {@code null} for a captured view.
+   */
+  PackQueries(Supplier<Snapshot> observation, @Nullable Supplier<Target> target) {
     this.observation = observation;
     this.target = target;
   }
 
   /**
-   * Observes the current client asset repository where available.
+   * Observes the current client asset repository.
+   * Queries made before the repository is bound report unavailable states.
    *
-   * @return live asset queries.
+   * @return live view of client asset packs.
    */
   public static PackQueries client() {
-    return new PackQueries(() -> {
-      Target current = client;
-      return current == null ? Snapshot.EMPTY : snapshot(current.type, current.repository);
-    }, () -> client);
+    return PackQueryLifecycle.client();
   }
 
   /**
-   * Observes a server's local data pack repository.
+   * Observes the supplied server's data pack repository.
    *
-   * @param server running native server.
-   * @return live data pack queries.
+   * @param server server that owns the data pack repository.
+   * @return live view of that server's data packs.
    */
   public static PackQueries forServer(MinecraftServer server) {
-    var target = new Target(PackType.SERVER_DATA, server.getPackRepository(), server::getResourceManager);
-    return new PackQueries(() -> snapshot(target.type, target.repository), () -> target);
+    return PackQueryLifecycle.forServer(server);
   }
 
   /**
@@ -70,16 +61,16 @@ public final class PackQueries {
    *
    * @param reference queried pack.
    * @param question pack state to inspect.
-   * @return yes, no or unavailable.
+   * @return {@link PackStatus#YES} if any entry matches, {@link PackStatus#NO} if the observed state has no match, or {@link PackStatus#UNAVAILABLE} if the state cannot be observed.
    */
   public PackStatus query(PackReference reference, PackQuestion question) {
     Snapshot snapshot = observation.get();
     List<PackInfo> packs = switch (question) {
-      case AVAILABLE -> snapshot.available;
-      case SELECTED -> snapshot.selected;
-      case REQUESTED -> snapshot.requested;
-      case APPLIED -> snapshot.applied;
-      case EDITED_SELECTED -> snapshot.edited;
+      case AVAILABLE -> snapshot.available();
+      case SELECTED -> snapshot.selected();
+      case REQUESTED -> snapshot.requested();
+      case APPLIED -> snapshot.applied();
+      case EDITED_SELECTED -> snapshot.edited();
     };
     if (packs == null) {
       return PackStatus.UNAVAILABLE;
@@ -88,18 +79,18 @@ public final class PackQueries {
   }
 
   /**
-   * Returns a pack order in increasing native priority.
+   * Returns the pack order from lowest to highest native priority.
    *
    * @param order selection to inspect.
-   * @return observed order, empty when that state is unavailable.
+   * @return an immutable list inside the optional, including an empty list for an observed empty selection, or an empty optional when the state is unavailable.
    */
   public Optional<List<PackInfo>> order(PackOrder order) {
     Snapshot snapshot = observation.get();
     return Optional.ofNullable(switch (order) {
-      case SELECTED -> snapshot.selected;
-      case REQUESTED -> snapshot.requested;
-      case APPLIED -> snapshot.applied;
-      case EDITED -> snapshot.edited;
+      case SELECTED -> snapshot.selected();
+      case REQUESTED -> snapshot.requested();
+      case APPLIED -> snapshot.applied();
+      case EDITED -> snapshot.edited();
     });
   }
 
@@ -129,77 +120,10 @@ public final class PackQueries {
   }
 
   /**
-   * Binds the client repository and applied resource manager.
+   * Resolves the current export target for a live view.
    *
-   * @param repository client asset repository.
-   * @param resources live client asset manager.
+   * @return the live target, or {@code null} if the view is captured or the client has yet to bind its repository.
    */
-  @ApiStatus.Internal
-  public static void bindClient(PackRepository repository, ResourceManager resources) {
-    client = new Target(PackType.CLIENT_RESOURCES, repository, () -> resources);
-  }
-
-  /**
-   * Captures the current editor order with repository and applied observations.
-   *
-   * @param type edited pack type.
-   * @param repository native repository.
-   * @param edited current selection in the editor's high-to-low priority order.
-   * @return immutable editor observations.
-   */
-  @ApiStatus.Internal
-  public static PackQueries editor(PackType type, PackRepository repository, List<Pack> edited) {
-    var state = snapshot(type, repository);
-    var observed = new Snapshot(state.available, state.selected, state.requested, state.applied, edited.reversed().stream().map(pack -> info(type, pack)).toList());
-    return new PackQueries(() -> observed, null);
-  }
-
-  /**
-   * Captures the repository at the beginning of one native load.
-   *
-   * @param type native pack type.
-   * @param repository repository supplying the selected stack.
-   * @param packs requested resource openings in native priority order.
-   * @return load-scoped query state and completion handle.
-   */
-  @ApiStatus.Internal
-  public static Request begin(PackType type, PackRepository repository, List<PackResources> packs) {
-    List<PackInfo> requested = packs.stream().map(pack -> NativePackDependencies.info(type, pack)).distinct().toList();
-    synchronized (STATES) {
-      var before = STATES.get(repository);
-      var state = new State(requested, before == null ? null : before.applied);
-      STATES.put(repository, state);
-      Snapshot observed = snapshot(type, repository);
-      return new Request(repository, state, new PackQueries(() -> observed, null));
-    }
-  }
-
-  private static Snapshot snapshot(PackType type, PackRepository repository) {
-    State state = STATES.get(repository);
-    return new Snapshot(repository.getAvailablePacks().stream().map(pack -> info(type, pack)).toList(), repository.getSelectedPacks().stream().map(pack -> info(type, pack)).toList(),
-      state == null ? null : state.requested, state == null ? null : state.applied, null);
-  }
-
-  private static PackInfo info(PackType type, Pack pack) {
-    synchronized (IDENTITIES) {
-      return IDENTITIES.computeIfAbsent(pack, ignored -> new EnumMap<>(PackType.class)).computeIfAbsent(type, side -> {
-        try (var metadata = pack.openMetadata()) {
-          return NativePackDependencies.info(side, pack.getId(), metadata);
-        }
-      });
-    }
-  }
-
-  /**
-   * Invalidates discovery metadata before native repositories refresh their pack objects.
-   */
-  @ApiStatus.Internal
-  public static void invalidateDiscovery() {
-    synchronized (IDENTITIES) {
-      IDENTITIES.clear();
-    }
-  }
-
   @Nullable
   Target target() {
     return target == null ? null : target.get();
@@ -208,53 +132,5 @@ public final class PackQueries {
   @Override
   public String toString() {
     return observation.get().toString();
-  }
-
-  /**
-   * Carries the captured selection through a native pack load.
-   */
-  @ApiStatus.Internal
-  public static final class Request {
-    private final PackRepository repository;
-
-    private final State state;
-
-    private final PackQueries queries;
-
-    private Request(PackRepository repository, State state, PackQueries queries) {
-      this.repository = repository;
-      this.state = state;
-      this.queries = queries;
-    }
-
-    /**
-     * Returns the observations captured at the start of the load.
-     *
-     * @return load-scoped observations.
-     */
-    public PackQueries queries() {
-      return queries;
-    }
-
-    /**
-     * Clears the request and records its order as applied after native success.
-     *
-     * @param success whether native loading succeeded.
-     */
-    public void finish(boolean success) {
-      synchronized (STATES) {
-        if (STATES.get(repository) == state) {
-          STATES.put(repository, new State(null, success ? state.requested : state.applied));
-        }
-      }
-    }
-  }
-
-  record Target(PackType type, PackRepository repository, Supplier<ResourceManager> resources) {}
-
-  private record State(@Nullable List<PackInfo> requested, @Nullable List<PackInfo> applied) {}
-
-  private record Snapshot(@Nullable List<PackInfo> available, @Nullable List<PackInfo> selected, @Nullable List<PackInfo> requested, @Nullable List<PackInfo> applied, @Nullable List<PackInfo> edited) {
-    private static final Snapshot EMPTY = new Snapshot(null, null, null, null, null);
   }
 }

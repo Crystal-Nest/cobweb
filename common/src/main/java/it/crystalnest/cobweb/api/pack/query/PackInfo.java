@@ -17,6 +17,9 @@ public record PackInfo(String nativeId, @Nullable Identifier logicalId) {
    * @return whether the reference identifies this pack.
    */
   public boolean matches(PackReference reference) {
-    return reference.nativeId() == null ? reference.logicalId().equals(logicalId) : reference.nativeId().equals(nativeId);
+    return switch (reference) {
+      case PackReference.Logical logical -> logical.id().equals(logicalId);
+      case PackReference.Native nativeRef -> nativeRef.id().equals(nativeId);
+    };
   }
 }

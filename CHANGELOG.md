@@ -37,6 +37,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 - **Resource pack changes**
   - Replaced the static and dynamic pack APIs with `DataPack.registrar()` and `AssetPack.registrar()`. Both support bundled files, generation callbacks, and stable selection IDs.
   - Added pack titles accepting a `Component` or a string translation key.
+  - Exposed `ResourcePack.toPack()` for native pack interop.
   - Added disabled-by-default, enabled-by-default, and always-active modes on both loaders, independently of pack source and position. Packs default to disabled, top placement, and movable position.
   - Added fixed top/bottom placement and preserved pack selections and ordering across restarts, including optional fixed packs and packs changed from always active to optional.
   - Texture overlays use Minecraft's alpha blending.
@@ -58,7 +59,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Reported file-rule preparation failures to load observers and preserved reload cancellation when asset publication is enabled.
   - Queued bounded HTTP download bursts, stopped obsolete publication work cooperatively, and reused unchanged static archives. Rejected client mod requirements for server-delivered packs.
   - Cached discovery identities until repository refresh and separated generation planning, contribution merging, rule payloads, ownership, and delivery phases.
-  - Organized the pack API into subpackages for generation, dependencies, presentation, and queries. Generation declarations are grouped by input, output, and lifecycle, and `PackActivation` lives in `pack.model`. Pack implementation lives alongside its feature under `api.pack`, with internal bridges marked explicitly and server delivery in `pack.delivery`.
+  - Organized the pack API into subpackages for generation, dependencies, presentation, and queries. Generation declarations are grouped by input, output, and lifecycle. `PackActivation` lives in `pack.query`. Internal selection, export commands, and server delivery live in `pack.selection`, `pack.command`, and `pack.delivery`.
+  - Split pack references into logical and native variants with typed ID accessors, and moved native query lifecycle state behind the public query methods.
   - Preserved resource capture limits through native DEBUG leak-detection streams and kept discovery identities separate for distinct packs with equal locations.
 
 - **Configuration changes**

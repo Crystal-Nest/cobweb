@@ -66,12 +66,10 @@ public record PackIcon(Origin origin, Identifier resource) {
      * Resources physically stored in the owning mod.
      */
     MOD,
-
     /**
      * Resources physically stored at the displayed pack's root.
      */
     PACK,
-
     /**
      * Resources supplied by the applied client asset manager.
      */

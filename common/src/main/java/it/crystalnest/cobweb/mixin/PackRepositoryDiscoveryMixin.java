@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin;
 
-import it.crystalnest.cobweb.api.pack.query.PackQueries;
+import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import net.minecraft.server.packs.repository.PackRepository;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +20,6 @@ public abstract class PackRepositoryDiscoveryMixin {
    */
   @Inject(method = "reload", at = @At("HEAD"))
   private void onReload(CallbackInfo ci) {
-    PackQueries.invalidateDiscovery();
+    PackQueryLifecycle.invalidateDiscovery();
   }
 }

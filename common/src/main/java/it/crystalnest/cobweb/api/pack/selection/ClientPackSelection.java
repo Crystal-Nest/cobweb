@@ -4,7 +4,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.model.PackActivation;
+import it.crystalnest.cobweb.api.pack.query.PackActivation;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.client.Options;
 import net.minecraft.server.packs.PackType;

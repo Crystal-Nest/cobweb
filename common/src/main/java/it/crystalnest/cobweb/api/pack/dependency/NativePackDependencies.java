@@ -58,8 +58,10 @@ public final class NativePackDependencies {
       if (settings.packs() != null) {
         var list = new JsonArray();
         for (var value : settings.packs()) {
-          var ref = value.pack();
-          list.add(dependencyJson(ref.logicalId() == null ? "native_id" : "id", ref.logicalId() == null ? ref.nativeId() : ref.logicalId().toString(), value.version()));
+          list.add(switch (value.pack()) {
+            case PackReference.Logical logical -> dependencyJson("id", logical.id().toString(), value.version());
+            case PackReference.Native nativeRef -> dependencyJson("native_id", nativeRef.id(), value.version());
+          });
         }
         requires.add("packs", list);
       }
@@ -294,8 +296,10 @@ public final class NativePackDependencies {
 
   private static String resolve(String owner, PackRequirement requirement, Map<String, Selected> selected) {
     PackReference ref = requirement.pack();
-    List<Map.Entry<String, Selected>> matches = selected.entrySet().stream().filter(entry -> ref.nativeId() != null
-      ? ref.nativeId().equals(entry.getKey()) : ref.logicalId().equals(entry.getValue().id)).toList();
+    List<Map.Entry<String, Selected>> matches = selected.entrySet().stream().filter(entry -> switch (ref) {
+      case PackReference.Logical logical -> logical.id().equals(entry.getValue().id);
+      case PackReference.Native nativeRef -> nativeRef.id().equals(entry.getKey());
+    }).toList();
     if (matches.isEmpty()) {
       throw new IllegalStateException(owner + " requires selected pack " + ref);
     }
@@ -342,7 +346,11 @@ public final class NativePackDependencies {
   private static PackRequirement requirePack(JsonObject entry) {
     String id = string(entry, "id");
     String nativeId = string(entry, "native_id");
-    return new PackRequirement(new PackReference(id == null ? null : logicalId(id), nativeId), range(entry));
+    if ((id == null) == (nativeId == null)) {
+      throw new IllegalArgumentException("Supply exactly one of id or native_id for a pack requirement");
+    }
+    PackReference reference = id == null ? PackReference.nativeId(nativeId) : PackReference.logical(logicalId(id));
+    return new PackRequirement(reference, range(entry));
   }
 
   private static Identifier logicalId(String id) {

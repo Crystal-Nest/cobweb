@@ -55,7 +55,11 @@ public final class GeneratedPackExport {
       var matches = manager.listPacks()
         .filter(GeneratedPackResources.class::isInstance)
         .map(GeneratedPackResources.class::cast)
-        .filter(pack -> pack.definition != null && pack.type == type && (reference.nativeId() == null ? reference.logicalId().equals(pack.logicalId) : reference.nativeId().equals(pack.packId())))
+        .filter(pack -> pack.definition != null && pack.type == type)
+        .filter(pack -> switch (reference) {
+          case PackReference.Logical logical -> logical.id().equals(pack.logicalId);
+          case PackReference.Native nativeRef -> nativeRef.id().equals(pack.packId());
+        })
         .toList();
       if (matches.size() != 1) {
         return CompletableFuture.failedFuture(new IllegalArgumentException("Expected one applied Cobweb pack for " + reference + ", found " + matches.size()));

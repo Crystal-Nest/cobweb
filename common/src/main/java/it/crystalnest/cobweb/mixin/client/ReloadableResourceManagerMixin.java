@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
-import it.crystalnest.cobweb.api.pack.query.PackQueries;
+import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.server.packs.PackResources;
@@ -64,7 +64,7 @@ public abstract class ReloadableResourceManagerMixin {
     DynamicPackLoads.Attempt opened = null;
     try {
       var repository = Minecraft.getInstance().getResourcePackRepository();
-      PackQueries.bindClient(repository, (ReloadableResourceManager) (Object) this);
+      PackQueryLifecycle.bindClient(repository, (ReloadableResourceManager) (Object) this);
       var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of("cobweb", "cache", "assets"), repository);
       opened = attempt;
       nativeReload = attempt.generates() ? attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> original.call(background, main, initial, prepared), main)

@@ -1,4 +1,4 @@
-package it.crystalnest.cobweb.api.pack.model;
+package it.crystalnest.cobweb.api.pack.query;
 
 /**
  * Activation of a bundled pack; optional defaults never replace a saved user choice.
