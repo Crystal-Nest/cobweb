@@ -1,13 +1,11 @@
-package it.crystalnest.cobweb.api.pack.client;
+package it.crystalnest.cobweb.api.pack.generation.output;
 
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.serialization.JsonOps;
+import it.crystalnest.cobweb.api.image.NativeImagePng;
 import it.crystalnest.cobweb.api.pack.generation.GenerationOutput;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
-import it.crystalnest.cobweb.api.pack.generation.output.ResourceKind;
-import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
-import it.crystalnest.cobweb.mixin.client.NativeImageMixin;
 import net.minecraft.client.data.models.model.ModelInstance;
 import net.minecraft.client.gui.font.providers.GlyphProviderDefinition;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelDispatcher;
@@ -16,17 +14,14 @@ import net.minecraft.client.renderer.texture.atlas.SpriteSource;
 import net.minecraft.client.renderer.texture.atlas.SpriteSources;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.channels.Channels;
 import java.util.List;
 
 /**
- * Encodes client definitions with the formats used by Minecraft's native asset readers.
- * Use this class from client initialization and asset generation.
+ * Provides resource contracts backed by Minecraft's client asset codecs and helpers for writing models and sprites.
+ * Use this class from client code.
  */
 public final class AssetResourceKinds {
   /**
@@ -57,7 +52,7 @@ public final class AssetResourceKinds {
   private AssetResourceKinds() {}
 
   /**
-   * Submits a model produced by Minecraft's model generation API.
+   * Submits a native generated model as JSON under the pack's {@code models} directory.
    *
    * @param output asset generation output.
    * @param id model identifier without its directory and extension.
@@ -73,7 +68,7 @@ public final class AssetResourceKinds {
    * @param output asset generation output.
    * @param id texture identifier without its directory and extension.
    * @param image pixels retained by the caller.
-   * @param animation optional native animation settings.
+   * @param animation native animation settings, or {@code null} to omit the sidecar.
    * @throws IOException if the image cannot be encoded.
    */
   public static void putSprite(GenerationOutput output, Identifier id, NativeImage image, @Nullable AnimationMetadataSection animation) throws IOException {
@@ -82,22 +77,6 @@ public final class AssetResourceKinds {
       sidecar = new JsonObject();
       sidecar.add(AnimationMetadataSection.TYPE.name(), AnimationMetadataSection.CODEC.encodeStart(JsonOps.INSTANCE, animation).getOrThrow());
     }
-    output.putSprite(id, stream -> writePng(image, stream), sidecar);
-  }
-
-  /**
-   * Encodes a native image as PNG to the supplied stream.
-   *
-   * @param image allocated native image.
-   * @param stream destination stream.
-   * @throws IOException if the image cannot be encoded.
-   */
-  @ApiStatus.Internal
-  static void writePng(NativeImage image, OutputStream stream) throws IOException {
-    var nativeImage = (NativeImageMixin) (Object) image;
-    nativeImage.invokeCheckAllocated();
-    if (!nativeImage.invokeWriteToChannel(Channels.newChannel(stream))) {
-      throw new IOException("Unable to encode sprite");
-    }
+    output.putSprite(id, stream -> NativeImagePng.write(image, stream), sidecar);
   }
 }

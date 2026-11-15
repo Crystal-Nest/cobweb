@@ -1,11 +1,9 @@
-package it.crystalnest.cobweb.api.pack.client;
+package it.crystalnest.cobweb.api.pack.presentation;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
-import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.api.pack.query.PackQuestion;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
@@ -22,18 +20,19 @@ import java.io.IOException;
 import java.util.Set;
 
 /**
- * Evaluates the file-based display metadata for a pack editor.
+ * Reads Cobweb's base title and conditional presentation fields from a pack's own metadata.
  */
 final class FilePackPresentation {
   private FilePackPresentation() {}
 
   /**
-   * Reads base and conditional presentation from the owning pack.
+   * Reads the base title and, when enabled, applies matching presentation entries in file order.
+   * If a conditional entry is invalid, logs the failure and returns the base presentation.
    *
    * @param pack displayed pack.
    * @param queries current editor observations.
-   * @param evaluateConditions whether to apply file conditions.
-   * @return file fields, or {@code null} when absent or invalid.
+   * @param evaluateConditions whether to evaluate conditional entries for this pack.
+   * @return file overrides, or {@code null} if the Cobweb section is absent or the base metadata cannot be read.
    */
   @Nullable
   static PackPresentation read(Pack pack, PackQueries queries, boolean evaluateConditions) {
@@ -71,6 +70,15 @@ final class FilePackPresentation {
     }
   }
 
+  /**
+   * Applies the supplied fields of one presentation entry when all its predicates match.
+   *
+   * @param entry file presentation entry.
+   * @param self native reference to the displayed pack.
+   * @param queries captured observations of the current editor.
+   * @param result presentation builder to update.
+   * @throws IllegalArgumentException if the entry contains unknown fields or an invalid predicate count.
+   */
   private static void apply(JsonObject entry, PackReference self, PackQueries queries, PackPresentation.Builder result) {
     if (!Set.of("when", "title", "description", "icon").containsAll(entry.keySet())) {
       throw new IllegalArgumentException("Unknown presentation field");
@@ -99,6 +107,15 @@ final class FilePackPresentation {
     }
   }
 
+  /**
+   * Checks a mod-presence or pack-selection predicate against the current editor observations.
+   *
+   * @param condition predicate object.
+   * @param self reference to the displayed pack.
+   * @param queries captured observations of the current editor.
+   * @return whether the mod is loaded or the pack satisfies the requested observation.
+   * @throws IllegalArgumentException if the predicate fields, target, or observation are unsupported.
+   */
   private static boolean matches(JsonObject condition, PackReference self, PackQueries queries) {
     if (condition.keySet().equals(Set.of("mod_loaded"))) {
       return PlatformQueries.isModLoaded(string(condition, "mod_loaded"));
@@ -119,12 +136,27 @@ final class FilePackPresentation {
     return queries.query(reference, question) == PackStatus.YES;
   }
 
+  /**
+   * Decodes a field using Minecraft's text component codec.
+   *
+   * @param object containing metadata object.
+   * @param field component field name.
+   * @return decoded component, or {@code null} if the field is absent.
+   */
   @Nullable
   private static Component text(JsonObject object, String field) {
     JsonElement value = object.get(field);
     return value == null ? null : ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, value).getOrThrow();
   }
 
+  /**
+   * Reads a required nonblank string field without coercing other JSON values.
+   *
+   * @param object containing metadata object.
+   * @param field required field name.
+   * @return field value.
+   * @throws IllegalArgumentException if the field is absent, blank, or has a different JSON type.
+   */
   private static String string(JsonObject object, String field) {
     JsonElement value = object.get(field);
     if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString() || value.getAsString().isBlank()) {

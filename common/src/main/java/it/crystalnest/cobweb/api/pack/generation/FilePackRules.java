@@ -3,7 +3,6 @@ package it.crystalnest.cobweb.api.pack.generation;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import it.crystalnest.cobweb.api.pack.client.TextureRules;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import net.minecraft.resources.Identifier;

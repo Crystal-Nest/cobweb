@@ -62,7 +62,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Reported file-rule preparation failures to load observers and preserved reload cancellation when asset publication is enabled.
   - Queued bounded HTTP download bursts, stopped obsolete publication work cooperatively, and reused unchanged static archives. Rejected client mod requirements for server-delivered packs.
   - Cached discovery identities until repository refresh and separated generation planning, contribution merging, rule payloads, ownership, and delivery phases.
-  - Organized the pack API into subpackages for generation, dependencies, presentation, and queries. Generation declarations are grouped by input, output, and lifecycle. `PackActivation` lives in `pack.query`. Internal selection, export commands, and server delivery live in `pack.selection`, `pack.command`, and `pack.delivery`.
+  - Organized the pack API into subpackages for generation, dependencies, presentation, and queries. Generation declarations are grouped by input, output, and lifecycle. Client asset helpers live with generation, and editor presentation helpers live with presentation. `PackActivation` lives in `pack.query`. Internal selection, export commands, and server delivery live in `pack.selection`, `pack.command`, and `pack.delivery`.
   - Split pack references into logical and native variants with typed ID accessors, and moved native query lifecycle state behind the public query methods.
   - Preserved resource capture limits through native DEBUG leak-detection streams and kept discovery identities separate for distinct packs with equal locations.
 

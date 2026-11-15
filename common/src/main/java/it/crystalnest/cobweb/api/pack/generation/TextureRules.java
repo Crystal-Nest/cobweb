@@ -1,14 +1,12 @@
-package it.crystalnest.cobweb.api.pack.client;
+package it.crystalnest.cobweb.api.pack.generation;
 
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.api.image.ImageTransforms;
-import it.crystalnest.cobweb.api.pack.generation.GenerationOutput;
-import it.crystalnest.cobweb.api.pack.generation.GenerationResources;
+import it.crystalnest.cobweb.api.image.NativeImagePng;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
@@ -16,12 +14,17 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Connects declarative texture operations to the shared image helpers.
+ * Executes file-based texture rules using the shared image transforms and writes their output to the pack.
  */
-@ApiStatus.Internal
-public final class TextureRules {
+final class TextureRules {
+  /**
+   * Maximum encoded PNG size accepted for an input texture rule.
+   */
   private static final int MAX_PNG_BYTES = 16 * 1024 * 1024;
 
+  /**
+   * Maximum decoded pixel count accepted for an input texture rule.
+   */
   private static final long MAX_PIXELS = 1024L * 1024;
 
   private TextureRules() {}
@@ -33,10 +36,11 @@ public final class TextureRules {
    * @param destination destination PNG path.
    * @param source template PNG.
    * @param palette reference PNG.
-   * @param mask optional mask PNG.
-   * @throws IOException if opening or encoding an image fails.
+   * @param mask mask PNG, or {@code null} to use the whole template.
+   * @throws IOException if reading, decoding, or encoding an image or sidecar fails.
+   * @throws IllegalArgumentException if the mask dimensions differ from the template or the reference has no visible palette colors.
    */
-  public static void recolor(GenerationOutput output, Identifier destination, GenerationResources.File source, GenerationResources.File palette,
+  static void recolor(GenerationOutput output, Identifier destination, GenerationResources.File source, GenerationResources.File palette,
     @Nullable GenerationResources.File mask) throws IOException {
     try (var original = read(source); var reference = read(palette); var region = mask == null ? null : read(mask); var result = ImageTransforms.recolor(original, reference, region)) {
       submit(output, destination, result, metadata(source));
@@ -44,15 +48,16 @@ public final class TextureRules {
   }
 
   /**
-   * Composites two static images of the same size.
+   * Composites two static images of the same size and retains the background sidecar.
    *
    * @param output pack output.
    * @param destination destination PNG path.
    * @param source background PNG.
    * @param layer foreground PNG.
-   * @throws IOException if opening or encoding an image fails.
+   * @throws IOException if reading, decoding, or encoding an image or sidecar fails.
+   * @throws IllegalArgumentException if either texture is animated or the image dimensions differ.
    */
-  public static void overlay(GenerationOutput output, Identifier destination, GenerationResources.File source, GenerationResources.File layer) throws IOException {
+  static void overlay(GenerationOutput output, Identifier destination, GenerationResources.File source, GenerationResources.File layer) throws IOException {
     JsonObject metadata = metadata(source);
     if (metadata.has("animation") || metadata(layer).has("animation")) {
       throw new IllegalArgumentException("overlay_texture requires static PNGs");
@@ -62,6 +67,13 @@ public final class TextureRules {
     }
   }
 
+  /**
+   * Reads the effective sidecar and falls back to native animation metadata when a raw sidecar is unavailable.
+   *
+   * @param source texture input whose sidecar is resolved.
+   * @return effective metadata object, empty when the texture has no metadata.
+   * @throws IOException if the sidecar cannot be read.
+   */
   private static JsonObject metadata(GenerationResources.File source) throws IOException {
     var raw = source.metadataJson();
     if (raw.isPresent()) {
@@ -72,10 +84,26 @@ public final class TextureRules {
     return metadata;
   }
 
+  /**
+   * Submits a PNG and its effective sidecar as one sprite contribution.
+   *
+   * @param output pack output.
+   * @param destination full texture path including directory and extension.
+   * @param result transformed pixels, owned by the caller.
+   * @param metadata effective sidecar, with an empty object indicating an absent sidecar.
+   * @throws IOException if writing the sprite or sidecar fails.
+   */
   private static void submit(GenerationOutput output, Identifier destination, NativeImage result, JsonObject metadata) throws IOException {
-    output.putSprite(destination.withPath(path -> path.substring("textures/".length(), path.length() - ".png".length())), stream -> AssetResourceKinds.writePng(result, stream), metadata.isEmpty() ? null : metadata);
+    output.putSprite(destination.withPath(path -> path.substring("textures/".length(), path.length() - ".png".length())), stream -> NativeImagePng.write(result, stream), metadata.isEmpty() ? null : metadata);
   }
 
+  /**
+   * Decodes a PNG after checking its encoded size, header, and pixel count.
+   *
+   * @param file scoped texture input.
+   * @return decoded image owned by the caller.
+   * @throws IOException if the file cannot be read or is invalid or exceeds a size limit.
+   */
   private static NativeImage read(GenerationResources.File file) throws IOException {
     try (var input = file.open(MAX_PNG_BYTES)) {
       byte[] png = input.readNBytes(MAX_PNG_BYTES + 1);

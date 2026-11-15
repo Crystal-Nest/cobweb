@@ -1,10 +1,7 @@
-package it.crystalnest.cobweb.api.pack.client;
+package it.crystalnest.cobweb.api.pack.presentation;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
-import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
-import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
 import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
@@ -26,24 +23,35 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Keeps one presentation patch and texture per displayed pack for an editor revision.
+ * Resolves and caches presentation for one Minecraft pack selection model.
+ * Releases the cached textures when the editor state is invalidated.
  */
 @ApiStatus.Internal
 public final class EditorPackPresentations {
+  /**
+   * Evaluated display patches by native pack ID, including packs with no overrides.
+   */
   private final Map<String, Optional<Display>> values = new HashMap<>();
 
+  /**
+   * Uploaded icons and failed icon lookups for the current editor state.
+   */
   private final Map<IconKey, Optional<Identifier>> textures = new HashMap<>();
 
+  /**
+   * Editor observations shared by current display patches, or {@code null} until the first lookup.
+   */
   @Nullable
   private PackQueries queries;
 
   /**
-   * Returns the current display patch, evaluating it once for the current editor state.
+   * Resolves presentation once per pack for the current editor state.
+   * Uses explicit Java base settings and callback fields where supplied. Falls back to file or native presentation for the other fields.
    *
    * @param pack native pack.
    * @param repository editor repository.
-   * @param selected selected packs in editor order.
-   * @return presentation fields or {@code null} when the pack has no custom presentation.
+   * @param selected proposed selection in native resource priority order.
+   * @return resolved text and texture overrides, or {@code null} when the native presentation applies.
    */
   @Nullable
   public Display display(Pack pack, PackRepository repository, List<Pack> selected) {
@@ -91,7 +99,8 @@ public final class EditorPackPresentations {
   }
 
   /**
-   * Releases overrides and invalidates observations after discovery or an editor change.
+   * Releases uploaded presentation textures and clears cached overrides and editor observations.
+   * The next display lookup captures the current editor state.
    */
   public void clear() {
     var manager = Minecraft.getInstance().getTextureManager();
@@ -101,12 +110,27 @@ public final class EditorPackPresentations {
     queries = null;
   }
 
+  /**
+   * Returns a cached texture or attempts to load and upload the icon.
+   *
+   * @param pack pack whose editor icon is being resolved.
+   * @param icon requested icon source.
+   * @return uploaded texture ID, or {@code null} if it could not be loaded.
+   */
   @Nullable
   private Identifier texture(Pack pack, PackIcon icon) {
     var key = new IconKey(icon, icon.origin() == PackIcon.Origin.PACK ? pack.getId() : null);
     return textures.computeIfAbsent(key, ignored -> load(pack, icon)).orElse(null);
   }
 
+  /**
+   * Opens the icon from its declared source and registers it as a dynamic client texture.
+   * Closes the decoded pixels if registration fails.
+   *
+   * @param pack displayed pack, used for bundled icon lookup and diagnostics.
+   * @param icon icon source and path.
+   * @return uploaded texture ID, or an empty result after a logged read or upload failure.
+   */
   private Optional<Identifier> load(Pack pack, PackIcon icon) {
     try {
       var resource = icon.resource();
@@ -154,11 +178,17 @@ public final class EditorPackPresentations {
   /**
    * Contains resolved editor overrides for one pack.
    *
-   * @param patch optional component and icon overrides.
-   * @param texture optional uploaded icon texture.
+   * @param patch resolved text override, or {@code null} to use native text.
+   * @param texture uploaded icon texture ID, or {@code null} to use the native icon.
    */
   public record Display(@Nullable PackPresentation patch, @Nullable Identifier texture) {}
 
+  /**
+   * Identifies a cached editor icon.
+   *
+   * @param icon icon source and path.
+   * @param pack native pack ID for a bundled icon, or {@code null} for an icon shared by source and path.
+   */
   private record IconKey(PackIcon icon, @Nullable String pack) {}
 
   /**
@@ -168,7 +198,7 @@ public final class EditorPackPresentations {
     /**
      * Invalidates the current presentation revision.
      */
-    void cobweb$refreshPresentation();
+    void invalidatePackPresentation();
 
     /**
      * Finds the visible overrides for a pack.
@@ -177,7 +207,7 @@ public final class EditorPackPresentations {
      * @return overrides, if any.
      */
     @Nullable
-    Display cobweb$presentation(Pack pack);
+    Display resolvePackPresentation(Pack pack);
   }
 
   /**
@@ -187,6 +217,6 @@ public final class EditorPackPresentations {
     /**
      * Refreshes the displayed editor entries.
      */
-    void cobweb$refreshPackPresentation();
+    void refreshPackPresentation();
   }
 }

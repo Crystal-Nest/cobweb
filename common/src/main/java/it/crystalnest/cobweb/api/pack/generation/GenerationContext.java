@@ -4,7 +4,6 @@ import com.google.gson.JsonElement;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.client.AssetGenerationResources;
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;

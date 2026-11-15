@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin.client;
 
-import it.crystalnest.cobweb.api.pack.client.EditorPackPresentations;
+import it.crystalnest.cobweb.api.pack.presentation.EditorPackPresentations;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
@@ -33,14 +33,14 @@ public abstract class PackSelectionScreenMixin extends Screen implements EditorP
   }
 
   @Override
-  public void cobweb$refreshPackPresentation() {
-    ((EditorPackPresentations.Model) model).cobweb$refreshPresentation();
+  public void refreshPackPresentation() {
+    ((EditorPackPresentations.Model) model).invalidatePackPresentation();
     populateLists(null);
   }
 
   @Override
   public void removed() {
-    ((EditorPackPresentations.Model) model).cobweb$refreshPresentation();
+    ((EditorPackPresentations.Model) model).invalidatePackPresentation();
     super.removed();
   }
 }

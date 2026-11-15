@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin.client;
 
-import it.crystalnest.cobweb.api.pack.client.EditorPackPresentations;
+import it.crystalnest.cobweb.api.pack.presentation.EditorPackPresentations;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -39,17 +39,17 @@ public abstract class PackSelectionModelMixin implements EditorPackPresentations
    */
   @Inject(method = "findNewPacks", at = @At("RETURN"))
   private void onFindNewPacks(CallbackInfo ci) {
-    cobweb$refreshPresentation();
+    invalidatePackPresentation();
   }
 
   @Override
-  public void cobweb$refreshPresentation() {
+  public void invalidatePackPresentation() {
     presentations.clear();
   }
 
   @Override
   @Nullable
-  public EditorPackPresentations.Display cobweb$presentation(Pack pack) {
+  public EditorPackPresentations.Display resolvePackPresentation(Pack pack) {
     return presentations.display(pack, repository, selected);
   }
 }

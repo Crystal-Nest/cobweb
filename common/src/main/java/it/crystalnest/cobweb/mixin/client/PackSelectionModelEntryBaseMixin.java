@@ -2,7 +2,7 @@ package it.crystalnest.cobweb.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import it.crystalnest.cobweb.api.pack.client.EditorPackPresentations;
+import it.crystalnest.cobweb.api.pack.presentation.EditorPackPresentations;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -45,7 +45,7 @@ public abstract class PackSelectionModelEntryBaseMixin {
    */
   @WrapOperation(method = {"toggleSelection", "move"}, at = @At(value = "INVOKE", target = "Ljava/util/function/Consumer;accept(Ljava/lang/Object;)V"))
   private void wrapAccept(Consumer<Object> instance, Object entry, Operation<Void> original) {
-    presentationModel().cobweb$refreshPresentation();
+    presentationModel().invalidatePackPresentation();
     original.call(instance, entry);
   }
 
@@ -57,7 +57,7 @@ public abstract class PackSelectionModelEntryBaseMixin {
    */
   @Inject(method = "getTitle", at = @At("HEAD"), cancellable = true)
   private void onGetTitle(CallbackInfoReturnable<Component> cir) {
-    var display = presentationModel().cobweb$presentation(pack);
+    var display = presentationModel().resolvePackPresentation(pack);
     if (display != null && display.patch() != null && display.patch().title() != null) {
       cir.setReturnValue(display.patch().title());
     }
@@ -71,7 +71,7 @@ public abstract class PackSelectionModelEntryBaseMixin {
    */
   @Inject(method = "getDescription", at = @At("HEAD"), cancellable = true)
   private void onGetDescription(CallbackInfoReturnable<Component> cir) {
-    var display = presentationModel().cobweb$presentation(pack);
+    var display = presentationModel().resolvePackPresentation(pack);
     if (display != null && display.patch() != null && display.patch().description() != null) {
       cir.setReturnValue(display.patch().description());
     }
@@ -85,7 +85,7 @@ public abstract class PackSelectionModelEntryBaseMixin {
    */
   @Inject(method = "getIconTexture", at = @At("HEAD"), cancellable = true)
   private void onGetIconTexture(CallbackInfoReturnable<Identifier> cir) {
-    var display = presentationModel().cobweb$presentation(pack);
+    var display = presentationModel().resolvePackPresentation(pack);
     if (display != null && display.texture() != null) {
       cir.setReturnValue(display.texture());
     }
