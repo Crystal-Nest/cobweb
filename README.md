@@ -14,9 +14,8 @@
 
 ## 📝 **Description**
 
-**Cobweb** is a shared API for Minecraft mods on **Fabric and NeoForge**. It simplifies registration, configuration, and resource-pack creation through APIs available from common code.
-
-Developed for **Crystal Nest** projects and available to other mod developers.
+**Cobweb** is a shared API for Minecraft mods on **Fabric and NeoForge**. It simplifies registration and resource-pack creation through APIs available from common code.  
+Developed for **Crystal Nest** projects and available to other mod developers!
 
 📚 See the **[wiki](https://github.com/Crystal-Nest/cobweb/wiki)** for setup and usage.
 
@@ -27,7 +26,6 @@ Mods using Cobweb's client features still require it on the client.
 ## ✨ **Features**
 
 * ✅ **Registration** - common factories and helpers for game objects, custom registries, and data-pack registries.
-* ✅ **Configuration** - shared access to the loaders' configuration systems.
 * 📦 **Resource packs** - bundled and generated assets or data, using Java callbacks or JSON rules.
 * 📦 **Server asset delivery** - publish resource packs to players using unmodified Minecraft clients.
 * 🔍 **Utilities** - identifier lookups, loader and mod queries, image transformations, and flexible block-entity types.

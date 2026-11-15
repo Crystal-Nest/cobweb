@@ -67,8 +67,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Preserved resource capture limits through native DEBUG leak-detection streams and kept discovery identities separate for distinct packs with equal locations.
 
 - **Configuration changes**
-  - Common and server config registration now uses native `LOCAL` and `SYNCED` config types, respectively. Default filenames use `-local.toml` and `-synced.toml`, with per-world synced overrides in `syncedconfig`. This is due to upstream changes (NeoForge
-    and FCAPI).
+  - Removed the configuration API and Forge Config API Port integration.
 
 ## [v1.4.0] - 2026/10/02
 

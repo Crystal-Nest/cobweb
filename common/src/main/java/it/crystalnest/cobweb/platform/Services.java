@@ -1,12 +1,9 @@
 package it.crystalnest.cobweb.platform;
 
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.platform.model.Platform;
-import it.crystalnest.cobweb.platform.services.ConfigHelper;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ServiceLoader;
 
@@ -29,12 +26,6 @@ public final class Services {
    * Provides pack registration and access to bundled pack resources.
    */
   public static final PackHelper PACK = load(PackHelper.class);
-
-  /**
-   * Provides registration for configuration specs.
-   */
-  @Nullable
-  public static final ConfigHelper CONFIG = PLATFORM.getPlatformName() == Platform.NEOFORGE || PLATFORM.isModLoaded("forgeconfigapiport") ? load(ConfigHelper.class) : null;
 
   private Services() {}
 
