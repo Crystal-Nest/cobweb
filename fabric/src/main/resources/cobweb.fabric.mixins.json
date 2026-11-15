@@ -6,6 +6,7 @@
   "mixins": [
     "HolderReferenceMixin",
     "PackRepositoryMixin",
+    "RegistryDataLoaderMixin",
     "ServerPacksSourceMixin"
   ],
   "client": [

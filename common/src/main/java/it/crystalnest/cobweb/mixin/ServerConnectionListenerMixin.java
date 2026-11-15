@@ -20,6 +20,7 @@ import java.net.InetAddress;
 @Mixin(ServerConnectionListener.class)
 public abstract class ServerConnectionListenerMixin {
   /**
+   * Shadowed {@link ServerConnectionListener#server}.<br>
    * Server that owns the native TCP listener.
    */
   @Shadow
@@ -31,13 +32,13 @@ public abstract class ServerConnectionListenerMixin {
    * Gives each TCP channel access to the publication service for its server.
    *
    * @param instance native TCP bootstrap.
-   * @param initializer native child channel initializer.
+   * @param childHandler native child channel initializer.
    * @param original native bootstrap operation.
    * @return configured bootstrap.
    */
   @WrapOperation(method = "startTcpServerListener", at = @At(value = "INVOKE", target = "Lio/netty/bootstrap/ServerBootstrap;childHandler(Lio/netty/channel/ChannelHandler;)Lio/netty/bootstrap/ServerBootstrap;"))
-  private ServerBootstrap wrapChildHandler(ServerBootstrap instance, ChannelHandler initializer, Operation<ServerBootstrap> original) {
+  private ServerBootstrap wrapChildHandler(ServerBootstrap instance, ChannelHandler childHandler, Operation<ServerBootstrap> original) {
     AssetDelivery.attach(instance, server);
-    return original.call(instance, initializer);
+    return original.call(instance, childHandler);
   }
 }

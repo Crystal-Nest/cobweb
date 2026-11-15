@@ -40,6 +40,7 @@ import java.util.function.Function;
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
   /**
+   * Shadowed {@link MinecraftServer#packRepository}.<br>
    * Native repository used to open the server's selected packs.
    */
   @Shadow
@@ -75,7 +76,7 @@ public abstract class MinecraftServerMixin {
    * @return whether the pack should be enabled automatically.
    */
   @WrapOperation(method = "configurePackRepository", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackSource;shouldAddAutomatically()Z"))
-  private static boolean wrapShouldAddAutomatically(PackSource instance, Operation<Boolean> original, @Local Pack pack) {
+  private static boolean wrapShouldAddAutomatically(PackSource instance, Operation<Boolean> original, @Local(name = "pack") Pack pack) {
     return DataPackSelection.addAutomatically(pack, original.call(instance));
   }
 
@@ -83,19 +84,18 @@ public abstract class MinecraftServerMixin {
    * Wraps the call to {@link MinecraftServer#configureRepositoryWithSelection} inside the method {@link MinecraftServer#configurePackRepository}.<br>
    * Orders newly selected Cobweb packs while preserving saved selections and native safe mode.
    *
-   * @param repository native pack repository.
+   * @param packRepository native pack repository.
    * @param selected IDs selected by native configuration.
-   * @param features feature flags required by the world.
+   * @param forcedFeatures feature flags required by the world.
    * @param disableInactive whether inactive packs should be recorded as disabled.
    * @param original native configuration operation.
    * @param initial original world configuration.
    * @return resulting native world configuration.
    */
   @WrapOperation(method = "configurePackRepository", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;configureRepositoryWithSelection(Lnet/minecraft/server/packs/repository/PackRepository;Ljava/util/Collection;Lnet/minecraft/world/flag/FeatureFlagSet;Z)Lnet/minecraft/world/level/WorldDataConfiguration;"))
-  private static WorldDataConfiguration wrapConfigureRepositoryWithSelection(PackRepository repository, Collection<String> selected, FeatureFlagSet features, boolean disableInactive,
-    Operation<WorldDataConfiguration> original, @Local(argsOnly = true) WorldDataConfiguration initial) {
+  private static WorldDataConfiguration wrapConfigureRepositoryWithSelection(PackRepository packRepository, Collection<String> selected, FeatureFlagSet forcedFeatures, boolean disableInactive, Operation<WorldDataConfiguration> original, @Local(argsOnly = true) WorldDataConfiguration initial) {
     // The safe-mode branch passes false; leave each loader's safe-mode selection untouched.
-    return original.call(repository, disableInactive ? DataPackSelection.orderNewPacks(repository, selected, initial.dataPacks().getEnabled()) : selected, features, disableInactive);
+    return original.call(packRepository, disableInactive ? DataPackSelection.orderNewPacks(packRepository, selected, initial.dataPacks().getEnabled()) : selected, forcedFeatures, disableInactive);
   }
 
   /**
@@ -115,15 +115,15 @@ public abstract class MinecraftServerMixin {
    * Generates early files and retains the active world's full-load output before native reload readers run.
    *
    * @param instance future opening the selected packs.
-   * @param continuation native reload continuation.
+   * @param fn native reload continuation.
    * @param original original future composition.
    * @param shared shared reference to the asynchronously opened attempt.
    * @param <R> native result type.
    * @return native reload gated on generation.
    */
   @WrapOperation(method = "reloadResources", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;thenCompose(Ljava/util/function/Function;)Ljava/util/concurrent/CompletableFuture;", ordinal = 0))
-  private <R> CompletableFuture<R> wrapThenCompose(CompletableFuture<ImmutableList<PackResources>> instance, Function<ImmutableList<PackResources>, CompletableFuture<R>> continuation, Operation<CompletableFuture<R>> original,
-    @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
+  private <R> CompletableFuture<R> wrapThenCompose(CompletableFuture<ImmutableList<PackResources>> instance, Function<ImmutableList<PackResources>, CompletableFuture<R>> fn, Operation<CompletableFuture<R>> original,
+                                                   @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
     MinecraftServer server = (MinecraftServer) (Object) this;
     var tracker = new DynamicPackLoads.AttemptTracker();
     shared.set(tracker);
@@ -148,7 +148,7 @@ public abstract class MinecraftServerMixin {
         return CompletableFuture.failedFuture(failure);
       }
       tracker.bind(attempt);
-      return attempt.begin(server.registryAccess(), server.getWorldData().enabledFeatures()).thenCompose(ignored -> continuation.apply(prepared)).whenComplete((result, failure) -> {
+      return attempt.begin(server.registryAccess(), server.getWorldData().enabledFeatures()).thenCompose(ignored -> fn.apply(prepared)).whenComplete((result, failure) -> {
         if (failure != null && attempt.hasRegisteredPacks() && !attempt.closed()) {
           DynamicPackLoads.closeAfterFailure(prepared, failure);
         }

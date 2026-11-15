@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 @Mixin(ReloadableResourceManager.class)
 public abstract class ReloadableResourceManagerMixin {
   /**
+   * Shadowed {@link ReloadableResourceManager#type}.<br>
    * Native resource type managed by this reloadable resource manager.
    */
   @Shadow
@@ -46,23 +47,23 @@ public abstract class ReloadableResourceManagerMixin {
    * Wraps the method {@link ReloadableResourceManager#createReload}.<br>
    * Defers native preparation until the selected generated assets are complete.
    *
-   * @param background native preparation executor.
-   * @param main native application executor.
-   * @param initial initial native task.
-   * @param packs selected native packs.
+   * @param backgroundExecutor native preparation executor.
+   * @param mainThreadExecutor native application executor.
+   * @param initialTask initial native task.
+   * @param resourcePacks selected native packs.
    * @param original native reload operation.
    * @return reload instance gated on generation.
    */
   @WrapMethod(method = "createReload")
-  private ReloadInstance wrapCreateReload(Executor background, Executor main, CompletableFuture<Unit> initial, List<PackResources> packs, Operation<ReloadInstance> original) {
+  private ReloadInstance wrapCreateReload(Executor backgroundExecutor, Executor mainThreadExecutor, CompletableFuture<Unit> initialTask, List<PackResources> resourcePacks, Operation<ReloadInstance> original) {
     LoadKind kind = started ? LoadKind.RELOAD : LoadKind.FULL_LOAD;
     started = true;
     if (type != PackType.CLIENT_RESOURCES) {
-      return original.call(background, main, initial, packs);
+      return original.call(backgroundExecutor, mainThreadExecutor, initialTask, resourcePacks);
     }
     List<PackResources> prepared;
     try {
-      prepared = DynamicPackLoads.prepare(type, packs, kind, null);
+      prepared = DynamicPackLoads.prepare(type, resourcePacks, kind, null);
     } catch (RuntimeException | Error failure) {
       return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), null);
     }
@@ -73,8 +74,8 @@ public abstract class ReloadableResourceManagerMixin {
       PackQueryLifecycle.bindClient(repository, (ReloadableResourceManager) (Object) this);
       var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of("cobweb", "cache", "assets"), repository);
       opened = attempt;
-      nativeReload = attempt.generates() ? attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> original.call(background, main, initial, prepared), main)
-        : CompletableFuture.completedFuture(original.call(background, main, initial, prepared));
+      nativeReload = attempt.generates() ? attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared), mainThreadExecutor)
+        : CompletableFuture.completedFuture(original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared));
     } catch (RuntimeException | Error failure) {
       nativeReload = CompletableFuture.failedFuture(failure);
     }

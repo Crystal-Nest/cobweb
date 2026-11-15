@@ -32,6 +32,7 @@ import java.util.Queue;
 @Mixin(ServerConfigurationPacketListenerImpl.class)
 public abstract class ServerConfigurationPacketListenerImplMixin extends ServerCommonPacketListenerImpl {
   /**
+   * Shadowed {@link ServerConfigurationPacketListenerImpl#configurationTasks}.<br>
    * Native queue of tasks required before the player enters the game.
    */
   @Shadow

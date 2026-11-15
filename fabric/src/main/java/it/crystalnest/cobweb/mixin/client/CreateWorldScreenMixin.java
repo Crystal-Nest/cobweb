@@ -23,11 +23,11 @@ public abstract class CreateWorldScreenMixin {
    * {@link CreateWorldScreen#openCreateWorldScreen(Minecraft, Runnable, Function, WorldCreationContextMapper, ResourceKey, CreateWorldCallback)}.<br>
    * Registers dynamic and static data packs before the default world configuration is created.
    *
-   * @param original original {@link PackRepository}.
+   * @param vanillaOnlyPackRepository original {@link PackRepository}.
    * @return updated repository.
    */
-  @ModifyVariable(method = "openCreateWorldScreen", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"))
-  private static PackRepository modifyPackRepository$openCreateWorldScreen(PackRepository original) {
-    return FabricPackHelper.registerDataPacks(original);
+  @ModifyVariable(method = "openCreateWorldScreen", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"), name = "vanillaOnlyPackRepository")
+  private static PackRepository modifyPackRepository$openCreateWorldScreen(PackRepository vanillaOnlyPackRepository) {
+    return FabricPackHelper.registerDataPacks(vanillaOnlyPackRepository);
   }
 }

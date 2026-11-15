@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Shadow;
 @Mixin(PackSelectionScreen.class)
 public abstract class PackSelectionScreenMixin extends Screen implements EditorPackPresentations.Screen {
   /**
+   * Shadowed {@link PackSelectionScreen#model}.<br>
    * Selection model displayed by this screen.
    */
   @Shadow
@@ -22,6 +23,7 @@ public abstract class PackSelectionScreenMixin extends Screen implements EditorP
   private PackSelectionModel model;
 
   /**
+   * Shadowed {@link PackSelectionScreen#populateLists(PackSelectionModel.EntryBase)}.<br>
    * Rebuilds the native available and selected pack lists.
    *
    * @param transferredEntry entry whose selection changed, or {@code null} for a general refresh.

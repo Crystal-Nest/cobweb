@@ -7,7 +7,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,11 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Options.class)
 public abstract class OptionsMixin {
   /**
+   * Shadowed {@link Options#minecraft}.<br>
    * Client instance owning these options and the current game directory.
    */
   @Shadow
-  @Final
-  private Minecraft minecraft;
+  protected Minecraft minecraft;
 
   /**
    * Injects at the return of the method {@link Options#loadSelectedResourcePacks(PackRepository)}.<br>

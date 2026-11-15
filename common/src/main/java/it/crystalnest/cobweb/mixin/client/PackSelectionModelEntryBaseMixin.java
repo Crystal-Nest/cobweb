@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 @Mixin(targets = "net.minecraft.client.gui.screens.packs.PackSelectionModel$EntryBase")
 public abstract class PackSelectionModelEntryBaseMixin {
   /**
+   * Shadowed {@link PackSelectionModel.EntryBase#pack}.<br>
    * Native pack represented by this editor entry.
    */
   @Shadow
@@ -30,11 +31,12 @@ public abstract class PackSelectionModelEntryBaseMixin {
   private Pack pack;
 
   /**
+   * Shadowed {@code PackSelectionModel.EntryBase#this$0}.<br>
    * Editor model that owns this entry.
    */
   @Shadow
   @Final
-  private PackSelectionModel this$0;
+  PackSelectionModel this$0;
 
   /**
    * Returns the presentation hooks installed on the owning editor model.

@@ -21,6 +21,7 @@ import java.util.List;
 @Mixin(PackSelectionModel.class)
 public abstract class PackSelectionModelMixin implements EditorPackPresentations.Model {
   /**
+   * Shadowed {@link PackSelectionModel#repository}.<br>
    * Native repository displayed by this editor.
    */
   @Shadow
@@ -28,6 +29,7 @@ public abstract class PackSelectionModelMixin implements EditorPackPresentations
   private PackRepository repository;
 
   /**
+   * Shadowed {@link PackSelectionModel#selected}.<br>
    * Proposed pack selection in native editor order.
    */
   @Shadow

@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerHandshakePacketListenerImpl.class)
 public abstract class ServerHandshakePacketListenerImplMixin {
   /**
+   * Shadowed {@link ServerHandshakePacketListenerImpl#server}.<br>
    * Server receiving this handshake.
    */
   @Shadow
@@ -25,6 +26,7 @@ public abstract class ServerHandshakePacketListenerImplMixin {
   private MinecraftServer server;
 
   /**
+   * Shadowed {@link ServerHandshakePacketListenerImpl#connection}.<br>
    * Connection whose requested hostname supplies the default asset download URL.
    */
   @Shadow

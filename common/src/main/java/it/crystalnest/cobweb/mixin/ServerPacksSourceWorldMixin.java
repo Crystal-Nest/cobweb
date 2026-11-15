@@ -19,12 +19,12 @@ public abstract class ServerPacksSourceWorldMixin {
    * Records the native saved-world root for later full loading.
    *
    * @param repository native data pack repository.
-   * @param access saved world storage.
+   * @param levelSourceAccess saved world storage.
    * @return original repository.
    */
   @ModifyReturnValue(method = "createPackRepository(Lnet/minecraft/world/level/storage/LevelStorageSource$LevelStorageAccess;)Lnet/minecraft/server/packs/repository/PackRepository;", at = @At("RETURN"))
-  private static PackRepository modifyCreatePackRepository(PackRepository repository, LevelStorageSource.LevelStorageAccess access) {
-    DynamicPackLoads.bindWorld(repository, access.getLevelPath(LevelResource.ROOT));
+  private static PackRepository modifyCreatePackRepository(PackRepository repository, LevelStorageSource.LevelStorageAccess levelSourceAccess) {
+    DynamicPackLoads.bindWorld(repository, levelSourceAccess.getLevelPath(LevelResource.ROOT));
     return repository;
   }
 }

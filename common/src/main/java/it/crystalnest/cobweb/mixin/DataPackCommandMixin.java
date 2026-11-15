@@ -29,14 +29,14 @@ public abstract class DataPackCommandMixin {
    * Rejects disabling always-active Cobweb packs before the native command reports success.
    *
    * @param source command source.
-   * @param pack data pack being disabled.
+   * @param unopened data pack being disabled.
    * @param cir native command callback.
    * @throws CommandSyntaxException if the pack is always active.
    */
   @Inject(method = "disablePack", at = @At("HEAD"))
-  private static void onDisablePack(CommandSourceStack source, Pack pack, CallbackInfoReturnable<Integer> cir) throws CommandSyntaxException {
-    if (DataPackSelection.isAlwaysActive(pack)) {
-      throw ERROR_REQUIRED_PACK.create(pack.getId());
+  private static void onDisablePack(CommandSourceStack source, Pack unopened, CallbackInfoReturnable<Integer> cir) throws CommandSyntaxException {
+    if (DataPackSelection.isAlwaysActive(unopened)) {
+      throw ERROR_REQUIRED_PACK.create(unopened.getId());
     }
   }
 }

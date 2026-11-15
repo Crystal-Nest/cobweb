@@ -26,20 +26,19 @@ public abstract class ReloadableServerResourcesMixin {
    * Wraps the method {@link ReloadableServerResources#loadResources}.<br>
    * Exposes the completed world context and staged tags before the native reader.
    *
-   * @param manager selected resources.
-   * @param layers world and dimension registry layers.
-   * @param tags prepared tags.
-   * @param features enabled features.
-   * @param commands command selection.
-   * @param permissions function permissions.
-   * @param background native preparation executor.
-   * @param main native application executor.
+   * @param resourceManager selected resources.
+   * @param contextLayers world and dimension registry layers.
+   * @param updatedContextTags prepared tags.
+   * @param enabledFeatures enabled features.
+   * @param commandSelection command selection.
+   * @param functionCompilationPermissions function permissions.
+   * @param backgroundExecutor native preparation executor.
+   * @param mainThreadExecutor native application executor.
    * @param original native loading operation.
    * @return native reload gated on generated resources.
    */
   @WrapMethod(method = "loadResources")
-  private static CompletableFuture<ReloadableServerResources> wrapLoadResources(ResourceManager manager, LayeredRegistryAccess<RegistryLayer> layers, List<Registry.PendingTags<?>> tags, FeatureFlagSet features,
-    Commands.CommandSelection commands, PermissionSet permissions, Executor background, Executor main, Operation<CompletableFuture<ReloadableServerResources>> original) {
-    return DynamicPackLoads.beforeReloadable(manager, layers, tags).thenCompose(ignored -> original.call(manager, layers, tags, features, commands, permissions, background, main));
+  private static CompletableFuture<ReloadableServerResources> wrapLoadResources(ResourceManager resourceManager, LayeredRegistryAccess<RegistryLayer> contextLayers, List<Registry.PendingTags<?>> updatedContextTags, FeatureFlagSet enabledFeatures, Commands.CommandSelection commandSelection, PermissionSet functionCompilationPermissions, Executor backgroundExecutor, Executor mainThreadExecutor, Operation<CompletableFuture<ReloadableServerResources>> original) {
+    return DynamicPackLoads.beforeReloadable(resourceManager, contextLayers, updatedContextTags).thenCompose(ignored -> original.call(resourceManager, contextLayers, updatedContextTags, enabledFeatures, commandSelection, functionCompilationPermissions, backgroundExecutor, mainThreadExecutor));
   }
 }

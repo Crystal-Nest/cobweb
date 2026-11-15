@@ -28,7 +28,7 @@ public abstract class WorldLoaderMixin {
    * Associates one generation attempt with the selected stack and cleans up early failures.
    *
    * @param instance future opening the selected packs.
-   * @param continuation native full-load continuation.
+   * @param fn native full-load continuation.
    * @param executor native background executor.
    * @param original original future composition.
    * @param config world-loading configuration.
@@ -36,9 +36,7 @@ public abstract class WorldLoaderMixin {
    * @return native load gated on generated content.
    */
   @WrapOperation(method = "load", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;thenComposeAsync(Ljava/util/function/Function;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
-  private static <R> CompletableFuture<R> wrapThenComposeAsync(CompletableFuture<Pair<WorldDataConfiguration, CloseableResourceManager>> instance,
-    Function<Pair<WorldDataConfiguration, CloseableResourceManager>, CompletableFuture<R>> continuation, Executor executor, Operation<CompletableFuture<R>> original,
-    @Local(argsOnly = true) WorldLoader.InitConfig config) {
+  private static <R> CompletableFuture<R> wrapThenComposeAsync(CompletableFuture<Pair<WorldDataConfiguration, CloseableResourceManager>> instance, Function<Pair<WorldDataConfiguration, CloseableResourceManager>, CompletableFuture<R>> fn, Executor executor, Operation<CompletableFuture<R>> original, @Local(argsOnly = true) WorldLoader.InitConfig config) {
     var tracker = new DynamicPackLoads.AttemptTracker();
     CompletableFuture<R> result = original.call(instance, (Function<Pair<WorldDataConfiguration, CloseableResourceManager>, CompletableFuture<R>>) opened -> {
       var manager = opened.getSecond();
@@ -51,7 +49,7 @@ public abstract class WorldLoaderMixin {
         return CompletableFuture.failedFuture(failure);
       }
       tracker.bind(attempt);
-      return attempt.begin(RegistryLayer.createRegistryAccess().getLayer(RegistryLayer.STATIC), opened.getFirst().enabledFeatures()).thenCompose(ignored -> continuation.apply(opened)).whenComplete((value, failure) -> {
+      return attempt.begin(RegistryLayer.createRegistryAccess().getLayer(RegistryLayer.STATIC), opened.getFirst().enabledFeatures()).thenCompose(ignored -> fn.apply(opened)).whenComplete((value, failure) -> {
         if (failure != null && attempt.hasRegisteredPacks() && !attempt.closed()) {
           DynamicPackLoads.closeAfterFailure(manager::close, failure);
         }

@@ -20,13 +20,13 @@ public abstract class ReloadCommandMixin {
    * Injects at the return of the method {@link ReloadCommand#discoverNewPacks(PackRepository, WorldData, Collection)}.<br>
    * Applies activation and initial placement to newly discovered Cobweb data packs.
    *
-   * @param repository reloaded native repository.
-   * @param world current world data.
-   * @param previous selection before discovery.
+   * @param packRepository reloaded native repository.
+   * @param worldData current world data.
+   * @param currentPacks selection before discovery.
    * @param cir callback containing the native discovered selection.
    */
   @Inject(method = "discoverNewPacks", at = @At("RETURN"), cancellable = true)
-  private static void onDiscoverNewPacks(PackRepository repository, WorldData world, Collection<String> previous, CallbackInfoReturnable<Collection<String>> cir) {
-    cir.setReturnValue(DataPackSelection.discover(repository, world, previous, cir.getReturnValue()));
+  private static void onDiscoverNewPacks(PackRepository packRepository, WorldData worldData, Collection<String> currentPacks, CallbackInfoReturnable<Collection<String>> cir) {
+    cir.setReturnValue(DataPackSelection.discover(packRepository, worldData, currentPacks, cir.getReturnValue()));
   }
 }
