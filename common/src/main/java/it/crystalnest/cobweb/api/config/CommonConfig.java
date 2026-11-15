@@ -11,8 +11,6 @@ import java.util.function.Function;
  */
 public abstract class CommonConfig extends CobwebConfig {
   /**
-   * Defines a common configuration and builds its specification with the supplied builder.
-   *
    * @param builder configuration builder.
    */
   protected CommonConfig(ModConfigSpec.Builder builder) {

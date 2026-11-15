@@ -12,6 +12,9 @@ import java.nio.charset.StandardCharsets;
  * Encodes shared file contents and bounds reads before they enter temporary storage.
  */
 final class PackIO {
+  /**
+   * Optional byte limit propagated through native stream wrappers for a bounded read.
+   */
   private static final ScopedValue<Long> CAPTURE_LIMIT = ScopedValue.newInstance();
 
   private PackIO() {}
@@ -28,10 +31,22 @@ final class PackIO {
     return ScopedValue.where(CAPTURE_LIMIT, Math.min(captureLimit(), maxBytes)).call(resource::open);
   }
 
+  /**
+   * Returns the limit applied to the current synchronous read.
+   *
+   * @return byte limit, or {@link Long#MAX_VALUE} for an unbounded read.
+   */
   static long captureLimit() {
     return CAPTURE_LIMIT.orElse(Long.MAX_VALUE);
   }
 
+  /**
+   * Checks a captured stream against the read's maximum size.
+   *
+   * @param input stream whose captured size is checked.
+   * @param maxBytes maximum permitted number of bytes.
+   * @throws IOException if the captured resource exceeds the limit or its size cannot be read.
+   */
   static void checkLimit(InputStream input, long maxBytes) throws IOException {
     if (input instanceof StageResourceSnapshots.SnapshotStream snapshot) {
       snapshot.initialize(maxBytes);
@@ -40,10 +55,24 @@ final class PackIO {
     }
   }
 
+  /**
+   * Serializes a JSON value as UTF-8.
+   *
+   * @param value value to encode.
+   * @return encoded JSON bytes.
+   */
   static byte[] json(JsonElement value) {
     return value.toString().getBytes(StandardCharsets.UTF_8);
   }
 
+  /**
+   * Copies complete contents while enforcing the maximum byte count.
+   *
+   * @param input source stream.
+   * @param output destination stream.
+   * @param limit maximum number of bytes to copy.
+   * @throws IOException if copying fails or the limit is exceeded.
+   */
   static void copy(InputStream input, OutputStream output, long limit) throws IOException {
     byte[] buffer = new byte[8192];
     long remaining = limit;

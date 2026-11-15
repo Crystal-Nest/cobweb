@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.Codec;
@@ -33,12 +34,25 @@ import java.util.function.Consumer;
 
 /**
  * Receives complete resource contributions for one callback.
+ * A submission is encoded or copied before its method returns. Changes to caller-owned values after submission leave those bytes intact.
+ * Cobweb merges a pack's submissions after its work for the stage completes. Access ends when the callback finishes, including its returned completion stage for asynchronous callbacks.
+ * An invalid destination, undeclared namespace or missed native output deadline causes submission to throw.
  */
 public final class GenerationOutput {
+  /**
+   * The callback context that determines which writes are allowed.
+   */
   private final GenerationContext context;
 
+  /**
+   * Accepts contributions staged by the owning callback.
+   */
   private final Consumer<PackContribution> submit;
 
+  /**
+   * @param context active callback context.
+   * @param submit acceptor for complete contributions.
+   */
   GenerationOutput(GenerationContext context, Consumer<PackContribution> submit) {
     this.context = context;
     this.submit = submit;
@@ -126,7 +140,7 @@ public final class GenerationOutput {
     context.checkAssets();
     var id = event.withPath("sounds.json");
     try {
-      submit(PackContribution.member(id, event.getPath(), jsonFile(definition.toJson())));
+      submit(PackContribution.member(id, event.getPath(), jsonFile(encodeSoundDefinition(definition))));
     } catch (IOException failure) {
       throw new UncheckedIOException("Unable to submit sound event " + event, failure);
     }
@@ -138,7 +152,7 @@ public final class GenerationOutput {
    *
    * @param texture texture identifier without its directory and extension.
    * @param png writer of complete PNG bytes.
-   * @param metadata optional sidecar JSON object.
+   * @param metadata complete sidecar JSON object, or {@code null} to omit it.
    * @throws IOException if the writer or metadata encoding fails.
    */
   public void putSprite(Identifier texture, FileWriter png, @Nullable JsonObject metadata) throws IOException {
@@ -174,8 +188,9 @@ public final class GenerationOutput {
    * Submits a file after a synchronous writer completes successfully.
    *
    * @param id namespaced path, including the extension.
-   * @param writer writes the complete file.
-   * @throws IOException if the writer fails.
+   * @param writer writes the complete file before returning.
+   * @throws IOException if writing the file fails.
+   * @throws IllegalStateException if the callback has ended.
    */
   public void write(Identifier id, FileWriter writer) throws IOException {
     context.checkOpen();
@@ -209,6 +224,15 @@ public final class GenerationOutput {
     copy(id, source, withMetadata, Long.MAX_VALUE);
   }
 
+  /**
+   * Copies the resolved file with a size limit and optionally groups its effective metadata with the copy.
+   *
+   * @param id destination file identifier.
+   * @param source resolved file to copy.
+   * @param withMetadata whether the copy owns its resolved file-backed metadata.
+   * @param maxBytes maximum number of input bytes to copy.
+   * @throws IOException if the file cannot be copied or exceeds the limit.
+   */
   void copy(Identifier id, GenerationResources.File source, boolean withMetadata, long maxBytes) throws IOException {
     context.checkOpen();
     FileWriter writer = stream -> {
@@ -223,6 +247,14 @@ public final class GenerationOutput {
     }
   }
 
+  /**
+   * Writes a complete resource and submits it with its optional companion in one operation.
+   *
+   * @param id destination file identifier.
+   * @param writer writer of the complete main file.
+   * @param metadata complete sidecar object, or {@code null} to omit it.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private void writeWithMetadata(Identifier id, FileWriter writer, @Nullable JsonObject metadata) throws IOException {
     var file = PackFile.write(writer);
     PackFile companion;
@@ -235,10 +267,52 @@ public final class GenerationOutput {
     submit(PackContribution.withMetadata(id, file, companion));
   }
 
+  /**
+   * Encodes one sound event for its namespace's {@code sounds.json}.
+   *
+   * @param definition complete sound event definition.
+   * @return JSON object for the complete sound event.
+   */
+  private static JsonObject encodeSoundDefinition(SoundDefinition definition) {
+    var json = new JsonObject();
+    var subtitle = definition.subtitle();
+    if (subtitle != null) {
+      json.addProperty("subtitle", subtitle);
+    }
+    json.addProperty("replace", definition.replace());
+    var entries = new JsonArray();
+    for (var sound : definition.sounds()) {
+      var entry = new JsonObject();
+      entry.addProperty("name", sound.id().toString());
+      entry.addProperty("type", sound.event() ? "event" : "file");
+      entry.addProperty("volume", sound.volume());
+      entry.addProperty("pitch", sound.pitch());
+      entry.addProperty("weight", sound.weight());
+      entry.addProperty("stream", sound.stream());
+      entry.addProperty("preload", sound.preload());
+      entry.addProperty("attenuation_distance", sound.attenuationDistance());
+      entries.add(entry);
+    }
+    json.add("sounds", entries);
+    return json;
+  }
+
+  /**
+   * Serializes a complete JSON value into owned file backing.
+   *
+   * @param json complete JSON value.
+   * @return backing for the encoded UTF-8 JSON.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static PackFile jsonFile(JsonElement json) throws IOException {
     return PackFile.write(stream -> stream.write(PackIO.json(json)));
   }
 
+  /**
+   * Transfers one completed contribution or releases it if submission fails.
+   *
+   * @param contribution complete contribution whose backing is transferred.
+   */
   private void submit(PackContribution contribution) {
     try {
       context.checkOpen();
@@ -299,7 +373,7 @@ public final class GenerationOutput {
     if (kind.deadline().type() != context.phase().type() || context.phase().ordinal() > kind.deadline().ordinal()) {
       throw new IllegalArgumentException("Resource kind " + kind.directory() + " cannot be written in " + context.phase());
     }
-    putEncoded(kind.file(id), kind.codec(), value);
+    putEncoded(PackPaths.jsonFile(kind.directory(), id), kind.codec(), value);
   }
 
   /**
@@ -353,8 +427,14 @@ public final class GenerationOutput {
    * Submits complete tags and explicit additions to this pack's tag files.
    */
   public final class Tags {
+    /**
+     * Converts typed identifiers to the corresponding native file path.
+     */
     private final FileToIdConverter paths;
 
+    /**
+     * @param paths converter from tag identifiers to tag file paths.
+     */
     private Tags(FileToIdConverter paths) {
       this.paths = paths;
     }
@@ -394,6 +474,12 @@ public final class GenerationOutput {
     }
   }
 
+  /**
+   * Describes entries to append to this pack's tag file.
+   *
+   * @param entries native tag entries to append.
+   * @param replace native replace flag, or {@code null} to retain the current flag.
+   */
   record TagAddition(List<TagEntry> entries, @Nullable Boolean replace) {}
 
   /**
@@ -404,7 +490,7 @@ public final class GenerationOutput {
     /**
      * Writes file contents synchronously.
      *
-     * @param stream output stream.
+     * @param stream Cobweb-owned output stream, valid for the duration of this call.
      * @throws IOException if writing fails.
      */
     void write(OutputStream stream) throws IOException;
@@ -416,10 +502,20 @@ public final class GenerationOutput {
    * @param <T> entry type.
    */
   public final class JsonEntries<T> {
+    /**
+     * Converts typed identifiers to the corresponding native file path.
+     */
     private final FileToIdConverter paths;
 
+    /**
+     * Codec used for complete entries in this resource family.
+     */
     private final Codec<T> codec;
 
+    /**
+     * @param paths converter from entry identifiers to JSON file paths.
+     * @param codec codec for complete entries.
+     */
     private JsonEntries(FileToIdConverter paths, Codec<T> codec) {
       this.paths = paths;
       this.codec = codec;

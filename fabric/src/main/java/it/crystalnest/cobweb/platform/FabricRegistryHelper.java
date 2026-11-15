@@ -134,8 +134,6 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     private final String namespace;
 
     /**
-     * Creates a register backed by the native registry with the supplied key.
-     *
      * @param registryKey Minecraft {@link Registry} key.
      * @param namespace {@link #namespace}.
      */
@@ -182,8 +180,6 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      */
     public static final class Items extends DeferredRegister<Item> implements CobwebRegister.Items {
       /**
-       * Creates an item register for the supplied namespace.
-       *
        * @param namespace {@link #namespace}.
        */
       private Items(String namespace) {
@@ -196,8 +192,6 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      */
     public static final class Blocks extends DeferredRegister<Block> implements CobwebRegister.Blocks {
       /**
-       * Creates a block register for the supplied namespace.
-       *
        * @param namespace {@link #namespace}.
        */
       private Blocks(String namespace) {
@@ -209,6 +203,9 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      * Specialized register for entity types.
      */
     public static final class Entities extends DeferredRegister<EntityType<?>> implements CobwebRegister.Entities {
+      /**
+       * @param namespace namespace of entries declared through this register.
+       */
       private Entities(String namespace) {
         super(Registries.ENTITY_TYPE, namespace);
       }
@@ -218,6 +215,9 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      * Specialized register for potions.
      */
     public static final class Potions extends DeferredRegister<Potion> implements CobwebRegister.Potions {
+      /**
+       * @param namespace namespace of entries declared through this register.
+       */
       private Potions(String namespace) {
         super(Registries.POTION, namespace);
       }
@@ -227,6 +227,9 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      * Specialized register for creative mode tabs.
      */
     public static final class CreativeModeTabs extends DeferredRegister<CreativeModeTab> implements CobwebRegister.CreativeModeTabs {
+      /**
+       * @param namespace namespace of entries declared through this register.
+       */
       private CreativeModeTabs(String namespace) {
         super(Registries.CREATIVE_MODE_TAB, namespace);
       }
@@ -236,6 +239,10 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
      * Specialized register for data component types.
      */
     public static final class DataComponents extends DeferredRegister<DataComponentType<?>> implements CobwebRegister.DataComponents {
+      /**
+       * @param registryKey native data component registry key.
+       * @param namespace namespace of entries declared through this register.
+       */
       private DataComponents(ResourceKey<Registry<DataComponentType<?>>> registryKey, String namespace) {
         super(registryKey, namespace);
       }
@@ -248,6 +255,9 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
    * @param <T> game object type.
    */
   private static final class Entry<T> extends CobwebEntry<T> {
+    /**
+     * @param holder native reference holder for the registered entry.
+     */
     private Entry(Holder.Reference<T> holder) {
       super(holder);
     }

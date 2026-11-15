@@ -28,6 +28,9 @@ public final class DataPack extends ResourcePack {
    * Configures a server data pack.
    */
   public static final class Registrar extends ResourcePack.Registrar<DataPack, Registrar> {
+    /**
+     * @param id logical identifier of the data pack to register.
+     */
     private Registrar(Identifier id) {
       super(id, PackType.SERVER_DATA);
     }

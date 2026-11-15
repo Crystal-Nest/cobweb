@@ -5,6 +5,7 @@ import it.crystalnest.cobweb.api.pack.generation.output.ResourceKind;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.locale.DeprecatedTranslationsInfo;
+import net.minecraft.locale.Language;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 
@@ -41,9 +42,16 @@ public final class AssetGenerationResources {
    * @param language language code such as {@code en_us}.
    * @return immutable map of translations in the requested namespace, empty when the stack is absent.
    * @throws IOException if a source file cannot be read.
+   * @throws IllegalStateException if the callback has ended.
    */
   public Map<String, String> translations(String namespace, String language) throws IOException {
-    return resources.translations(namespace, language);
+    Map<String, String> translations = new LinkedHashMap<>();
+    for (var file : resources.stack(Identifier.fromNamespaceAndPath(namespace, "lang/" + language + ".json"))) {
+      try (var input = file.open()) {
+        Language.loadFromJson(input, translations::put);
+      }
+    }
+    return Map.copyOf(translations);
   }
 
   /**
@@ -52,6 +60,7 @@ public final class AssetGenerationResources {
    * @param languages language codes ordered from fallback to most preferred.
    * @return immutable merged translations with Minecraft's deprecated-key rules applied.
    * @throws IOException if a source file cannot be read.
+   * @throws IllegalStateException if the callback has ended.
    */
   public Map<String, String> translations(List<String> languages) throws IOException {
     Map<String, String> effective = new LinkedHashMap<>();

@@ -23,7 +23,7 @@ public sealed interface Input permits CapturedInput, Input.Native {
   Input COMPLETE_ASSETS = new Native(Phase.CLIENT_RESOURCES, Phase.CLIENT_RESOURCES, true);
 
   /**
-   * Prepared static tag membership and native references on full loads.
+   * Prepared static tag membership and native references. Available after static tag preparation on a full load and from world context on reload.
    */
   Input STATIC_TAGS = new Native(Phase.STATIC_TAGS_READY, Phase.WORLD_CONTEXT_READY, false);
 
@@ -40,7 +40,7 @@ public sealed interface Input permits CapturedInput, Input.Native {
   /**
    * Returns the earliest phase that provides the native capability.
    *
-   * @return earliest phase; captured values are available from the start on either side.
+   * @return earliest phase on a full load for native inputs. Captured values are available from the start on either side.
    */
   Phase readiness();
 
@@ -71,7 +71,7 @@ public sealed interface Input permits CapturedInput, Input.Native {
   }
 
   /**
-   * Defines a capability available from a native phase.
+   * Defines the native readiness window used to schedule a callback for each load kind.
    *
    * @param readiness earliest compatible phase in a full load.
    * @param reloadReadiness earliest compatible phase in a reload.

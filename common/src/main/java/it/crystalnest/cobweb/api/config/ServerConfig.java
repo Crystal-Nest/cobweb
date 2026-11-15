@@ -11,8 +11,6 @@ import java.util.function.Function;
  */
 public abstract class ServerConfig extends CobwebConfig {
   /**
-   * Defines a server configuration and builds its specification with the supplied builder.
-   *
    * @param builder configuration builder.
    */
   protected ServerConfig(ModConfigSpec.Builder builder) {

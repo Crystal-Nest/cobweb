@@ -17,10 +17,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ServerHandshakePacketListenerImpl.class)
 public abstract class ServerHandshakePacketListenerImplMixin {
+  /**
+   * Server receiving this handshake.
+   */
   @Shadow
   @Final
   private MinecraftServer server;
 
+  /**
+   * Connection whose requested hostname supplies the default asset download URL.
+   */
   @Shadow
   @Final
   private Connection connection;

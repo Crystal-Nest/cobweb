@@ -47,43 +47,97 @@ import java.util.zip.ZipFile;
  * Stores one validated contribution batch per cached callback or file rule and cache scope.
  */
 final class CallbackCache {
+  /**
+   * Binary format version for persisted contribution batches.
+   */
   private static final int FORMAT = 4;
 
+  /**
+   * Maximum number of entries accepted in a record count.
+   */
   private static final int ENTRY_LIMIT = 32_768;
 
+  /**
+   * Maximum byte size for one persisted record.
+   */
   private static final long RECORD_LIMIT = 512L * 1024 * 1024;
 
+  /**
+   * Maximum aggregate size of records retained in one cache directory.
+   */
   private static final long SCOPE_LIMIT = 1024L * 1024 * 1024;
 
+  /**
+   * Maximum byte size of in-process baselines.
+   */
   private static final long LIVE_LIMIT = 128L * 1024 * 1024;
 
+  /**
+   * Maximum number of in-process baselines.
+   */
   private static final int LIVE_ENTRIES = 128;
 
+  /**
+   * Minimum interval between refreshes of a record's access timestamp.
+   */
   private static final long ACCESS_REFRESH_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
+  /**
+   * Pattern for temporary record files created by the cache writer.
+   */
   private static final Pattern TEMP_RECORD = Pattern.compile("record-([0-9]{1,18})-[0-9]+\\.tmp");
 
+  /**
+   * Process-local identifier used by unkeyed Java callbacks.
+   */
   private static final String SESSION = UUID.randomUUID().toString();
 
+  /**
+   * Latest applied persistent revision by record path, guarded by its monitor.
+   */
   private static final Map<Path, String> LATEST = new HashMap<>();
 
+  /**
+   * Access-ordered applied batches with retained backing, guarded by the {@link #LATEST} monitor.
+   */
   private static final Map<Path, Batch> BASELINES = new LinkedHashMap<>(16, 0.75F, true);
 
+  /**
+   * Estimated total size of retained baselines, guarded by the {@link #LATEST} monitor.
+   */
   private static long baselineBytes;
 
+  /**
+   * Single bounded background worker for cache persistence.
+   */
   private static final ThreadPoolExecutor WRITER = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(32), job -> {
     var thread = new Thread(job, "Cobweb Pack Cache");
     thread.setDaemon(true);
     return thread;
   });
 
+  /**
+   * Whether the persistent environment fingerprint has been attempted.
+   */
   private static boolean environmentChecked;
 
+  /**
+   * Cached fingerprint of the loaded game, platform and mod artifacts, when available.
+   */
   @Nullable
   private static String environment;
 
   private CallbackCache() {}
 
+  /**
+   * Builds a cache address from the native pack and callback or rule identity.
+   *
+   * @param root physical cache scope.
+   * @param pack owning pack.
+   * @param task generation task.
+   * @param policy Java cache policy, or {@code null} for a file rule.
+   * @return normalized absolute record path.
+   */
   static Path address(Path root, GeneratedPackResources pack, Task task, @Nullable CallbackRegistration.Policy policy) {
     var digest = CacheObservations.digest();
     CacheObservations.text(digest, pack.type.toString());
@@ -97,6 +151,16 @@ final class CallbackCache {
     return root.resolve(CacheObservations.hex(digest) + ".packcache").toAbsolutePath().normalize();
   }
 
+  /**
+   * Hashes the task contract, execution environment and declared captured inputs.
+   *
+   * @param task generation task.
+   * @param context active callback context.
+   * @param values captured input values.
+   * @param policy Java cache policy, or {@code null} for a file rule.
+   * @param persistent whether the proof should survive a process restart.
+   * @return fingerprint, or {@code null} when an input cannot be verified.
+   */
   @Nullable
   static String fingerprint(Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, @Nullable CallbackRegistration.Policy policy, boolean persistent) {
     var digest = CacheObservations.digest();
@@ -137,6 +201,13 @@ final class CallbackCache {
     return CacheObservations.hex(digest);
   }
 
+  /**
+   * Hashes a supported Java value with its type information.
+   *
+   * @param digest digest to update.
+   * @param value captured or computed value to hash.
+   * @return whether the value has a supported representation.
+   */
   private static boolean value(MessageDigest digest, @Nullable Object value) {
     if (value instanceof Enum<?> constant) {
       CacheObservations.text(digest, constant.getDeclaringClass().getName());
@@ -152,6 +223,11 @@ final class CallbackCache {
     return false;
   }
 
+  /**
+   * Computes or retrieves the persistent cache environment fingerprint.
+   *
+   * @return hexadecimal fingerprint, or {@code null} when no stable proof is available.
+   */
   @Nullable
   private static synchronized String environment() {
     if (!environmentChecked) {
@@ -180,6 +256,13 @@ final class CallbackCache {
     return environment;
   }
 
+  /**
+   * Adds the stable file data from a loaded artifact to the environment fingerprint.
+   *
+   * @param digest digest to update.
+   * @param path path to the mod or game artifact.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void appendArtifact(MessageDigest digest, Path path) throws IOException {
     if (Files.isDirectory(path)) {
       try (var files = Files.walk(path)) {
@@ -203,10 +286,24 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Checks whether an artifact entry is relevant to code fingerprinting.
+   *
+   * @param name relative artifact entry name.
+   * @return whether the entry contributes to the environment fingerprint.
+   */
   private static boolean codeFile(String name) {
     return name.endsWith(".class") || name.endsWith(".jar") || name.endsWith(".mixins.json") || name.endsWith(".accesswidener") || name.equals("fabric.mod.json") || name.startsWith("META-INF/");
   }
 
+  /**
+   * Adds the name and bytes of an artifact entry to a fingerprint.
+   *
+   * @param digest digest to update.
+   * @param name relative artifact entry name.
+   * @param bytes contents of the entry.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void append(MessageDigest digest, String name, InputStream bytes) throws IOException {
     CacheObservations.text(digest, name);
     var content = CacheObservations.digest();
@@ -214,6 +311,14 @@ final class CallbackCache {
     digest.update(content.digest());
   }
 
+  /**
+   * Attempts to reuse a retained or persisted batch after verifying it against the current view.
+   *
+   * @param file cache record path.
+   * @param fingerprint expected callback fingerprint.
+   * @param verifier tracker used to verify native observations.
+   * @return retained batch, or {@code null} when no matching record is usable.
+   */
   @Nullable
   static Batch read(Path file, String fingerprint, CacheObservations verifier) {
     Batch current;
@@ -316,6 +421,13 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Reads and validates a bounded record count.
+   *
+   * @param input cache record stream.
+   * @return validated entry count.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static int count(DataInputStream input) throws IOException {
     int count = input.readInt();
     if (count < 0 || count > ENTRY_LIMIT) {
@@ -324,6 +436,13 @@ final class CallbackCache {
     return count;
   }
 
+  /**
+   * Reads one length-prefixed file into managed backing.
+   *
+   * @param input cache record stream.
+   * @return file with one owned lease.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static PackFile readFile(DataInputStream input) throws IOException {
     long size = input.readLong();
     if (size < 0 || size > RECORD_LIMIT) {
@@ -332,6 +451,14 @@ final class CallbackCache {
     return PackFile.write(stream -> copy(input, stream, size));
   }
 
+  /**
+   * Copies exactly the declared number of bytes from a cache record.
+   *
+   * @param source record stream.
+   * @param output destination file stream.
+   * @param size declared byte count.
+   * @throws IOException if the record is truncated or cannot be copied.
+   */
   private static void copy(InputStream source, OutputStream output, long size) throws IOException {
     byte[] buffer = new byte[8192];
     for (long remaining = size; remaining > 0;) {
@@ -344,6 +471,14 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Updates the latest successfully applied baseline and schedules any persistent work.
+   *
+   * @param file cache record path.
+   * @param batch validated batch, or {@code null} when the applied result cannot be cached.
+   * @param hit whether this blob was already reused from cache.
+   * @param persistent whether the cache identity persists across launches.
+   */
   static void apply(Path file, @Nullable Batch batch, boolean hit, boolean persistent) {
     String revision = batch == null ? "" : batch.revision();
     synchronized (LATEST) {
@@ -400,6 +535,13 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Refreshes the access time of the matching persisted revision.
+   *
+   * @param file cache record path.
+   * @param revision expected applied revision.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void touch(Path file, String revision) throws IOException {
     if (!Files.isRegularFile(file)) {
       return;
@@ -416,6 +558,11 @@ final class CallbackCache {
     Files.setLastModifiedTime(file, FileTime.fromMillis(now));
   }
 
+  /**
+   * Drops an in-process baseline and releases its owned contributions.
+   *
+   * @param file cache record path.
+   */
   private static void forget(Path file) {
     var old = BASELINES.remove(file);
     if (old != null) {
@@ -424,6 +571,13 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Writes a verified batch through a temporary record and replaces the persisted revision.
+   *
+   * @param file cache record path.
+   * @param batch applied contribution batch to serialize.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void write(Path file, Batch batch) throws IOException {
     if (batch.bytes() > RECORD_LIMIT) {
       return;
@@ -494,6 +648,13 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Writes a native observation address to a cache record.
+   *
+   * @param output cache record stream.
+   * @param request observed query or file address.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void writeRequest(DataOutputStream output, CacheObservations.Request request) throws IOException {
     output.writeUTF(request.kind().name());
     if (request.file() == null) {
@@ -510,6 +671,13 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Decodes a native observation address from a cache record.
+   *
+   * @param input cache record stream.
+   * @return observation address.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static CacheObservations.Request readRequest(DataInputStream input) throws IOException {
     var kind = CacheObservations.Kind.valueOf(input.readUTF());
     if (kind != CacheObservations.Kind.CONTENT && kind != CacheObservations.Kind.METADATA) {
@@ -522,6 +690,13 @@ final class CallbackCache {
     return new CacheObservations.Request(kind, new CacheObservations.FileAddress(id, directory, index, maxBytes));
   }
 
+  /**
+   * Writes a length-prefixed UTF-8 string to a cache record.
+   *
+   * @param output cache record stream.
+   * @param value string to encode.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void writeText(DataOutputStream output, String value) throws IOException {
     byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     if (bytes.length > RECORD_LIMIT) {
@@ -531,6 +706,13 @@ final class CallbackCache {
     output.write(bytes);
   }
 
+  /**
+   * Reads a bounded length-prefixed UTF-8 string from a cache record.
+   *
+   * @param input cache record stream.
+   * @return decoded string.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static String readText(DataInputStream input) throws IOException {
     int length = input.readInt();
     if (length < 0 || length > RECORD_LIMIT) {
@@ -543,6 +725,13 @@ final class CallbackCache {
     return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
   }
 
+  /**
+   * Writes a file's length and immutable bytes to a cache record.
+   *
+   * @param output cache record stream.
+   * @param file managed file to serialize.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void writeFile(DataOutputStream output, PackFile file) throws IOException {
     output.writeLong(file.size());
     try (var bytes = file.open()) {
@@ -550,6 +739,12 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Evicts old records to keep a cache directory within its size limit.
+   *
+   * @param directory physical cache scope.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void evict(Path directory) throws IOException {
     try (var paths = Files.list(directory)) {
       Map<Path, Long> dates = new HashMap<>();
@@ -578,7 +773,20 @@ final class CallbackCache {
     }
   }
 
+  /**
+   * Stores one contribution batch and the proofs needed to reuse it.
+   *
+   * @param revision unique revision of the applied batch.
+   * @param fingerprint callback and environment fingerprint.
+   * @param observations native observations to verify.
+   * @param values complete generated contributions.
+   */
   record Batch(String revision, String fingerprint, Map<CacheObservations.Request, String> observations, List<PackContribution> values) {
+    /**
+     * Returns the estimated size of the stored contributions.
+     *
+     * @return size in bytes.
+     */
     long bytes() {
       return values.stream().mapToLong(PackContribution::bytes).sum();
     }

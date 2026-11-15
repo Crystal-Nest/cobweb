@@ -2,14 +2,13 @@ package it.crystalnest.cobweb.api.pack.generation.output;
 
 import com.mojang.serialization.Codec;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
-import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Objects;
 
 /**
  * Defines the JSON path, codec and native loading contract for a custom resource family.
+ * The directory must be a nonempty relative resource path without empty, {@code .} or {@code ..} components.
  *
  * @param directory directory within a resource namespace.
  * @param codec codec for complete definitions.
@@ -19,13 +18,10 @@ import java.util.Objects;
  */
 public record ResourceKind<T>(String directory, Codec<T> codec, ResourceLifetime lifetime, Phase deadline) {
   /**
-   * Creates a reusable native scheduling and JSON path contract.
-   *
    * @param directory directory within a resource namespace.
    * @param codec codec for complete definitions.
    * @param lifetime lifetime of generated definitions.
    * @param deadline last compatible generation phase.
-   * @throws IllegalArgumentException if the resource directory is invalid.
    */
   public ResourceKind {
     Objects.requireNonNull(codec);
@@ -50,6 +46,7 @@ public record ResourceKind<T>(String directory, Codec<T> codec, ResourceLifetime
    * @param deadline last phase compatible with the custom reader.
    * @param <T> definition type.
    * @return custom resource contract.
+   * @throws IllegalArgumentException if the resource directory is invalid.
    */
   public static <T> ResourceKind<T> json(String directory, Codec<T> codec, ResourceLifetime lifetime, Phase deadline) {
     return new ResourceKind<>(directory, codec, lifetime, deadline);
@@ -62,16 +59,5 @@ public record ResourceKind<T>(String directory, Codec<T> codec, ResourceLifetime
    */
   public Output output() {
     return new Output(deadline, lifetime, null, directory);
-  }
-
-  /**
-   * Resolves an entry ID to the JSON file read and written by generation helpers.
-   *
-   * @param id entry identifier.
-   * @return file identifier within the resource namespace.
-   */
-  @ApiStatus.Internal
-  public Identifier file(Identifier id) {
-    return FileToIdConverter.json(directory).idToFile(id);
   }
 }

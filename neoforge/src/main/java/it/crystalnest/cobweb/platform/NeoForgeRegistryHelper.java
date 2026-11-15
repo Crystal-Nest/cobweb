@@ -162,8 +162,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
     private final String namespace;
 
     /**
-     * Creates a wrapper for a native deferred register with the supplied key and namespace.
-     *
      * @param registryKey {@link DeferredRegister#registryKey}.
      * @param namespace {@link DeferredRegister#namespace}.
      */
@@ -219,8 +217,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      */
     public static final class Items extends Register<Item> implements CobwebRegister.Items {
       /**
-       * Creates an item register for the supplied namespace.
-       *
        * @param namespace {@link DeferredRegister#namespace}.
        */
       private Items(String namespace) {
@@ -233,8 +229,6 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      */
     public static final class Blocks extends Register<Block> implements CobwebRegister.Blocks {
       /**
-       * Creates a block register for the supplied namespace.
-       *
        * @param namespace {@link DeferredRegister#namespace}.
        */
       private Blocks(String namespace) {
@@ -246,6 +240,9 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      * Specialized register for entity types.
      */
     public static final class Entities extends Register<EntityType<?>> implements CobwebRegister.Entities {
+      /**
+       * @param namespace namespace of entries declared through this register.
+       */
       private Entities(String namespace) {
         super(Registries.ENTITY_TYPE, namespace);
       }
@@ -255,6 +252,9 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      * Specialized register for potions.
      */
     public static final class Potions extends Register<Potion> implements CobwebRegister.Potions {
+      /**
+       * @param namespace namespace of entries declared through this register.
+       */
       private Potions(String namespace) {
         super(Registries.POTION, namespace);
       }
@@ -264,6 +264,9 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      * Specialized register for creative mode tabs.
      */
     public static final class CreativeModeTabs extends Register<CreativeModeTab> implements CobwebRegister.CreativeModeTabs {
+      /**
+       * @param namespace namespace of entries declared through this register.
+       */
       private CreativeModeTabs(String namespace) {
         super(Registries.CREATIVE_MODE_TAB, namespace);
       }
@@ -273,6 +276,10 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
      * Specialized register for data component types.
      */
     public static final class DataComponents extends Register<DataComponentType<?>> implements CobwebRegister.DataComponents {
+      /**
+       * @param registryKey native data component registry key.
+       * @param namespace namespace of entries declared through this register.
+       */
       private DataComponents(ResourceKey<Registry<DataComponentType<?>>> registryKey, String namespace) {
         super(registryKey, namespace);
       }
@@ -285,6 +292,9 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
    * @param <T> game object type.
    */
   private static final class Entry<T> extends CobwebEntry<T> {
+    /**
+     * @param holder native reference holder for the registered entry.
+     */
     private Entry(Holder.Reference<T> holder) {
       super(holder);
     }

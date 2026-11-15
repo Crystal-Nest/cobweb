@@ -14,37 +14,23 @@
 
 ## 📝 **Description**
 
-**Cobweb** is a lightweight, modular API designed to simplify Minecraft mod development across multiple loaders.  
-It provides a **Unified Configuration System** and a **Unified Registering System**, both available directly in the common module. These systems help you abstract away the differences between loaders, so you can focus on writing clean, maintainable, and
-reusable code — not boilerplate.
+**Cobweb** is a shared API for Minecraft mods on **Fabric and NeoForge**. It simplifies registration, configuration, and resource-pack creation through APIs available from common code.
 
-Cobweb is the shared modding API used across all **Crystal Nest** projects.  
-📚 Want to dive deeper? Check out the full [Wiki](https://github.com/Crystal-Nest/cobweb/wiki).
+Developed for **Crystal Nest** projects and available to other mod developers.
 
-Players can receive Cobweb's dedicated-server resource packs with an unmodified Minecraft client. Mods that use Cobweb for client features still need it installed on the client.
+📚 See the **[wiki](https://github.com/Crystal-Nest/cobweb/wiki)** for setup and usage.
+
+Mods using Cobweb's client features still require it on the client.
 
 [![Minecraft Storage](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/cobweb/minecraft-storage-banner.png "Minecraft Storage")](https://minecraftstorage.com/mods/cobweb?ref=crystal-nest)
 
 ## ✨ **Features**
 
-Whether you're developing for Fabric or NeoForge, Cobweb helps unify your modding workflow. Use it as the base for your multi-loader projects or as a dependency to simplify your architecture!
-
-### 🔄 Common (All loaders):
-
-* ✅ Unified Configuration System — write your configs once, load them everywhere
-* ✅ Unified Registering System — abstract away loader-specific registration
-* 🔍 Simple API to retrieve in-game IDs
-* 📦 Create and register **dynamic** resource packs *(experimental)*
-* 📦 Create and register **built-in** (static) resource packs
-* 🌀 Dynamic Block Entity for mutable sets of blocks
-
-### Fabric only features:
-
-- 📝 Eased registering system.
-
-### NeoForge only features:
-
-Currently none.
+* ✅ **Registration** - common factories and helpers for game objects, custom registries, and data-pack registries.
+* ✅ **Configuration** - shared access to the loaders' configuration systems.
+* 📦 **Resource packs** - bundled and generated assets or data, using Java callbacks or JSON rules.
+* 📦 **Server asset delivery** - publish resource packs to players using unmodified Minecraft clients.
+* 🔍 **Utilities** - identifier lookups, loader and mod queries, image transformations, and flexible block-entity types.
 
 ## 📜 **License and right of use**
 

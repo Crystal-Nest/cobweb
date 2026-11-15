@@ -9,7 +9,6 @@ import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
-import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderLookup;
@@ -32,35 +31,89 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Scoped, read-only inputs to one generation callback.
+ * Provides read-only inputs to one generation callback.
+ * Resource and native lookup operations are scoped to the callback. For an asynchronous callback, the scope lasts until its returned completion stage finishes.
+ * Read resources through {@link #resources()} and submit changes through {@link GenerationOutput}.
  */
 public final class GenerationContext implements CallbackRegistration.CapturedValues {
+  /**
+   * The callback's stable view of resolved resource files.
+   */
   private final GenerationResources resources;
 
+  /**
+   * The logical ID of the pack that owns the callback.
+   */
   private final Identifier pack;
 
+  /**
+   * The native boundary where the callback runs.
+   */
   private final Phase phase;
 
+  /**
+   * The generation stage inside the current phase.
+   */
   private final Stage stage;
 
+  /**
+   * Whether the native load is a full load or reload.
+   */
   private final LoadKind loadKind;
 
+  /**
+   * Native lookups available at the current boundary.
+   */
   private final HolderLookup.Provider registries;
 
+  /**
+   * The declared Java values captured at the beginning of this load.
+   */
   private final Map<CapturedInput<?>, Object> captured;
 
+  /**
+   * The native prepared tag members available at the current boundary.
+   */
   private final Map<TagKey<?>, List<? extends Holder<?>>> tags;
 
+  /**
+   * Cache observations made by this callback.
+   */
   private final CacheObservations observations;
 
+  /**
+   * The captured pack selection and priority for this load.
+   */
   private final PackQueries packs;
 
+  /**
+   * The feature flags active for this load.
+   */
   private final FeatureFlagSet features;
 
+  /**
+   * Input streams that are still owned by the callback.
+   */
   private final Set<ScopedStream> streams = ConcurrentHashMap.newKeySet();
 
+  /**
+   * Whether scoped inputs can still be used.
+   */
   private volatile boolean open = true;
 
+  /**
+   * @param manager stable native resource view.
+   * @param pack logical ID of the pack that owns the callback.
+   * @param phase current native generation phase.
+   * @param stage stage within the current phase.
+   * @param loadKind full load or reload.
+   * @param registries available registry lookups.
+   * @param captured declared values captured at load start.
+   * @param tags native prepared tag members.
+   * @param observations cache observation tracker.
+   * @param packs pack selection and priority snapshot.
+   * @param features active feature flags.
+   */
   GenerationContext(ResourceManager manager, Identifier pack, Phase phase, Stage stage, LoadKind loadKind, HolderLookup.Provider registries,
     Map<CapturedInput<?>, Object> captured, Map<TagKey<?>, List<? extends Holder<?>>> tags, CacheObservations observations, PackQueries packs, FeatureFlagSet features) {
     resources = new GenerationResources(this, manager, observations);
@@ -114,8 +167,11 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
 
   /**
    * Returns the stable combined resource view for this callback.
+   * The view includes the selected resources, completed earlier stages and completed same-stage output from this pack's generation predecessors.
+   * Minecraft's pack priority still determines which visible file wins.
    *
    * @return selected sources and visible completed generation.
+   * @throws IllegalStateException if the callback has ended.
    */
   public GenerationResources resources() {
     checkOpen();
@@ -147,7 +203,8 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
   /**
    * Returns the native pack observations captured for this load.
    *
-   * @return read-only snapshot of repository selection and priority.
+   * @return read-only snapshot of the requested pack selection and priority for this load.
+   * @throws IllegalStateException if the callback has ended.
    */
   public PackQueries packs() {
     checkOpen();
@@ -162,6 +219,7 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
    * @param <T> value type.
    * @return captured value.
    * @throws IllegalArgumentException if the input was not declared.
+   * @throws IllegalStateException if the callback has ended.
    */
   @SuppressWarnings("unchecked")
   @Override
@@ -174,25 +232,14 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
   }
 
   /**
-   * Looks up a data pack registry in the current native context.
-   *
-   * @param definition registry definition.
-   * @param <T> entry type.
-   * @return native read-only lookup for this phase.
-   */
-  public <T> HolderLookup.RegistryLookup<T> registry(CobwebDataPackRegistry<T> definition) {
-    return registry(definition.key());
-  }
-
-  /**
    * Looks up a native registry by key.
    *
    * @param key native registry key.
    * @param <T> entry type.
    * @return native read-only lookup for this phase.
-   * @throws IllegalStateException if this phase has no lookup for the key.
+   * @throws IllegalStateException if the callback has ended, runs for client assets or this phase has no lookup for the key.
    */
-  public <T> HolderLookup.RegistryLookup<T> registry(ResourceKey<? extends Registry<T>> key) {
+  <T> HolderLookup.RegistryLookup<T> registry(ResourceKey<? extends Registry<T>> key) {
     checkData();
     return registries().lookup(key).orElseThrow(() -> new IllegalStateException("Registry " + key.identifier() + " unavailable in " + phase));
   }
@@ -203,10 +250,10 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
    * @param tag native tag key.
    * @param <T> member type.
    * @return prepared members or an empty list if the prepared tag is absent.
-   * @throws IllegalStateException if native preparation has not completed.
+   * @throws IllegalStateException if the callback has ended, runs for client assets or native tag preparation has not completed.
    */
   @SuppressWarnings("unchecked")
-  public <T> List<Holder<T>> preparedTag(TagKey<T> tag) {
+  <T> List<Holder<T>> preparedTag(TagKey<T> tag) {
     checkData();
     observations.unsupported();
     if (phase == Phase.DATA_RESOURCES || phase == Phase.CLIENT_RESOURCES) {
@@ -215,23 +262,41 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
     return (List<Holder<T>>) (List<?>) tags.getOrDefault(tag, List.of());
   }
 
+  /**
+   * Returns native registry access and disables cache reuse for the callback's untracked registry read.
+   *
+   * @return registry lookups currently available.
+   */
   HolderLookup.Provider registries() {
     checkOpen();
     observations.unsupported();
     return registries;
   }
 
+  /**
+   * Returns the active server feature flags and records the observation for caching.
+   *
+   * @return feature flags for this attempt.
+   */
   FeatureFlagSet features() {
     checkData();
     observe(CacheObservations.Kind.FEATURES, "");
     return features;
   }
 
+  /**
+   * Disables cache reuse when the callback reads an input without a stable fingerprint.
+   */
   void untrackedRead() {
     checkOpen();
     observations.unsupported();
   }
 
+  /**
+   * Returns JSON operations for the current side. On server data, registry lookups through these operations disable cache reuse.
+   *
+   * @return plain client JSON operations or registry-aware server JSON operations.
+   */
   DynamicOps<JsonElement> jsonOps() {
     checkOpen();
     return phase.type() == PackType.CLIENT_RESOURCES ? JsonOps.INSTANCE : RegistryOps.create(JsonOps.INSTANCE, new RegistryOps.RegistryInfoLookup() {
@@ -244,10 +309,23 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
     });
   }
 
+  /**
+   * Records an observable native input for cache validation.
+   *
+   * @param kind kind of observed input.
+   * @param key identifier or directory associated with the observation.
+   */
   void observe(CacheObservations.Kind kind, String key) {
     observations.observe(kind, key);
   }
 
+  /**
+   * Ties an opened stream to the lifetime of this callback.
+   *
+   * @param input already-open input stream to take ownership of.
+   * @return a stream that closes with the callback.
+   * @throws IOException if the input cannot be closed after the callback has ended.
+   */
   synchronized InputStream stream(InputStream input) throws IOException {
     if (!open) {
       input.close();
@@ -258,6 +336,9 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
     return scoped;
   }
 
+  /**
+   * Ends the callback scope and closes any remaining input streams.
+   */
   synchronized void close() {
     open = false;
     for (var stream : streams) {
@@ -269,12 +350,22 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
     }
   }
 
+  /**
+   * Checks that the caller is still inside the callback scope.
+   *
+   * @throws IllegalStateException if the callback has ended.
+   */
   void checkOpen() {
     if (!open) {
       throw new IllegalStateException("Generation callback has ended for " + pack);
     }
   }
 
+  /**
+   * Checks that the callback is active and runs for client resources.
+   *
+   * @throws IllegalStateException if the callback has ended or does not run for client resources.
+   */
   void checkAssets() {
     checkOpen();
     if (phase.type() != PackType.CLIENT_RESOURCES) {
@@ -282,6 +373,11 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
     }
   }
 
+  /**
+   * Checks that the callback is active and runs for server data.
+   *
+   * @throws IllegalStateException if the callback has ended or does not run for server data.
+   */
   void checkData() {
     checkOpen();
     if (phase.type() != PackType.SERVER_DATA) {
@@ -289,9 +385,18 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
     }
   }
 
+  /**
+   * Closes a resource stream with its owning callback and rejects subsequent reads.
+   */
   private final class ScopedStream extends FilterInputStream {
+    /**
+     * Whether this stream's underlying resource has been closed.
+     */
     private volatile boolean closed;
 
+    /**
+     * @param input resource stream owned by the wrapper.
+     */
     private ScopedStream(InputStream input) {
       super(input);
     }
@@ -335,6 +440,11 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
       }
     }
 
+    /**
+     * Checks that the stream and its owning callback are still open.
+     *
+     * @throws IOException if the stream or callback has closed.
+     */
     private void checkStream() throws IOException {
       if (closed || !open) {
         throw new IOException("Generation input stream has closed for " + pack);

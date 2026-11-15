@@ -31,13 +31,24 @@ import java.util.Queue;
  */
 @Mixin(ServerConfigurationPacketListenerImpl.class)
 public abstract class ServerConfigurationPacketListenerImplMixin extends ServerCommonPacketListenerImpl {
+  /**
+   * Native queue of tasks required before the player enters the game.
+   */
   @Shadow
   @Final
   private Queue<ConfigurationTask> configurationTasks;
 
+  /**
+   * Asset delivery task for this connection, or {@code null} when Cobweb delivery is inactive.
+   */
   @Unique
   private AssetDeliveryTask assetDeliveryTask;
 
+  /**
+   * @param server server configuring the player connection.
+   * @param connection native client connection.
+   * @param cookie state carried from the preceding connection phase.
+   */
   protected ServerConfigurationPacketListenerImplMixin(MinecraftServer server, Connection connection, CommonListenerCookie cookie) {
     super(server, connection, cookie);
   }

@@ -24,10 +24,17 @@ import java.util.Optional;
 
 /**
  * Reads native data inputs from one server data generation callback.
+ * Obtain this view from {@link GenerationContext#data()}. Registry and tag access depends on the inputs ready in the current {@link Phase}.
  */
 public final class DataGenerationResources {
+  /**
+   * The server data callback that owns this resource view.
+   */
   private final GenerationContext context;
 
+  /**
+   * @param context active server data callback context.
+   */
   DataGenerationResources(GenerationContext context) {
     this.context = context;
   }
@@ -47,9 +54,10 @@ public final class DataGenerationResources {
    * @param definition declared registry.
    * @param <T> entry type.
    * @return read-only registry lookup.
+   * @throws IllegalStateException if the callback has ended or the registry is unavailable in this phase.
    */
   public <T> HolderLookup.RegistryLookup<T> registry(CobwebDataPackRegistry<T> definition) {
-    return context.registry(definition);
+    return registry(definition.key());
   }
 
   /**
@@ -58,6 +66,7 @@ public final class DataGenerationResources {
    * @param key native registry key.
    * @param <T> entry type.
    * @return read-only registry lookup.
+   * @throws IllegalStateException if the callback has ended or the registry is unavailable in this phase.
    */
   public <T> HolderLookup.RegistryLookup<T> registry(ResourceKey<? extends Registry<T>> key) {
     return context.registry(key);
@@ -69,17 +78,19 @@ public final class DataGenerationResources {
    * @param tag native tag key.
    * @param <T> entry type.
    * @return native reference, if present.
+   * @throws IllegalStateException if the callback has ended or the tag's registry is unavailable in this phase.
    */
   public <T> Optional<HolderSet.Named<T>> tag(TagKey<T> tag) {
     return registry(tag.registry()).get(tag);
   }
 
   /**
-   * Reads the membership staged by native tag preparation.
+   * Reads the membership staged by native tag preparation for the current load, even before Minecraft applies the pending tags.
    *
    * @param tag native tag key.
    * @param <T> entry type.
    * @return prepared membership, or an empty list for an absent tag.
+   * @throws IllegalStateException if the callback has ended or native tag preparation has yet to finish.
    */
   public <T> List<Holder<T>> preparedTag(TagKey<T> tag) {
     return context.preparedTag(tag);

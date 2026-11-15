@@ -45,7 +45,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Fixed bundled pack overlays on Fabric and nested overlay roots on NeoForge, retaining native metadata and conditional overlay handling.
   - Pack metadata is read during native discovery, with Java overrides for description and formats. Generated files can override bundled base files while active overlays retain their native precedence.
   - Applied activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
-  - Added native generation phases and stages, asynchronous callbacks, typed data and asset views, grouped sprites, and keyed sound definitions.
+  - Added native generation phases and stages, asynchronous callbacks, typed data and asset views, grouped sprites, and keyed sound definitions. Read registries and prepared tags through the data view and translations through the asset view.
   - Added pack and mod requirements, optional pack dependency versions, and ordering between packs with generation callbacks.
   - Declare a mod's own pack requirements in its root `pack.mcmeta`.
   - Use one exact or bounded version constraint syntax for pack and mod requirements, with comparisons handled by the active loader.

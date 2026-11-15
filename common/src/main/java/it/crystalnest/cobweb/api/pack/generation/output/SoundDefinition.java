@@ -1,9 +1,6 @@
 package it.crystalnest.cobweb.api.pack.generation.output;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -18,8 +15,6 @@ import java.util.Objects;
  */
 public record SoundDefinition(List<Entry> sounds, boolean replace, @Nullable String subtitle) {
   /**
-   * Captures the ordered entries of a complete sound event.
-   *
    * @param sounds samples or event references.
    * @param replace whether to discard lower-priority definitions.
    * @param subtitle optional subtitle translation key.
@@ -29,36 +24,8 @@ public record SoundDefinition(List<Entry> sounds, boolean replace, @Nullable Str
   }
 
   /**
-   * Encodes this event for inclusion in its namespace's sound definitions.
-   *
-   * @return JSON object for the complete sound event.
-   */
-  @ApiStatus.Internal
-  public JsonObject toJson() {
-    var json = new JsonObject();
-    if (subtitle != null) {
-      json.addProperty("subtitle", subtitle);
-    }
-    json.addProperty("replace", replace);
-    var entries = new JsonArray();
-    for (var sound : sounds) {
-      var entry = new JsonObject();
-      entry.addProperty("name", sound.id().toString());
-      entry.addProperty("type", sound.event() ? "event" : "file");
-      entry.addProperty("volume", sound.volume());
-      entry.addProperty("pitch", sound.pitch());
-      entry.addProperty("weight", sound.weight());
-      entry.addProperty("stream", sound.stream());
-      entry.addProperty("preload", sound.preload());
-      entry.addProperty("attenuation_distance", sound.attenuationDistance());
-      entries.add(entry);
-    }
-    json.add("sounds", entries);
-    return json;
-  }
-
-  /**
    * Describes one sample or event reference and its playback properties.
+   * Volume and pitch must be finite and positive. Weight must be positive.
    *
    * @param id sound file identifier without its directory and extension, or event identifier.
    * @param event whether the identifier refers to another event.
@@ -71,8 +38,6 @@ public record SoundDefinition(List<Entry> sounds, boolean replace, @Nullable Str
    */
   public record Entry(Identifier id, boolean event, float volume, float pitch, int weight, boolean stream, boolean preload, int attenuationDistance) {
     /**
-     * Validates a sample or event reference for Minecraft's sound parser.
-     *
      * @param id sample or event identifier.
      * @param event whether the identifier refers to another event.
      * @param volume positive finite volume multiplier.
@@ -81,7 +46,6 @@ public record SoundDefinition(List<Entry> sounds, boolean replace, @Nullable Str
      * @param stream whether to stream the sample.
      * @param preload whether to preload the sample.
      * @param attenuationDistance attenuation distance.
-     * @throws IllegalArgumentException if the volume, pitch or weight is invalid.
      */
     public Entry {
       Objects.requireNonNull(id);

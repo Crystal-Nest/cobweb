@@ -11,8 +11,6 @@ import java.util.function.Function;
  */
 public abstract class ClientConfig extends CobwebConfig {
   /**
-   * Defines a client configuration and builds its specification with the supplied builder.
-   *
    * @param builder configuration builder.
    */
   protected ClientConfig(ModConfigSpec.Builder builder) {

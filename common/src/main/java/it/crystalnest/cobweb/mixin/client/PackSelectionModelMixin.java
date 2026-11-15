@@ -20,14 +20,23 @@ import java.util.List;
  */
 @Mixin(PackSelectionModel.class)
 public abstract class PackSelectionModelMixin implements EditorPackPresentations.Model {
+  /**
+   * Native repository displayed by this editor.
+   */
   @Shadow
   @Final
   private PackRepository repository;
 
+  /**
+   * Proposed pack selection in native editor order.
+   */
   @Shadow
   @Final
   private List<Pack> selected;
 
+  /**
+   * Cached presentation fields and textures for the current editor revision.
+   */
   @Unique
   private final EditorPackPresentations presentations = new EditorPackPresentations();
 

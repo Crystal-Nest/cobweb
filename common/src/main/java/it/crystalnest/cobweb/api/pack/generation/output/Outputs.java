@@ -17,8 +17,6 @@ public record Outputs(List<Output> values, @Nullable ResourceLifetime rawLifetim
   public static final Outputs UNSPECIFIED = new Outputs(List.of(), null);
 
   /**
-   * Copies the callback's output declarations.
-   *
    * @param values native and custom output declarations.
    * @param rawLifetime optional lifetime of exact raw file submissions.
    */

@@ -41,27 +41,27 @@ import java.util.zip.ZipOutputStream;
  */
 @ApiStatus.Internal
 public final class AssetPackArchives {
+  /**
+   * Maximum size of the final downloadable archive.
+   */
   private static final long MAX_ZIP_BYTES = 250L * 1024 * 1024;
 
+  /**
+   * Maximum uncompressed content accepted for one archive.
+   */
   private static final long MAX_CONTENT_BYTES = 1024L * 1024 * 1024;
 
+  /**
+   * Maximum number of entries accepted for one archive.
+   */
   private static final int MAX_ENTRIES = 65_535;
 
+  /**
+   * Fixed ZIP entry timestamp used to keep identical archives reproducible.
+   */
   private static final LocalDateTime ZIP_TIME = LocalDateTime.of(2000, 1, 1, 0, 0);
 
   private AssetPackArchives() {}
-
-  /**
-   * Captures the applied server state needed for publication.
-   *
-   * @param server server on its main thread after a successful load.
-   * @param packs selected asset pack registrations in increasing priority.
-   * @param warnClientCallbacks whether to report client-only output.
-   * @return detached publication job.
-   */
-  public static Build capture(MinecraftServer server, List<PackHelper.RegisteredPack> packs, boolean warnClientCallbacks) {
-    return capture(server, packs, warnClientCallbacks, new Reuse(), () -> true);
-  }
 
   /**
    * Captures a cancellable publication with reusable static archives.
@@ -85,6 +85,17 @@ public final class AssetPackArchives {
     return (directory, staging) -> write(directory, staging, captures, reuse, current);
   }
 
+  /**
+   * Builds or reuses the requested archives and updates the reusable static entries.
+   *
+   * @param directory publication directory.
+   * @param staging temporary output directory.
+   * @param captures pack registrations and captured publication values.
+   * @param reuse static archive cache.
+   * @param current signal that this publication still owns the request.
+   * @return complete archives in publication order.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static List<Archive> write(Path directory, Path staging, List<Captured> captures, Reuse reuse, BooleanSupplier current) throws IOException {
     Files.createDirectories(directory);
     Files.createDirectories(staging);
@@ -190,6 +201,14 @@ public final class AssetPackArchives {
     }
   }
 
+  /**
+   * Hashes the effective files and metadata of a pack opening for static reuse.
+   *
+   * @param pack pack opening to fingerprint.
+   * @param current signal that this publication still owns the request.
+   * @return hexadecimal fingerprint of the effective pack contents.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static String fingerprint(GeneratedPackResources pack, BooleanSupplier current) throws IOException {
     var digest = CacheObservations.digest();
     var bounded = new LimitedOutput(OutputStream.nullOutputStream(), MAX_CONTENT_BYTES);
@@ -206,6 +225,14 @@ public final class AssetPackArchives {
     return CacheObservations.hex(digest);
   }
 
+  /**
+   * Checks whether a retained archive still matches its recorded size and hash.
+   *
+   * @param archive previously published archive.
+   * @param current signal that this publication still owns the request.
+   * @return whether the archive can be reused.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static boolean intact(Archive archive, BooleanSupplier current) throws IOException {
     if (!Files.isRegularFile(archive.path(), LinkOption.NOFOLLOW_LINKS) || Files.size(archive.path()) != archive.size()) {
       return false;
@@ -217,6 +244,14 @@ public final class AssetPackArchives {
     return archive.address().equals(CacheObservations.hex(digest));
   }
 
+  /**
+   * Copies an entry while checking for publication cancellation.
+   *
+   * @param input entry input stream.
+   * @param output destination stream.
+   * @param current signal that this publication still owns the request.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static void copy(InputStream input, OutputStream output, BooleanSupplier current) throws IOException {
     byte[] buffer = new byte[8192];
     while (true) {
@@ -229,6 +264,12 @@ public final class AssetPackArchives {
     }
   }
 
+  /**
+   * Stops work for a superseded publication.
+   *
+   * @param current signal that this publication still owns the request.
+   * @throws CancellationException if the publication was superseded.
+   */
   private static void checkCurrent(BooleanSupplier current) {
     if (!current.getAsBoolean() || Thread.currentThread().isInterrupted()) {
       throw new CancellationException("Asset publication superseded or stopped");
@@ -239,16 +280,28 @@ public final class AssetPackArchives {
    * Retains static archive fingerprints for one serial publication worker.
    */
   public static final class Reuse {
+    /**
+     * Recently built static archives indexed by logical pack ID.
+     */
     private final Map<Identifier, CachedArchive> staticArchives = new HashMap<>();
 
-    /**
-     * Creates an empty publisher-owned archive index.
-     */
     public Reuse() {}
   }
 
+  /**
+   * Pairs an effective-content signature with a built archive.
+   *
+   * @param contents fingerprint of the source contents.
+   * @param archive built archive that can be reused.
+   */
   private record CachedArchive(String contents, Archive archive) {}
 
+  /**
+   * Creates a message digest for the requested archive hash algorithm.
+   *
+   * @param algorithm digest algorithm name.
+   * @return message digest.
+   */
   private static MessageDigest digest(String algorithm) {
     try {
       return MessageDigest.getInstance(algorithm);
@@ -324,9 +377,19 @@ public final class AssetPackArchives {
     }
   }
 
+  /**
+   * Enforces a total byte limit on writes to a delegated output stream.
+   */
   private static final class LimitedOutput extends FilterOutputStream {
+    /**
+     * Number of additional bytes the wrapper may write.
+     */
     private long remaining;
 
+    /**
+     * @param output underlying stream receiving the limited writes.
+     * @param limit maximum bytes this wrapper may write.
+     */
     private LimitedOutput(OutputStream output, long limit) {
       super(output);
       remaining = limit;
@@ -344,6 +407,12 @@ public final class AssetPackArchives {
       out.write(bytes, offset, length);
     }
 
+    /**
+     * Charges the write against the limit before bytes are forwarded.
+     *
+     * @param length number of bytes to write.
+     * @throws IOException if the byte limit would be exceeded.
+     */
     private void reserve(int length) throws IOException {
       if (length > remaining) {
         throw new IOException("Published asset pack exceeds its size limit");

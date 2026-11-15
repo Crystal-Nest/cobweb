@@ -18,25 +18,36 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.function.Consumer;
 
 /**
- * Injects into the entries of {@link PackSelectionModel} to display editor-specific pack metadata.
+ * Injects into {@link PackSelectionModel.EntryBase} to display editor-specific pack metadata.
  */
 @Mixin(targets = "net.minecraft.client.gui.screens.packs.PackSelectionModel$EntryBase")
 public abstract class PackSelectionModelEntryBaseMixin {
+  /**
+   * Native pack represented by this editor entry.
+   */
   @Shadow
   @Final
   private Pack pack;
 
+  /**
+   * Editor model that owns this entry.
+   */
   @Shadow
   @Final
   private PackSelectionModel this$0;
 
+  /**
+   * Returns the presentation hooks installed on the owning editor model.
+   *
+   * @return presentation hooks for this entry.
+   */
   @Unique
   private EditorPackPresentations.Model presentationModel() {
     return (EditorPackPresentations.Model) this$0;
   }
 
   /**
-   * Wraps the editor list change callback inside the selection and move methods.<br>
+   * Wraps the call to {@link Consumer#accept(Object)} inside {@link PackSelectionModel.EntryBase#toggleSelection()} and {@link PackSelectionModel.EntryBase#move(int)}.<br>
    * Invalidates the old presentation before the selection screen rebuilds its lists.
    *
    * @param instance native list change callback.

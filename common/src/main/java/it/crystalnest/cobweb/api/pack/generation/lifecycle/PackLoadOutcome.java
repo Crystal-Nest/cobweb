@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
  * @param pack logical pack ID.
  * @param type native resource type.
  * @param kind initial load or reload.
- * @param failure cause if native loading failed or was cancelled.
+ * @param failure cause if native loading failed or was canceled.
  */
 public record PackLoadOutcome(Identifier pack, PackType type, LoadKind kind, @Nullable Throwable failure) {
   /**

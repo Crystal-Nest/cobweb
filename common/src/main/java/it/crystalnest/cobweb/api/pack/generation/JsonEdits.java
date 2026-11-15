@@ -12,6 +12,13 @@ import java.util.List;
 final class JsonEdits {
   private JsonEdits() {}
 
+  /**
+   * Applies the edits in declaration order to a copy of the input.
+   *
+   * @param document original document.
+   * @param edits ordered edits.
+   * @return edited JSON document.
+   */
   static JsonElement apply(JsonElement document, List<Edit> edits) {
     for (Edit edit : edits) {
       document = edit.apply(document);
@@ -19,6 +26,12 @@ final class JsonEdits {
     return document;
   }
 
+  /**
+   * Decodes a JSON Pointer into its path components.
+   *
+   * @param path JSON Pointer string.
+   * @return decoded pointer components.
+   */
   static List<String> pointer(String path) {
     if (path.isEmpty()) {
       return List.of();
@@ -29,6 +42,12 @@ final class JsonEdits {
     return Arrays.stream(path.substring(1).split("/", -1)).map(JsonEdits::unescape).toList();
   }
 
+  /**
+   * Decodes JSON Pointer escapes for one component.
+   *
+   * @param part encoded pointer component.
+   * @return unescaped component.
+   */
   private static String unescape(String part) {
     var key = new StringBuilder();
     for (int i = 0; i < part.length(); i++) {
@@ -49,6 +68,14 @@ final class JsonEdits {
     return key.toString();
   }
 
+  /**
+   * Validates a JSON array position for the current edit.
+   *
+   * @param array parent JSON array.
+   * @param key pointer component naming the index.
+   * @param add whether the edit is an addition.
+   * @return array index to access or insert.
+   */
   private static int index(JsonArray array, String key, boolean add) {
     if (add && key.equals("-")) {
       return array.size();
@@ -63,6 +90,13 @@ final class JsonEdits {
     return value;
   }
 
+  /**
+   * Resolves an existing child within an object or array.
+   *
+   * @param parent parent JSON container.
+   * @param key pointer component naming the child.
+   * @return child selected by the pointer component.
+   */
   private static JsonElement child(JsonElement parent, String key) {
     if (parent.isJsonArray()) {
       var array = parent.getAsJsonArray();
@@ -74,13 +108,38 @@ final class JsonEdits {
     throw new IllegalArgumentException("Missing JSON member " + key);
   }
 
+  /**
+   * Identifies a supported JSON edit.
+   */
   enum Operation {
+    /**
+     * Adds a property or inserts an array item.
+     */
     ADD,
+    /**
+     * Replaces an existing property, array item or document.
+     */
     REPLACE,
+    /**
+     * Removes an existing property or array item.
+     */
     REMOVE
   }
 
+  /**
+   * Describes one operation at a decoded JSON Pointer.
+   *
+   * @param operation edit operation.
+   * @param path decoded pointer components.
+   * @param value replacement or added value, unused for removal.
+   */
   record Edit(Operation operation, List<String> path, JsonElement value) {
+    /**
+     * Applies this edit to its document.
+     *
+     * @param document mutable working document.
+     * @return updated document, which may have a new root.
+     */
     JsonElement apply(JsonElement document) {
       if (path.isEmpty()) {
         if (operation == Operation.REMOVE) {

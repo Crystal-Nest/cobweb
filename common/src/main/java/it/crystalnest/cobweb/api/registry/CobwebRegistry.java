@@ -114,15 +114,13 @@ public final class CobwebRegistry {
 
   /**
    * Immutable settings for a Java-populated static registry. Native defaults are used for other options.
+   * The no-argument constructor creates unsynced settings without a fallback entry.
    *
    * @param synced whether native numeric registry IDs should be synchronized to clients.
    * This does not transmit arbitrary entry definitions or Java behavior.
    * @param defaultKey optional fallback entry identifier; that entry must be registered separately.
    */
   public record Settings(boolean synced, @Nullable Identifier defaultKey) {
-    /**
-     * Creates unsynced settings without a fallback entry.
-     */
     public Settings() {
       this(false, null);
     }

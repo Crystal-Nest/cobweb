@@ -19,6 +19,9 @@ import java.net.InetAddress;
  */
 @Mixin(ServerConnectionListener.class)
 public abstract class ServerConnectionListenerMixin {
+  /**
+   * Server that owns the native TCP listener.
+   */
   @Shadow
   @Final
   private MinecraftServer server;

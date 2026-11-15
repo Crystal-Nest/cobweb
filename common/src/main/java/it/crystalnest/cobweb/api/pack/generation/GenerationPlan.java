@@ -39,20 +39,48 @@ import java.util.stream.Stream;
  * Compiles the selected declarations, output contracts and dependency order for one native load.
  */
 final class GenerationPlan {
+  /**
+   * Generation participants in topological order, each mapped to its transitive predecessors.
+   */
   final Map<GeneratedPackResources, List<GeneratedPackResources>> order;
 
+  /**
+   * Compiled file rules by pack in manifest order.
+   */
   final Map<GeneratedPackResources, List<Task>> fileTasks;
 
+  /**
+   * Values captured once for each declared input object during this load.
+   */
   final Map<CapturedInput<?>, Object> captured;
 
+  /**
+   * Resolved cache eligibility for each task in this load.
+   */
   final Map<Task, TaskCachePolicy> caching;
 
+  /**
+   * Known native resource directories and their output contracts.
+   */
   private final List<FileRule> fileRules = new ArrayList<>();
 
+  /**
+   * Native resource type being loaded.
+   */
   private final PackType type;
 
+  /**
+   * Whether this plan is for a full load or reload.
+   */
   private final LoadKind kind;
 
+  /**
+   * @param type native pack type.
+   * @param generated selected generation openings.
+   * @param required validated required predecessor IDs by native pack ID.
+   * @param kind full load or reload.
+   * @param cacheRoot physical cache scope, or {@code null} when unavailable.
+   */
   GenerationPlan(PackType type, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind, @Nullable Path cacheRoot) {
     this.type = type;
     this.kind = kind;
@@ -122,6 +150,12 @@ final class GenerationPlan {
     this.caching = java.util.Collections.unmodifiableMap(caching);
   }
 
+  /**
+   * Compiles an owned file manifest using the known native output deadlines.
+   *
+   * @param pack pack opening that owns the manifest.
+   * @return tasks for this load in manifest order.
+   */
   private List<Task> compileRules(GeneratedPackResources pack) {
     var tasks = new ArrayList<Task>();
     for (var rule : pack.rules.rules()) {
@@ -151,18 +185,40 @@ final class GenerationPlan {
     return List.copyOf(tasks);
   }
 
+  /**
+   * Records an ordering edge when both packs participate in generation.
+   *
+   * @param edges predecessor sets by pack.
+   * @param pack pack that should wait, or {@code null} if absent.
+   * @param predecessor pack that must run first, or {@code null} if absent.
+   */
   private static void addPredecessor(Map<GeneratedPackResources, Set<GeneratedPackResources>> edges, @Nullable GeneratedPackResources pack, @Nullable GeneratedPackResources predecessor) {
     if (pack != null && predecessor != null) {
       edges.get(pack).add(predecessor);
     }
   }
 
+  /**
+   * Adds native contracts for registry entries and tags.
+   *
+   * @param key registry key.
+   * @param deadline last phase that can submit registry entries.
+   * @param lifetime native lifetime for registry entries.
+   */
   private void addRegistryRules(ResourceKey<? extends Registry<?>> key, Phase deadline, ResourceLifetime lifetime) {
     fileRules.add(new FileRule(Registries.elementsDirPath(key), ".json", new Output(deadline, lifetime, key)));
     Phase tagDeadline = lifetime == ResourceLifetime.FULL_LOAD && kind == LoadKind.RELOAD ? Phase.DATA_RESOURCES : deadline;
     fileRules.add(new FileRule(Registries.tagsDirPath(key), ".json", new Output(tagDeadline, ResourceLifetime.RELOADABLE, null)));
   }
 
+  /**
+   * Checks that a generated data path meets its native deadline, lifetime and declaration.
+   *
+   * @param task task submitting the file.
+   * @param phase phase submitting the file.
+   * @param id destination resource identifier.
+   * @throws IllegalArgumentException if the output is undeclared or misses its native contract.
+   */
   void checkOutput(Task task, Phase phase, Identifier id) {
     if (type != PackType.SERVER_DATA) {
       return;
@@ -184,6 +240,15 @@ final class GenerationPlan {
     }
   }
 
+  /**
+   * Visits a pack's predecessors and records their transitive order, detecting dependency cycles.
+   *
+   * @param pack pack to schedule.
+   * @param edges direct generation predecessors by pack.
+   * @param path current traversal path.
+   * @param order completed topological order.
+   * @throws IllegalStateException if a generation ordering cycle is encountered.
+   */
   private void visit(GeneratedPackResources pack, Map<GeneratedPackResources, Set<GeneratedPackResources>> edges, Set<GeneratedPackResources> path, Map<GeneratedPackResources, List<GeneratedPackResources>> order) {
     if (order.containsKey(pack)) {
       return;
@@ -201,7 +266,20 @@ final class GenerationPlan {
     path.remove(pack);
   }
 
+  /**
+   * Associates a native file family with its scheduling contract.
+   *
+   * @param directory path directory within a resource namespace.
+   * @param extension required file extension.
+   * @param output native output contract.
+   */
   private record FileRule(String directory, String extension, Output output) {
+    /**
+     * Checks whether a namespaced file belongs to this family.
+     *
+     * @param id destination file identifier.
+     * @return whether the path matches the directory and extension.
+     */
     boolean matches(Identifier id) {
       return id.getPath().startsWith(directory + "/") && id.getPath().endsWith(extension);
     }

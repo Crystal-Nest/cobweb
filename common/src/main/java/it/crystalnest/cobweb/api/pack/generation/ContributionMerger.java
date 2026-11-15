@@ -31,18 +31,59 @@ import java.util.Map;
 final class ContributionMerger {
   private ContributionMerger() {}
 
+  /**
+   * Describes one merge operation for a destination file.
+   */
   sealed interface Operation {}
 
+  /**
+   * Replaces the complete file with owned contents.
+   *
+   * @param contents complete file backing.
+   * @param companion whether the file is owned as a grouped sidecar.
+   */
   record Replacement(PackFile contents, boolean companion) implements Operation {}
 
+  /**
+   * Replaces one named member of an aggregate file.
+   *
+   * @param name member name.
+   * @param contents backing of the complete member value.
+   */
   record Member(String name, PackFile contents) implements Operation {}
 
+  /**
+   * Appends native tag entries to this pack's existing tag file.
+   *
+   * @param tag tag additions and optional native replace setting.
+   */
   record TagAddition(GenerationOutput.TagAddition tag) implements Operation {}
 
+  /**
+   * Clears a previously grouped sidecar for the destination.
+   */
   record ClearMetadata() implements Operation {}
 
+  /**
+   * Records one operation submitted to this file in the current stage.
+   *
+   * @param sequence attempt-wide submission index.
+   * @param task task that submitted the operation.
+   * @param operation operation to merge.
+   */
   record Submission(long sequence, Task task, Operation operation) {}
 
+  /**
+   * Applies same-pack contributions in submission order and reports competing writes.
+   *
+   * @param pack owning pack opening.
+   * @param id destination file identifier.
+   * @param operations submitted operations for the file.
+   * @param phase active generation phase.
+   * @param stage active generation stage.
+   * @param snapshots stage snapshots used for bundled aggregate bases.
+   * @return final generated file, or {@code null} when a grouped sidecar was cleared.
+   */
   static GeneratedPackResources.File merge(GeneratedPackResources pack, Identifier id, Collection<Submission> operations, Phase phase, Stage stage, StageResourceSnapshots snapshots) {
     GeneratedPackResources.File result = pack.file(id);
     Task lastReplacement = null;
@@ -96,6 +137,15 @@ final class ContributionMerger {
     return result;
   }
 
+  /**
+   * Writes a merged JSON file and transfers its backing to the owning pack.
+   *
+   * @param pack owning pack opening.
+   * @param id destination file identifier.
+   * @param json serialized JSON object.
+   * @param lifetime native lifetime of the generated file.
+   * @return complete generated file.
+   */
   private static GeneratedPackResources.File aggregate(GeneratedPackResources pack, Identifier id, String json, ResourceLifetime lifetime) {
     try {
       var file = PackFile.write(stream -> stream.write(json.getBytes(StandardCharsets.UTF_8)));
@@ -111,6 +161,15 @@ final class ContributionMerger {
     }
   }
 
+  /**
+   * Reads this pack's existing aggregate or its bundled base file.
+   *
+   * @param pack owning pack opening.
+   * @param id destination file identifier.
+   * @param file existing generated file, or {@code null} to consult the bundled base.
+   * @param snapshots stage snapshots used to read the base file.
+   * @return parsed JSON, or {@code null} if this pack has no base for the aggregate.
+   */
   @Nullable
   private static JsonElement readJson(GeneratedPackResources pack, Identifier id, @Nullable GeneratedPackResources.File file, StageResourceSnapshots snapshots) {
     if (file != null) {
@@ -127,6 +186,12 @@ final class ContributionMerger {
     return null;
   }
 
+  /**
+   * Parses a generated file as JSON.
+   *
+   * @param file generated file to parse.
+   * @return parsed JSON document.
+   */
   private static JsonElement readJson(GeneratedPackResources.File file) {
     try (var reader = new InputStreamReader(file.content().open(), StandardCharsets.UTF_8)) {
       return JsonParser.parseReader(reader);

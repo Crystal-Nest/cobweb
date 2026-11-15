@@ -43,6 +43,10 @@ import java.util.function.Function;
 
 /**
  * Registered definition of a bundled pack with optional native generation callbacks.
+ * Declare callbacks during mod initialization, including after the registrar returns this handle.
+ * Input readiness and output deadlines must admit a compatible phase for every applicable load kind.
+ * A callback cannot mix full-load and reloadable output, and client assets must use reloadable output.
+ * Completed-source inputs require transformation. Phase inference requires a declared output contract; generic output needs an explicit phase.
  */
 public abstract class ResourcePack {
   /**
@@ -177,6 +181,8 @@ public abstract class ResourcePack {
    * @param phase explicit phase.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onPrepare(Phase phase, Callback callback) {
     return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.PREPARATION, completed(callback));
@@ -189,6 +195,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onPrepare(Phase phase, Outputs outputs, Callback callback) {
     return generation.add(phase, Inputs.NONE, outputs, Stage.PREPARATION, completed(callback));
@@ -202,6 +210,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onPrepare(Phase phase, Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(phase, inputs, outputs, Stage.PREPARATION, completed(callback));
@@ -214,6 +224,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onPrepare(Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(null, inputs, outputs, Stage.PREPARATION, completed(callback));
@@ -225,6 +237,8 @@ public abstract class ResourcePack {
    * @param phase explicit phase.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onPrepareAsync(Phase phase, AsyncCallback callback) {
     return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.PREPARATION, callback);
@@ -237,6 +251,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onPrepareAsync(Phase phase, Outputs outputs, AsyncCallback callback) {
     return generation.add(phase, Inputs.NONE, outputs, Stage.PREPARATION, callback);
@@ -250,6 +266,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onPrepareAsync(Phase phase, Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(phase, inputs, outputs, Stage.PREPARATION, callback);
@@ -262,6 +280,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onPrepareAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(null, inputs, outputs, Stage.PREPARATION, callback);
@@ -273,6 +293,8 @@ public abstract class ResourcePack {
    * @param phase explicit phase.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onGenerate(Phase phase, Callback callback) {
     return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.GENERATION, completed(callback));
@@ -285,6 +307,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onGenerate(Phase phase, Outputs outputs, Callback callback) {
     return generation.add(phase, Inputs.NONE, outputs, Stage.GENERATION, completed(callback));
@@ -298,6 +322,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onGenerate(Phase phase, Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(phase, inputs, outputs, Stage.GENERATION, completed(callback));
@@ -310,6 +336,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onGenerate(Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(null, inputs, outputs, Stage.GENERATION, completed(callback));
@@ -321,6 +349,8 @@ public abstract class ResourcePack {
    * @param phase explicit phase.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onGenerateAsync(Phase phase, AsyncCallback callback) {
     return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.GENERATION, callback);
@@ -333,6 +363,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onGenerateAsync(Phase phase, Outputs outputs, AsyncCallback callback) {
     return generation.add(phase, Inputs.NONE, outputs, Stage.GENERATION, callback);
@@ -346,6 +378,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onGenerateAsync(Phase phase, Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(phase, inputs, outputs, Stage.GENERATION, callback);
@@ -358,6 +392,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onGenerateAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(null, inputs, outputs, Stage.GENERATION, callback);
@@ -369,6 +405,8 @@ public abstract class ResourcePack {
    * @param phase explicit phase.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onTransform(Phase phase, Callback callback) {
     return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.TRANSFORMATION, completed(callback));
@@ -381,6 +419,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onTransform(Phase phase, Outputs outputs, Callback callback) {
     return generation.add(phase, Inputs.NONE, outputs, Stage.TRANSFORMATION, completed(callback));
@@ -394,6 +434,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onTransform(Phase phase, Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(phase, inputs, outputs, Stage.TRANSFORMATION, completed(callback));
@@ -406,6 +448,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onTransform(Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(null, inputs, outputs, Stage.TRANSFORMATION, completed(callback));
@@ -417,6 +461,8 @@ public abstract class ResourcePack {
    * @param phase explicit phase.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onTransformAsync(Phase phase, AsyncCallback callback) {
     return generation.add(phase, Inputs.NONE, Outputs.UNSPECIFIED, Stage.TRANSFORMATION, callback);
@@ -429,6 +475,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onTransformAsync(Phase phase, Outputs outputs, AsyncCallback callback) {
     return generation.add(phase, Inputs.NONE, outputs, Stage.TRANSFORMATION, callback);
@@ -442,6 +490,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the phase, stage or output lifetime is incompatible with the pack or its input and output contracts.
    */
   public final CallbackRegistration onTransformAsync(Phase phase, Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(phase, inputs, outputs, Stage.TRANSFORMATION, callback);
@@ -454,6 +504,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback callback executed for applicable native loads.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onTransformAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(null, inputs, outputs, Stage.TRANSFORMATION, callback);
@@ -466,6 +518,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback synchronous generation callback.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onStage(Inputs inputs, Outputs outputs, Callback callback) {
     return generation.add(null, inputs, outputs, null, completed(callback));
@@ -478,6 +532,8 @@ public abstract class ResourcePack {
    * @param outputs declared output contracts.
    * @param callback asynchronous generation callback.
    * @return callback registration options.
+   * @throws IllegalStateException if callback declarations have closed.
+   * @throws IllegalArgumentException if the input and output contracts cannot infer a compatible phase or stage.
    */
   public final CallbackRegistration onStageAsync(Inputs inputs, Outputs outputs, AsyncCallback callback) {
     return generation.add(null, inputs, outputs, null, callback);

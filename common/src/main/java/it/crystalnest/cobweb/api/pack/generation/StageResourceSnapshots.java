@@ -26,20 +26,47 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Each pack opening or bundled layer owns a separate set of entries.
  */
 final class StageResourceSnapshots implements AutoCloseable {
+  /**
+   * The native resource type captured by this stage.
+   */
   private final PackType type;
 
+  /**
+   * First-read captures indexed by the identity of their source pack and file ID.
+   */
   private final Map<PackResources, Map<Identifier, Capture>> sources = new IdentityHashMap<>();
 
+  /**
+   * Whether the stage has released ownership and refuses new captures.
+   */
   private boolean closed;
 
+  /**
+   * @param type native resource type to capture.
+   */
   StageResourceSnapshots(PackType type) {
     this.type = type;
   }
 
+  /**
+   * Wraps a pack opening with first-read captures while retaining native metadata and listing behavior.
+   *
+   * @param source native pack opening or bundled layer.
+   * @return non-owning pack view that captures file reads.
+   */
   PackResources wrap(PackResources source) {
     return new Source(source);
   }
 
+  /**
+   * Wraps a resource supplier when the resource belongs to this stage's pack type.
+   *
+   * @param source owning pack opening or bundled layer.
+   * @param type native type requested by the caller.
+   * @param id requested file identifier.
+   * @param original native supplier, or {@code null} when the resource is absent.
+   * @return capture-backed supplier, or the original supplier for an absent resource or another type.
+   */
   @Nullable
   IoSupplier<InputStream> wrap(PackResources source, PackType type, Identifier id, @Nullable IoSupplier<InputStream> original) {
     return original == null || type != this.type ? original : () -> {
@@ -52,6 +79,14 @@ final class StageResourceSnapshots implements AutoCloseable {
     };
   }
 
+  /**
+   * Returns the shared capture for one resolved resource.
+   *
+   * @param source owning pack opening or bundled layer.
+   * @param id resolved file identifier.
+   * @return existing or new capture for this source and ID.
+   * @throws IOException if the stage has closed.
+   */
   private synchronized Capture capture(PackResources source, Identifier id) throws IOException {
     if (closed) {
       throw new IOException("Generation stage no longer accepts resource reads");
@@ -69,9 +104,18 @@ final class StageResourceSnapshots implements AutoCloseable {
     sources.clear();
   }
 
+  /**
+   * Delegates native pack operations while routing resource reads through the stage.
+   */
   private final class Source implements PackResources {
+    /**
+     * Native pack opening delegated to by this view.
+     */
     private final PackResources original;
 
+    /**
+     * @param original underlying pack opening.
+     */
     private Source(PackResources original) {
       this.original = original;
     }
@@ -120,11 +164,28 @@ final class StageResourceSnapshots implements AutoCloseable {
     public void close() {}
   }
 
+  /**
+   * Coordinates the one-time capture of a source file and shares its result or failure among readers.
+   */
   private static final class Capture {
+    /**
+     * Whether a reader has started copying the source file.
+     */
     private final AtomicBoolean started = new AtomicBoolean();
 
+    /**
+     * Shared outcome of the capture operation.
+     */
     private final CompletableFuture<Captured> result = new CompletableFuture<>();
 
+    /**
+     * Captures the bytes once and waits for the same result on subsequent reads.
+     *
+     * @param source native supplier for the resource.
+     * @param limit maximum resource size in bytes.
+     * @return immutable captured content and its digest.
+     * @throws IOException if the resource cannot be captured or exceeds the limit.
+     */
     private Captured open(IoSupplier<InputStream> source, long limit) throws IOException {
       if (started.compareAndSet(false, true)) {
         try {
@@ -155,24 +216,58 @@ final class StageResourceSnapshots implements AutoCloseable {
     }
   }
 
+  /**
+   * Holds the immutable file backing and the digest computed during its capture.
+   *
+   * @param content owned backing for captured bytes.
+   * @param digest hexadecimal digest of the bytes.
+   */
   private record Captured(PackFile content, String digest) {}
 
+  /**
+   * Lazily acquires a stream over a shared, captured file.
+   */
   static final class SnapshotStream extends InputStream implements PackFile.CapturedStream {
+    /**
+     * The shared first-read record for this resource.
+     */
     private final Capture capture;
 
+    /**
+     * Native supplier used if this stream starts the capture.
+     */
     private final IoSupplier<InputStream> source;
 
+    /**
+     * Completed capture once the stream has initialized.
+     */
     private Captured captured;
 
+    /**
+     * Reader holding a lease on the captured backing.
+     */
     private InputStream input;
 
+    /**
+     * Whether this stream has closed and released its lease on the capture.
+     */
     private boolean closed;
 
+    /**
+     * @param capture shared capture for this resource.
+     * @param source supplier for the underlying native file.
+     */
     private SnapshotStream(Capture capture, IoSupplier<InputStream> source) {
       this.capture = capture;
       this.source = source;
     }
 
+    /**
+     * Opens a reader over the shared capture and checks its size against this read's limit.
+     *
+     * @param limit maximum allowed resource size.
+     * @throws IOException if the stream is closed, capture fails or the resource exceeds the limit.
+     */
     void initialize(long limit) throws IOException {
       if (closed) {
         throw new IOException("Snapshot stream has closed");

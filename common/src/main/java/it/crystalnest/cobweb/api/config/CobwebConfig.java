@@ -23,8 +23,6 @@ public abstract class CobwebConfig {
   private static final Pair<? extends CobwebConfig, ModConfigSpec> NULL_CONFIG = Pair.of(null, null);
 
   /**
-   * Defines the configuration and builds its native specification with the supplied builder.
-   *
    * @param builder configuration builder.
    */
   protected CobwebConfig(ModConfigSpec.Builder builder) {
@@ -82,9 +80,9 @@ public abstract class CobwebConfig {
   }
 
   /**
-   * Utility method to actually load the class and register the config. <br/>
-   * Generally, it can be empty and do nothing. <br/>
-   * Needs to be called in your mod loader.
+   * Provides an initialization hook for a configuration held in a static field.<br>
+   * Calling {@code ModConfig.CONFIG.register()} during mod initialization initializes that class and its configuration field.
+   * This method itself performs no registration; the field initializer registers the configuration.
    */
   public void register() {
     // Empty on purpose.

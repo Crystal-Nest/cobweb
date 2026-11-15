@@ -8,6 +8,9 @@ import java.util.Set;
  * Owns one reference per backing file and releases it on replacement or close.
  */
 final class PackFileOwner implements AutoCloseable {
+  /**
+   * The identity-keyed reference counts held by this owner.
+   */
   private final Set<PackFile> files = Collections.newSetFromMap(new IdentityHashMap<>());
 
   /**
@@ -28,12 +31,22 @@ final class PackFileOwner implements AutoCloseable {
     }
   }
 
+  /**
+   * Releases one reference to the file if this owner holds one.
+   *
+   * @param file file whose lease should be released.
+   */
   void release(PackFile file) {
     if (files.remove(file)) {
       file.release();
     }
   }
 
+  /**
+   * Releases every owned reference to files outside the retained set.
+   *
+   * @param visible files whose owned references should be kept.
+   */
   void keep(Set<PackFile> visible) {
     files.removeIf(file -> {
       if (visible.contains(file)) {
@@ -44,6 +57,11 @@ final class PackFileOwner implements AutoCloseable {
     });
   }
 
+  /**
+   * Transfers this owner's outstanding leases into another owner.
+   *
+   * @param target destination owner of the transferred leases.
+   */
   void transferTo(PackFileOwner target) {
     files.forEach(target::adopt);
     files.clear();

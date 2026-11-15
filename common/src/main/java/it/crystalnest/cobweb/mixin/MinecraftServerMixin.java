@@ -46,6 +46,9 @@ public abstract class MinecraftServerMixin {
   @Final
   private PackRepository packRepository;
 
+  /**
+   * Generated full-load files retained for this server world.
+   */
   @Unique
   private final DynamicPackLoads.FullLoadFiles fullLoadFiles = new DynamicPackLoads.FullLoadFiles();
 

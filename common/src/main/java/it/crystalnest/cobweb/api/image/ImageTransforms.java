@@ -29,9 +29,6 @@ public final class ImageTransforms {
    */
   private static final int BLUE_WEIGHT = 722;
 
-  /**
-   * Prevents instantiation of this utility class.
-   */
   private ImageTransforms() {}
 
   /**

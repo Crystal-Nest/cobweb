@@ -10,14 +10,11 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
- * Registers client features on NeoForge.
+ * Registers the client pack export command on the NeoForge client event bus.
  */
 @ApiStatus.Internal
 @Mod(value = Constants.MOD_ID, dist = Dist.CLIENT)
 public final class ClientModLoader {
-  /**
-   * Registers the pack export command on the client event bus.
-   */
   public ClientModLoader() {
     NeoForge.EVENT_BUS.addListener((RegisterClientCommandsEvent event) -> PackExportCommand.registerClient(event.getDispatcher(), Minecraft.getInstance(), (source, message) -> source.sendSuccess(() -> message, false),
       CommandSourceStack::sendFailure));

@@ -8,7 +8,6 @@ public enum ResourceLifetime {
    * Generated on full load and retained for the active world during reload.
    */
   FULL_LOAD,
-
   /**
    * Generated during both initial loading and native reloads.
    */

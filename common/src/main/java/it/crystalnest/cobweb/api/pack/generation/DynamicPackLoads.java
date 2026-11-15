@@ -62,8 +62,14 @@ import java.util.stream.Stream;
  */
 @ApiStatus.Internal
 public final class DynamicPackLoads {
+  /**
+   * World directories associated with native repositories without retaining those repositories.
+   */
   private static final Map<PackRepository, Path> WORLD_ROOTS = java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
+  /**
+   * Whether initialization has ended and generation declarations are frozen.
+   */
   private static volatile boolean declarationsClosed;
 
   private DynamicPackLoads() {}
@@ -212,15 +218,18 @@ public final class DynamicPackLoads {
    * Tracks the asynchronous native result and forwards caller cancellation to generation.
    */
   public static final class AttemptTracker {
+    /**
+     * The generation attempt bound to the native future.
+     */
     @Nullable
     private Attempt attempt;
 
+    /**
+     * Cancellation requested before the attempt could be bound, if any.
+     */
     @Nullable
     private CancellationException cancellation;
 
-    /**
-     * Creates a tracker before native pack openings are available.
-     */
     public AttemptTracker() {}
 
     /**
@@ -317,6 +326,14 @@ public final class DynamicPackLoads {
     }
   }
 
+  /**
+   * Reports a load outcome once per participating native pack ID and logs observer failures.
+   *
+   * @param type native pack type.
+   * @param packs selected native pack openings.
+   * @param kind full load or reload.
+   * @param failure cause of failure, or {@code null} on successful application.
+   */
   private static void notifyObservers(PackType type, List<PackResources> packs, LoadKind kind, @Nullable Throwable failure) {
     packs.stream().map(PackResources::packId).distinct().forEach(id -> {
       var declaration = Services.PACK.packDeclaration(type, id);
@@ -334,13 +351,16 @@ public final class DynamicPackLoads {
    * Retains the full-load output of an active world, independently of later selections.
    */
   public static final class FullLoadFiles implements AutoCloseable {
+    /**
+     * The full-load snapshots retained by the running server.
+     */
     private final Map<Object, GeneratedPackResources> retained = new HashMap<>();
 
+    /**
+     * Whether the applied full-load set is already pinned or the server has stopped.
+     */
     private boolean captured;
 
-    /**
-     * Creates storage for one running server.
-     */
     public FullLoadFiles() {}
 
     /**
@@ -362,6 +382,11 @@ public final class DynamicPackLoads {
       }
     }
 
+    /**
+     * Restores retained full-load backing to the matching selected opening.
+     *
+     * @param pack currently selected pack opening.
+     */
     private synchronized void restore(GeneratedPackResources pack) {
       var earlier = retained.get(pack.ownerKey());
       if (earlier != null) {
@@ -369,6 +394,12 @@ public final class DynamicPackLoads {
       }
     }
 
+    /**
+     * Checks whether the running world retains full-load files for a native ID.
+     *
+     * @param id native ID of an ordinary file pack.
+     * @return whether files are retained for that ID.
+     */
     private synchronized boolean contains(String id) {
       return retained.containsKey(id);
     }
@@ -391,7 +422,7 @@ public final class DynamicPackLoads {
    * @return associated attempt, if one exists.
    */
   @Nullable
-  public static Attempt find(ResourceManager manager) {
+  private static Attempt find(ResourceManager manager) {
     return generated(manager.listPacks()).stream().map(pack -> pack.attempt).filter(Objects::nonNull).findFirst().orElse(null);
   }
 
@@ -465,10 +496,23 @@ public final class DynamicPackLoads {
     return attempt.advance(Phase.WORLD_CONTEXT_READY, lookups);
   }
 
+  /**
+   * Checks whether the native batch contains a registry.
+   *
+   * @param definitions native registry definitions.
+   * @param key native registry key.
+   * @return whether the batch contains the key.
+   */
   private static boolean contains(List<RegistryDataLoader.RegistryData<?>> definitions, Object key) {
     return definitions.stream().anyMatch(definition -> definition.key().equals(key));
   }
 
+  /**
+   * Collects generated pack openings from the native resource stack.
+   *
+   * @param packs stream of selected pack openings.
+   * @return generation-aware openings in stack order.
+   */
   private static List<GeneratedPackResources> generated(Stream<PackResources> packs) {
     return packs.filter(GeneratedPackResources.class::isInstance).map(GeneratedPackResources.class::cast).filter(GeneratedPackResources::generates).toList();
   }
@@ -477,41 +521,101 @@ public final class DynamicPackLoads {
    * Holds one selected stack and its candidate generated content.
    */
   public static final class Attempt {
+    /**
+     * Native resource type of this attempt.
+     */
     private final PackType type;
 
+    /**
+     * Selected native pack openings in native precedence order.
+     */
     private final List<PackResources> packs;
 
+    /**
+     * Whether this native load is a full load or reload.
+     */
     private final LoadKind kind;
 
+    /**
+     * Requested pack selection tracked until native application completes.
+     */
     private final PackQueryLifecycle.Request request;
 
+    /**
+     * Compiled generation settings for the selected stack.
+     */
     private final GenerationPlan plan;
 
+    /**
+     * Prepared native tags captured as they become available.
+     */
     private final Map<TagKey<?>, List<? extends Holder<?>>> tags = new HashMap<>();
 
+    /**
+     * Assigns an order to submissions from Java and file rules.
+     */
     private final AtomicLong sequence = new AtomicLong();
 
+    /**
+     * Prevents multiple native outcomes from publishing state or notifying observers again.
+     */
     private final AtomicBoolean reported = new AtomicBoolean();
 
+    /**
+     * Cache scope for this load, when available.
+     */
     @Nullable
     private final Path cacheRoot;
 
+    /**
+     * Pending cache updates committed only after native application succeeds.
+     */
     private final Collection<CacheUpdate> cacheUpdates = new ConcurrentLinkedQueue<>();
 
+    /**
+     * Phases that have already started in this attempt.
+     */
     private final Set<Phase> started = new HashSet<>();
 
+    /**
+     * Whether a native pack opening has released this attempt.
+     */
     private volatile boolean closed;
 
+    /**
+     * Cancellation signal raced against generation work.
+     */
     private final CompletableFuture<Void> aborted = new CompletableFuture<>();
 
+    /**
+     * Callback contexts still open in this attempt.
+     */
     private final Set<GenerationContext> inputs = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Stage resource captures still open in this attempt.
+     */
     private final Set<StageResourceSnapshots> stageSnapshots = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Whether native application has completed successfully.
+     */
     private volatile boolean applied;
 
+    /**
+     * Native feature flags captured when generation starts.
+     */
     private FeatureFlagSet features = FeatureFlagSet.of();
 
+    /**
+     * @param type native resource type.
+     * @param packs selected pack openings.
+     * @param generated openings that can participate in generation.
+     * @param required validated required predecessor IDs by native pack ID.
+     * @param kind full load or reload.
+     * @param cacheRoot physical cache scope, or {@code null} when unavailable.
+     * @param request requested selection tracked by this attempt.
+     */
     private Attempt(PackType type, List<PackResources> packs, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind,
       @Nullable Path cacheRoot, PackQueryLifecycle.Request request) {
       this.type = type;
@@ -535,12 +639,20 @@ public final class DynamicPackLoads {
       return advance(type == PackType.SERVER_DATA ? Phase.DATA_RESOURCES : Phase.CLIENT_RESOURCES, registryAccess);
     }
 
+    /**
+     * Marks this attempt closed and releases its active callback and stage views.
+     */
     void markClosed() {
       closed = true;
       inputs.forEach(GenerationContext::close);
       stageSnapshots.forEach(StageResourceSnapshots::close);
     }
 
+    /**
+     * Signals cancellation, closes active inputs and reports the aborted load.
+     *
+     * @param failure cancellation raised by the native load.
+     */
     private void cancel(CancellationException failure) {
       aborted.completeExceptionally(failure);
       inputs.forEach(GenerationContext::close);
@@ -548,6 +660,11 @@ public final class DynamicPackLoads {
       finish(failure);
     }
 
+    /**
+     * Checks that the attempt still accepts work.
+     *
+     * @throws CancellationException if the attempt has closed or been canceled.
+     */
     private void checkActive() {
       if (closed || aborted.isDone()) {
         throw new CancellationException("Resource load no longer accepts generated contributions");
@@ -581,6 +698,11 @@ public final class DynamicPackLoads {
       return packs.stream().anyMatch(GeneratedPackResources.class::isInstance);
     }
 
+    /**
+     * Indicates whether native application has completed successfully.
+     *
+     * @return whether this attempt applied its resources.
+     */
     boolean applied() {
       return applied;
     }
@@ -612,6 +734,13 @@ public final class DynamicPackLoads {
       notifyObservers(type, packs, kind, failure);
     }
 
+    /**
+     * Runs a native phase at most once and waits for each of its stages in order.
+     *
+     * @param phase active generation phase.
+     * @param registries native registry lookups available in this phase.
+     * @return completion of the phase, or the cancellation signal.
+     */
     private synchronized CompletableFuture<Void> advance(Phase phase, HolderLookup.Provider registries) {
       if (aborted.isDone()) {
         return aborted;
@@ -626,6 +755,15 @@ public final class DynamicPackLoads {
       return CompletableFuture.anyOf(stages, aborted).thenRun(this::checkActive);
     }
 
+    /**
+     * Builds the stage baseline and waits for each pack's predecessors before giving it a resource view.
+     * Publishes that pack's merged submissions after all of its tasks finish.
+     *
+     * @param phase active generation phase.
+     * @param stage active generation stage.
+     * @param registries native registry lookups available in this phase.
+     * @return completion of all generation scheduled for the stage.
+     */
     private CompletableFuture<Void> runStage(Phase phase, Stage stage, HolderLookup.Provider registries) {
       var snapshots = new StageResourceSnapshots(type);
       stageSnapshots.add(snapshots);
@@ -673,6 +811,17 @@ public final class DynamicPackLoads {
       });
     }
 
+    /**
+     * Runs one task against its stable view, replaying a verified cache batch when possible.
+     *
+     * @param pack owning pack opening.
+     * @param task task to run.
+     * @param phase active native phase.
+     * @param manager pack's stable resource view for this stage.
+     * @param registries available registry lookups.
+     * @param submissions stage submissions for the owning pack.
+     * @return completion of cache replay or the callback and its returned asynchronous work.
+     */
     private CompletableFuture<Void> invoke(GeneratedPackResources pack, Task task, Phase phase, ResourceManager manager,
       HolderLookup.Provider registries, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions) {
       Map<CapturedInput<?>, Object> values = new IdentityHashMap<>();
@@ -737,6 +886,16 @@ public final class DynamicPackLoads {
       });
     }
 
+    /**
+     * Validates, records and adopts a completed contribution.
+     *
+     * @param pack owning pack opening.
+     * @param task task that submitted the contribution.
+     * @param phase active native phase.
+     * @param submissions stage submissions for the owning pack.
+     * @param recorded callback's ordered contribution log.
+     * @param contribution completed contribution whose backing is transferred.
+     */
     private void submit(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, PackContribution contribution) {
       validateSubmission(pack, task, phase, contribution);
@@ -744,6 +903,14 @@ public final class DynamicPackLoads {
       pack.adoptBatch(List.of(contribution));
     }
 
+    /**
+     * Assigns a submission order and records both the merge operations and the replayable contribution.
+     *
+     * @param task task that submitted the contribution.
+     * @param submissions stage submissions for the owning pack.
+     * @param recorded callback's ordered contribution log.
+     * @param contribution completed contribution.
+     */
     private void record(Task task, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, PackContribution contribution) {
       long order = sequence.incrementAndGet();
@@ -761,6 +928,17 @@ public final class DynamicPackLoads {
       recorded.add(new Recorded(order, contribution));
     }
 
+    /**
+     * Validates and adopts a cached batch before restoring its submissions to the stage.
+     *
+     * @param pack owning pack opening.
+     * @param task task associated with the cache batch.
+     * @param phase active native phase.
+     * @param submissions stage submissions for the owning pack.
+     * @param recorded callback's ordered contribution log.
+     * @param batch cached batch with retained contribution backing.
+     * @return whether the batch was replayed.
+     */
     private boolean replay(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
       Collection<Recorded> recorded, CallbackCache.Batch batch) {
       try {
@@ -775,6 +953,16 @@ public final class DynamicPackLoads {
       return true;
     }
 
+    /**
+     * Checks namespace authorization, attempt state and the native output contract.
+     *
+     * @param pack owning pack opening.
+     * @param task task that submitted the contribution.
+     * @param phase active native phase.
+     * @param contribution completed contribution to validate.
+     * @throws IllegalArgumentException if the namespace or output contract is invalid.
+     * @throws CancellationException if the load no longer accepts writes.
+     */
     private void validateSubmission(GeneratedPackResources pack, Task task, Phase phase, PackContribution contribution) {
       Identifier id = contribution.id();
       if (!task.fileRule() && !Objects.requireNonNull(pack.definition).generation().namespaces.contains(id.getNamespace())) {
@@ -787,12 +975,32 @@ public final class DynamicPackLoads {
 
   }
 
+  /**
+   * Joins completion of generation tasks.
+   *
+   * @param futures generation task completions.
+   * @return future that completes when all supplied futures complete.
+   */
   private static CompletableFuture<Void> all(Collection<CompletableFuture<Void>> futures) {
     return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
   }
 
+  /**
+   * Records a cache baseline change to apply only after native success.
+   *
+   * @param address address of the cache record.
+   * @param batch validated batch, or {@code null} when reuse cannot be established.
+   * @param hit whether the old batch was reused.
+   * @param persistent whether the cache record can persist across launches.
+   */
   private record CacheUpdate(Path address, @Nullable CallbackCache.Batch batch, boolean hit, boolean persistent) {}
 
+  /**
+   * Keeps a replayable contribution in submission order.
+   *
+   * @param sequence attempt-wide submission index.
+   * @param contribution complete submitted contribution.
+   */
   private record Recorded(long sequence, PackContribution contribution) {}
 
 }

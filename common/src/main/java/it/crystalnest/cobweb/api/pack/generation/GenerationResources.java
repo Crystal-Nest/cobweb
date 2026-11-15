@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceKind;
-import net.minecraft.locale.Language;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.metadata.MetadataSectionType;
 import net.minecraft.server.packs.resources.Resource;
@@ -18,7 +17,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,15 +25,30 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Native resource resolution against one stable generation snapshot.
+ * Provides native resource lookup against one stable generation snapshot.
+ * Resource handles and their streams are scoped to the callback. Detached decoded values can be kept after it ends.
  */
 public final class GenerationResources {
+  /**
+   * The generation callback that owns this view.
+   */
   private final GenerationContext context;
 
+  /**
+   * The stable native resource view for this callback.
+   */
   private final ResourceManager manager;
 
+  /**
+   * Cache observation tracker for native reads through this view.
+   */
   private final CacheObservations observations;
 
+  /**
+   * @param context owning callback context.
+   * @param manager stable native resource view.
+   * @param observations cache observation tracker.
+   */
   GenerationResources(GenerationContext context, ResourceManager manager, CacheObservations observations) {
     this.context = context;
     this.manager = manager;
@@ -63,13 +76,15 @@ public final class GenerationResources {
    * @param <T> definition type.
    * @return detached definition if present.
    * @throws IOException if the winning file cannot be read.
+   * @throws IllegalArgumentException if the resource kind belongs to the other native pack type.
+   * @throws IllegalStateException if the callback has ended.
    */
   public <T> Optional<T> get(ResourceKind<T> kind, Identifier id) throws IOException {
     context.checkOpen();
     if (kind.deadline().type() != context.phase().type()) {
       throw new IllegalArgumentException("Resource kind " + kind.directory() + " is unavailable in " + context.phase());
     }
-    var file = get(kind.file(id));
+    var file = get(PackPaths.jsonFile(kind.directory(), id));
     return file.isEmpty() ? Optional.empty() : Optional.of(file.get().decode(kind.codec()));
   }
 
@@ -122,6 +137,14 @@ public final class GenerationResources {
       .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> stackFiles(entry.getKey(), directory, entry.getValue())));
   }
 
+  /**
+   * Wraps a native priority stack so individual reads can be observed by stack position.
+   *
+   * @param id resolved resource identifier.
+   * @param directory listing directory, or {@code null} for a direct lookup.
+   * @param stack native priority stack.
+   * @return resources ordered from lowest to highest priority.
+   */
   private List<File> stackFiles(Identifier id, @Nullable String directory, List<Resource> stack) {
     var files = new ArrayList<File>(stack.size());
     for (int index = 0; index < stack.size(); index++) {
@@ -143,37 +166,36 @@ public final class GenerationResources {
   }
 
   /**
-   * Reads the translations contributed by the visible stack of one language file.
-   *
-   * @param namespace resource namespace.
-   * @param language language identifier such as {@code en_us}.
-   * @return immutable translations merged in native pack order.
-   * @throws IOException if a translation file cannot be read.
-   */
-  public Map<String, String> translations(String namespace, String language) throws IOException {
-    context.checkAssets();
-    Map<String, String> translations = new LinkedHashMap<>();
-    for (var file : stack(Identifier.fromNamespaceAndPath(namespace, "lang/" + language + ".json"))) {
-      try (var input = file.open()) {
-        Language.loadFromJson(input, translations::put);
-      }
-    }
-    return Map.copyOf(translations);
-  }
-
-  /**
    * Read-only handle to a resource and its native source.
    */
   public final class File {
+    /**
+     * The native resource resolved for this handle.
+     */
     private final Resource resource;
 
+    /**
+     * The namespaced file identifier.
+     */
     private final Identifier id;
 
+    /**
+     * The source listing directory, or {@code null} for a direct lookup.
+     */
     @Nullable
     private final String directory;
 
+    /**
+     * The position in the resource stack, or {@code -1} for a winning resource.
+     */
     private final int stackIndex;
 
+    /**
+     * @param resource resolved native resource.
+     * @param id namespaced file identifier.
+     * @param directory listing directory, or {@code null} for a direct lookup.
+     * @param stackIndex position in the resource stack, or {@code -1} for a winning resource.
+     */
     private File(Resource resource, Identifier id, @Nullable String directory, int stackIndex) {
       this.resource = resource;
       this.id = id;
@@ -192,7 +214,8 @@ public final class GenerationResources {
     }
 
     /**
-     * Opens a fresh stream scoped to the callback. Readers of the same resolved file in this stage share its first captured contents. Cobweb closes the stream at callback completion.
+     * Opens a fresh stream scoped to the callback.
+     * Readers of the same resolved file in this stage share its first captured contents. Cobweb closes the stream at callback completion.
      *
      * @return stream of the resource contents.
      * @throws IOException if the file cannot be opened.
@@ -202,7 +225,8 @@ public final class GenerationResources {
     }
 
     /**
-     * Opens a resource with a capture limit. An oversized first capture fails this stage's shared input.
+     * Opens a resource with a capture limit.
+     * An oversized first capture fails this stage's shared input. If another read already captured the file, this limit applies to the size of that capture.
      *
      * @param maxBytes maximum captured bytes.
      * @return callback-scoped stream.
@@ -236,6 +260,7 @@ public final class GenerationResources {
 
     /**
      * Reads a native metadata section associated with this exact resource resolution.
+     * Cache validation tracks the effective file-backed sidecar, including its absence.
      *
      * @param type native metadata section.
      * @param <T> decoded section type.
@@ -247,7 +272,7 @@ public final class GenerationResources {
     }
 
     /**
-     * Reads a detached copy of the native sidecar associated with this resource.
+     * Reads a detached copy of the effective file-backed sidecar associated with this resource.
      *
      * @return original JSON sidecar when available.
      * @throws IOException if the sidecar cannot be read.
@@ -256,6 +281,12 @@ public final class GenerationResources {
       return observedMetadata() instanceof ResourceMetadataJson raw ? Optional.of(raw.json().deepCopy()) : Optional.empty();
     }
 
+    /**
+     * Reads and records the effective metadata resolved by the native resource manager.
+     *
+     * @return effective metadata, including the native empty metadata value.
+     * @throws IOException if the metadata cannot be read.
+     */
     private ResourceMetadata observedMetadata() throws IOException {
       context.checkOpen();
       try {

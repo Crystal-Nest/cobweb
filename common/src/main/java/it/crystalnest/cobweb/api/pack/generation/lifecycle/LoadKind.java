@@ -8,7 +8,6 @@ public enum LoadKind {
    * Initial loading of the current resource context.
    */
   FULL_LOAD,
-
   /**
    * Replacement of reloadable resources in the current context.
    */

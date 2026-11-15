@@ -31,9 +31,7 @@ public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supp
   private final Holder.Reference<T> holder;
 
   /**
-   * The registration key must already be bound, but the value may still be awaiting registration.
-   *
-   * @param holder native reference holder for the registration.
+   * @param holder native reference holder with a bound registration key; its value may still be awaiting registration.
    */
   @ApiStatus.Internal
   protected CobwebEntry(Holder.Reference<T> holder) {

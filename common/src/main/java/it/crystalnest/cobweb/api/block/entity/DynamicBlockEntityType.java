@@ -22,8 +22,6 @@ public class DynamicBlockEntityType<T extends BlockEntity> extends BlockEntityTy
   private final Function<BlockState, Boolean> validator;
 
   /**
-   * Creates a block entity type with a dynamic block-validity predicate.
-   *
    * @param supplier {@link BlockEntitySupplier} for the custom block entity.
    * @param validator validator function that determines whether this block entity can be applied to a block state.
    */

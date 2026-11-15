@@ -13,23 +13,40 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Reads bundled assets and submits complete files for one server publication callback. Use this view on the publication worker during the callback.
+ * Reads bundled assets and submits complete files for one server publication callback.
+ * The view lasts for that callback on the publication worker. Published assets are built separately from the local client resource load.
  */
 public final class AssetPublicationOutput {
+  /**
+   * The pack opening that supplies bundled assets and receives the generated files.
+   */
   private final GeneratedPackResources resources;
 
+  /**
+   * Pending publication files keyed by their resource ID.
+   */
   private final Map<Identifier, GeneratedPackResources.File> files = new HashMap<>();
 
+  /**
+   * Owns pending file backing until the pack opening accepts it.
+   */
   private final PackFileOwner owned = new PackFileOwner();
 
+  /**
+   * Whether the callback can still read and submit assets.
+   */
   private boolean open = true;
 
+  /**
+   * @param resources pack opening for this publication callback.
+   */
   AssetPublicationOutput(GeneratedPackResources resources) {
     this.resources = resources;
   }
 
   /**
-   * Reads a bundled asset through native overlay precedence. The input stream is closed when the reader returns.
+   * Reads a bundled asset through native overlay precedence.
+   * The input stream is closed when the reader returns.
    *
    * @param id namespaced path including its extension.
    * @param reader reads the asset within this call.
@@ -115,18 +132,29 @@ public final class AssetPublicationOutput {
     write(PackPaths.sound(sound), writer);
   }
 
+  /**
+   * Transfers pending file ownership to the pack opening and makes the files visible.
+   */
   void finish() {
     resources.adopt(owned);
     resources.publish(files);
     files.clear();
   }
 
+  /**
+   * Closes the callback view and releases any files it still owns.
+   */
   void close() {
     open = false;
     owned.close();
     files.clear();
   }
 
+  /**
+   * Checks that the publication callback can still use this view.
+   *
+   * @throws IllegalStateException if the callback has ended.
+   */
   private void checkOpen() {
     if (!open) {
       throw new IllegalStateException("Asset publication callback has ended");

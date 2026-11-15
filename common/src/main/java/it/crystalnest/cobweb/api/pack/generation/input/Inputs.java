@@ -14,8 +14,6 @@ public record Inputs(List<Input> values) {
   public static final Inputs NONE = new Inputs(List.of());
 
   /**
-   * Copies the callback's input declarations.
-   *
    * @param values native and captured input declarations.
    */
   public Inputs {

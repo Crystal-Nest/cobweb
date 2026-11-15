@@ -34,6 +34,9 @@ import java.util.concurrent.TimeUnit;
  */
 @ApiStatus.Internal
 public final class GeneratedPackExport {
+  /**
+   * Daemon executor for writing inspection exports outside the calling thread.
+   */
   private static final ThreadPoolExecutor WRITER = new ThreadPoolExecutor(0, 1, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(4), task -> {
     var thread = new Thread(task, "Cobweb pack export");
     thread.setDaemon(true);
@@ -88,6 +91,13 @@ public final class GeneratedPackExport {
     }
   }
 
+  /**
+   * Writes an inspection export in a staging directory and publishes it after completion.
+   *
+   * @param snapshot retained snapshot of the applied pack.
+   * @return path of the completed export.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   private static Path copy(GeneratedPackResources snapshot) throws IOException {
     Path root = Files.createDirectories(Path.of("cobweb", "exports")).toAbsolutePath().normalize();
     Path staging = Files.createTempDirectory(root, ".pack-");
@@ -116,6 +126,15 @@ public final class GeneratedPackExport {
     }
   }
 
+  /**
+   * Writes effective file contents with overlays flattened into the selected resource paths.
+   * Preserves inspection metadata only for inspection exports.
+   *
+   * @param snapshot pack snapshot to read.
+   * @param inspection whether to preserve Cobweb inspection metadata.
+   * @param writer writer consuming the paths and streams synchronously.
+   * @throws IOException if the underlying I/O operation fails.
+   */
   static void writeContents(GeneratedPackResources snapshot, boolean inspection, EntryWriter writer) throws IOException {
     var type = snapshot.type;
     var section = PackMetadataSection.forPackType(type);
@@ -148,8 +167,18 @@ public final class GeneratedPackExport {
     }
   }
 
+  /**
+   * Writes one pack-relative entry while its input stream remains open.
+   */
   @FunctionalInterface
   interface EntryWriter {
+    /**
+     * Consumes one file's bytes synchronously.
+     *
+     * @param path relative path inside the exported pack.
+     * @param input complete entry stream.
+     * @throws IOException if the underlying I/O operation fails.
+     */
     void write(String path, InputStream input) throws IOException;
   }
 }

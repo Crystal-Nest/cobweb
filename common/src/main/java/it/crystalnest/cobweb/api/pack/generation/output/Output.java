@@ -55,8 +55,6 @@ public record Output(Phase deadline, ResourceLifetime lifetime, @Nullable Resour
   public static final Output STRUCTURES = new Output(Phase.RELOADABLE_REGISTRIES_READY, ResourceLifetime.RELOADABLE, null);
 
   /**
-   * Creates the output declaration used to check native scheduling.
-   *
    * @param deadline latest compatible phase.
    * @param lifetime lifetime of the submitted files.
    * @param registry optional native registry key.
@@ -68,8 +66,6 @@ public record Output(Phase deadline, ResourceLifetime lifetime, @Nullable Resour
   }
 
   /**
-   * Creates a native output descriptor.
-   *
    * @param deadline latest compatible phase.
    * @param lifetime native loading lifetime.
    * @param registry native registry key, if applicable.

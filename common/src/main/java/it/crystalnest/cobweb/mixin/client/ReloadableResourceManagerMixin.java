@@ -29,10 +29,16 @@ import java.util.stream.Stream;
  */
 @Mixin(ReloadableResourceManager.class)
 public abstract class ReloadableResourceManagerMixin {
+  /**
+   * Native resource type managed by this reloadable resource manager.
+   */
   @Shadow
   @Final
   private PackType type;
 
+  /**
+   * Whether this manager has started its first resource load.
+   */
   @Unique
   private boolean started;
 
