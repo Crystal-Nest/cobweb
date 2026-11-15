@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.api.pack;
 
 import it.crystalnest.cobweb.api.pack.dependency.ModRequirement;
-import it.crystalnest.cobweb.api.pack.dependency.PackDependencySettings;
 import it.crystalnest.cobweb.api.pack.dependency.PackRequirement;
 import it.crystalnest.cobweb.api.pack.generation.CallbackRegistration;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
@@ -824,11 +823,15 @@ public abstract class ResourcePack {
     /**
      * Sets the version exposed to pack dependencies.
      *
-     * @param version logical pack version.
+     * @param version nonblank version interpreted by the active loader.
      * @return this registrar.
+     * @throws IllegalArgumentException if the version is blank.
      */
     public final R version(String version) {
-      this.version = Objects.requireNonNull(version);
+      if (version.isBlank()) {
+        throw new IllegalArgumentException("Pack version cannot be blank");
+      }
+      this.version = version;
       return self();
     }
 
@@ -896,8 +899,7 @@ public abstract class ResourcePack {
         throw new IllegalStateException("Pack registration closed before " + pack.identifier());
       }
       ResourcePack definition = pack;
-      var dependencies = new PackDependencySettings(version, requiredPacks, requiredMods);
-      var declaration = new PackHelper.PackDeclaration(identifier, dependencies, observer, icon, presentation, explicitTitle, description != null);
+      var declaration = new PackHelper.PackDeclaration(identifier, version, requiredPacks, requiredMods, observer, icon, presentation, explicitTitle, description != null);
       var registration = new PackHelper.RegisteredPack(pack, definition.location, definition.selection, declaration, bundledRoot(), description == null ? null : description.copy(), formats, definition.generation, publication);
       Services.PACK.registerCobwebPack(registration);
       return pack;

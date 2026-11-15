@@ -6,7 +6,9 @@ import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import net.minecraft.server.packs.repository.Pack;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
-import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
+import org.apache.maven.artifact.versioning.ArtifactVersion;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.apache.maven.artifact.versioning.Restriction;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
@@ -59,14 +61,39 @@ public final class NeoForgePlatformHelper implements PlatformHelper {
   @Override
   public boolean matchesModVersion(String modId, VersionRange range) {
     var actual = ModList.get().getModContainerById(modId).orElseThrow().getModInfo().getVersion();
-    String lower = range.minimum() == null ? "(" : (range.minimum().inclusive() ? "[" : "(") + range.minimum().version();
-    String upper = range.maximum() == null ? ")" : range.maximum().version() + (range.maximum().inclusive() ? "]" : ")");
-    String spec = range.exact() == null ? lower + "," + upper : "[" + range.exact() + "]";
-    try {
-      return org.apache.maven.artifact.versioning.VersionRange.createFromVersionSpec(spec).containsVersion(actual);
-    } catch (InvalidVersionSpecificationException failure) {
-      throw new IllegalArgumentException("Invalid NeoForge version requirement for " + modId, failure);
+    return matchesVersion(actual, range);
+  }
+
+  @Override
+  public boolean matchesVersion(String version, VersionRange range) {
+    return matchesVersion(new DefaultArtifactVersion(version), range);
+  }
+
+  /**
+   * Evaluates a constraint against a version already parsed by Maven.
+   *
+   * @param actual version to check.
+   * @param range requested version constraint.
+   * @return whether the version satisfies the constraint.
+   * @throws IllegalArgumentException if the interval is empty.
+   */
+  private static boolean matchesVersion(ArtifactVersion actual, VersionRange range) {
+    if (range.exact() != null) {
+      return new DefaultArtifactVersion(range.exact()).compareTo(actual) == 0;
     }
+    var minimum = range.minimum();
+    var maximum = range.maximum();
+    var lower = minimum == null ? null : new DefaultArtifactVersion(minimum.version());
+    var upper = maximum == null ? null : new DefaultArtifactVersion(maximum.version());
+    boolean includeLower = minimum != null && minimum.inclusive();
+    boolean includeUpper = maximum != null && maximum.inclusive();
+    if (lower != null && upper != null) {
+      int order = lower.compareTo(upper);
+      if (order > 0 || order == 0 && (!includeLower || !includeUpper)) {
+        throw new IllegalArgumentException("Empty NeoForge version interval: " + range);
+      }
+    }
+    return new Restriction(lower, includeLower, upper, includeUpper).containsVersion(actual);
   }
 
   @Override

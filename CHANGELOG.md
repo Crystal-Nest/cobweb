@@ -9,6 +9,7 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - **Miscellaneous changes**
   - Ported to 26.3
+  - Added common platform queries for the active loader, development environment, loaded mods, and mod versions.
 
 - **Registry changes**
   - Removed the Fabric-only `Register` and `RegisterProvider` API. Use `CobwebRegistry` on all platforms.
@@ -46,6 +47,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Applied activation and initial placement to data-pack discovery and `/reload`, and prevented always-active data packs from being disabled or omitted during resource reloads.
   - Added native generation phases and stages, asynchronous callbacks, typed data and asset views, grouped sprites, and keyed sound definitions.
   - Added pack and mod requirements, optional pack dependency versions, and ordering between packs with generation callbacks.
+  - Declare a mod's own pack requirements in its root `pack.mcmeta`.
+  - Use one exact or bounded version constraint syntax for pack and mod requirements, with comparisons handled by the active loader.
   - Added selection-dependent titles, descriptions and icons, and native load completion observers.
   - Added opt-in callback caching, disk-backed streaming for large generated files, and inspection export for applied Cobweb packs.
   - Added ordered asset-pack delivery to Vanilla clients on dedicated servers, including optional server-side generation and configurable HTTP hosting.

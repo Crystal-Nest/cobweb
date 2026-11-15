@@ -5,25 +5,22 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * One exact dependency version or one continuous interval.
+ * Describes one exact dependency version or one continuous interval with at least one bound.
+ * The active loader compares versions for both mod and pack requirements.
+ * Each exact version or boundary supplies a single nonblank version string.
  *
- * @param exact exact requested version.
- * @param minimum optional lower bound.
- * @param maximum optional upper bound.
- * @param allowPrerelease whether a pack interval may match unstable versions.
+ * @param exact exact requested version, or {@code null} for an interval.
+ * @param minimum lower bound, or {@code null} when unbounded.
+ * @param maximum upper bound, or {@code null} when unbounded.
  */
-public record VersionRange(@Nullable String exact, @Nullable Bound minimum, @Nullable Bound maximum, boolean allowPrerelease) {
+public record VersionRange(@Nullable String exact, @Nullable Bound minimum, @Nullable Bound maximum) {
   /**
-   * Creates an exact version requirement or one interval.
-   *
-   * @param exact optional exact version.
-   * @param minimum optional lower bound.
-   * @param maximum optional upper bound.
-   * @param allowPrerelease whether an interval can match a prerelease.
-   * @throws IllegalArgumentException if the version constraint is empty or ambiguous.
+   * @param exact exact requested version, or {@code null} for an interval.
+   * @param minimum lower bound, or {@code null} when unbounded.
+   * @param maximum upper bound, or {@code null} when unbounded.
    */
   public VersionRange {
-    if (exact == null && minimum == null && maximum == null || exact != null && (exact.isBlank() || minimum != null || maximum != null || allowPrerelease)) {
+    if (exact == null && minimum == null && maximum == null || exact != null && (exact.isBlank() || minimum != null || maximum != null)) {
       throw new IllegalArgumentException("Supply one exact version or at least one interval bound");
     }
   }
@@ -33,35 +30,34 @@ public record VersionRange(@Nullable String exact, @Nullable Bound minimum, @Nul
    *
    * @param value required version.
    * @return exact version constraint.
+   * @throws IllegalArgumentException if the version is blank.
    */
   public static VersionRange exact(String value) {
-    return new VersionRange(Objects.requireNonNull(value), null, null, false);
+    return new VersionRange(Objects.requireNonNull(value), null, null);
   }
 
   /**
-   * Requires a version within the given bounds. Pack intervals select stable versions by default.
+   * Requires a version within the given bounds according to the active loader.
    *
-   * @param minimum optional lower bound.
-   * @param maximum optional upper bound.
+   * @param minimum lower bound, or {@code null} when unbounded.
+   * @param maximum upper bound, or {@code null} when unbounded.
    * @return interval constraint.
+   * @throws IllegalArgumentException if both bounds are absent.
    */
   public static VersionRange interval(@Nullable Bound minimum, @Nullable Bound maximum) {
-    return new VersionRange(null, minimum, maximum, false);
+    return new VersionRange(null, minimum, maximum);
   }
 
   /**
-   * Represents a lower or upper version bound.
+   * Represents a lower or upper boundary with a nonblank version.
    *
    * @param version version at the boundary.
    * @param inclusive whether the boundary is included.
    */
   public record Bound(String version, boolean inclusive) {
     /**
-     * Creates a version boundary.
-     *
      * @param version version at the boundary.
      * @param inclusive whether the boundary is included.
-     * @throws IllegalArgumentException if the version is blank.
      */
     public Bound {
       Objects.requireNonNull(version);

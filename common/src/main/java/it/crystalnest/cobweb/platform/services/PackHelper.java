@@ -4,7 +4,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
-import it.crystalnest.cobweb.api.pack.dependency.PackDependencySettings;
+import it.crystalnest.cobweb.api.pack.dependency.ModRequirement;
+import it.crystalnest.cobweb.api.pack.dependency.PackRequirement;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.api.pack.generation.PackGeneration;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.PackLoadOutcome;
@@ -12,6 +13,7 @@ import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentationContext;
 import it.crystalnest.cobweb.api.pack.query.PackActivation;
+import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -30,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +48,11 @@ public abstract class PackHelper {
    * Registrations indexed by type and native ID.
    */
   private final Map<PackType, Map<String, RegisteredPack>> packs = new ConcurrentHashMap<>();
+
+  /**
+   * Resolves dependency declarations and pack identities for this service.
+   */
+  private final NativePackDependencies dependencies = new NativePackDependencies(this);
 
   /**
    * Reads the pack's own metadata document.
@@ -148,6 +156,51 @@ public abstract class PackHelper {
   }
 
   /**
+   * Reads the identity of a pack, using the registered logical ID or falling back to file metadata.
+   *
+   * @param type native resource type.
+   * @param nativeId native repository ID.
+   * @param resources opened primary metadata resources.
+   * @return pack identity with a logical ID when it can be read.
+   */
+  public final PackInfo packInfo(PackType type, String nativeId, PackMetadataResources resources) {
+    return dependencies.info(type, nativeId, resources);
+  }
+
+  /**
+   * Validates a selection against pack and mod-root declarations and resolves pack requirements for generation ordering.
+   *
+   * @param type native resource type.
+   * @param packs selected packs in increasing priority.
+   * @return selected dependency IDs indexed by the requiring native pack ID.
+   * @throws IllegalStateException if a requirement is unsatisfied or ambiguous.
+   * @throws java.io.UncheckedIOException if dependency metadata cannot be read.
+   */
+  public final Map<String, List<String>> validateDependencies(PackType type, List<PackResources> packs) {
+    return dependencies.validate(type, packs);
+  }
+
+  /**
+   * Validates the dependencies of the asset packs selected for server delivery.
+   *
+   * @param packs selected packs in increasing publication priority.
+   * @throws IllegalStateException if a requirement is unsatisfied or ambiguous, or a pack requires client mods.
+   */
+  public final void validatePublicationDependencies(List<PackResources> packs) {
+    dependencies.validatePublication(packs);
+  }
+
+  /**
+   * Writes the registered pack identity and Java dependency settings into exported pack metadata.
+   *
+   * @param metadata detached metadata object to update.
+   * @param declaration registered pack declaration.
+   */
+  public final void writeDependencyMetadata(JsonObject metadata, PackDeclaration declaration) {
+    NativePackDependencies.exportMetadata(metadata, declaration);
+  }
+
+  /**
    * Resolves an asset pack selected for publication by its logical identifier.
    *
    * @param id logical pack identifier.
@@ -234,9 +287,12 @@ public abstract class PackHelper {
 
   /**
    * Exposes the registered settings used by dependency resolution, presentation, and load notifications.
+   * Supplied requirement lists are copied. An explicitly empty list clears the corresponding file list.
    *
    * @param id logical pack identifier.
-   * @param dependencies dependency settings declared in Java.
+   * @param dependencyVersion Java pack dependency version, or {@code null} to inherit the file version.
+   * @param requiredPacks replacement pack requirements, or {@code null} to inherit the file list.
+   * @param requiredMods replacement mod requirements, or {@code null} to inherit the file list.
    * @param observer callback for native load outcomes, or {@code null} if absent.
    * @param icon base icon declared in Java, or {@code null} if absent.
    * @param presentation callback for pack editor presentation, or {@code null} if absent.
@@ -245,13 +301,31 @@ public abstract class PackHelper {
    */
   public record PackDeclaration(
     Identifier id,
-    PackDependencySettings dependencies,
+    @Nullable String dependencyVersion,
+    @Nullable List<PackRequirement> requiredPacks,
+    @Nullable List<ModRequirement> requiredMods,
     @Nullable Consumer<PackLoadOutcome> observer,
     @Nullable PackIcon icon,
     @Nullable Function<PackPresentationContext, PackPresentation> presentation,
     boolean explicitTitle,
     boolean explicitDescription
-  ) {}
+  ) {
+    /**
+     * @param id logical pack identifier.
+     * @param dependencyVersion Java pack dependency version, or {@code null} to inherit the file version.
+     * @param requiredPacks replacement pack requirements, or {@code null} to inherit the file list.
+     * @param requiredMods replacement mod requirements, or {@code null} to inherit the file list.
+     * @param observer native load outcome callback, or {@code null} if absent.
+     * @param icon Java base icon, or {@code null} if absent.
+     * @param presentation pack editor presentation callback, or {@code null} if absent.
+     * @param explicitTitle whether Java supplies the base title.
+     * @param explicitDescription whether Java supplies the base description.
+     */
+    public PackDeclaration {
+      requiredPacks = requiredPacks == null ? null : List.copyOf(requiredPacks);
+      requiredMods = requiredMods == null ? null : List.copyOf(requiredMods);
+    }
+  }
 
   /**
    * Pairs the server-thread capture with the worker callback that consumes its detached inputs.

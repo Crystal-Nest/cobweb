@@ -1,7 +1,6 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
 import it.crystalnest.cobweb.api.pack.generation.input.CapturedInput;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
@@ -181,7 +180,6 @@ public final class DynamicPackLoads {
    */
   public static void closeDeclarations() {
     declarationsClosed = true;
-    NativePackDependencies.closeDeclarations();
   }
 
   /**
@@ -310,7 +308,7 @@ public final class DynamicPackLoads {
     closeDeclarations();
     var request = PackQueryLifecycle.begin(type, repository, packs);
     try {
-      var required = NativePackDependencies.validate(type, packs);
+      var required = Services.PACK.validateDependencies(type, packs);
       return new Attempt(type, List.copyOf(packs), generated, required, kind, cacheRoot, request);
     } catch (RuntimeException | Error failure) {
       request.finish(false);

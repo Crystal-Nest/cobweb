@@ -5,18 +5,16 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * Requires an installed mod, optionally constrained by the loader's version comparison.
+ * Requires a loaded mod and optionally checks its version using the active loader's rules.
+ * The mod ID must be nonblank.
  *
  * @param id mod ID.
- * @param version optional version constraint.
+ * @param version loader version constraint, or {@code null} to require presence only.
  */
 public record ModRequirement(String id, @Nullable VersionRange version) {
   /**
-   * Creates a mod requirement with a nonblank loader ID.
-   *
    * @param id installed mod ID.
-   * @param version optional loader version constraint.
-   * @throws IllegalArgumentException if the ID is blank.
+   * @param version loader version constraint, or {@code null} to require presence only.
    */
   public ModRequirement {
     Objects.requireNonNull(id);
@@ -26,8 +24,6 @@ public record ModRequirement(String id, @Nullable VersionRange version) {
   }
 
   /**
-   * Requires an installed mod independently of version.
-   *
    * @param id mod ID.
    */
   public ModRequirement(String id) {

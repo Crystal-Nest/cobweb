@@ -97,8 +97,19 @@ public interface PlatformHelper {
    * @param modId loaded mod ID.
    * @param range requested version constraint.
    * @return whether the installed mod satisfies the constraint.
+   * @throws IllegalArgumentException if the version constraint is invalid for the active loader.
    */
   boolean matchesModVersion(String modId, VersionRange range);
+
+  /**
+   * Checks a declared version using the same comparison rules as loaded mod versions.
+   *
+   * @param version declared version string.
+   * @param range requested version constraint.
+   * @return whether the declared version satisfies the constraint.
+   * @throws IllegalArgumentException if the version or constraint is invalid for the active loader.
+   */
+  boolean matchesVersion(String version, VersionRange range);
 
   /**
    * Returns the version of the specified mod.

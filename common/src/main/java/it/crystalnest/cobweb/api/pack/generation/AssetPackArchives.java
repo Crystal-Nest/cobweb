@@ -2,7 +2,6 @@ package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.AssetPack;
-import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
@@ -101,7 +100,7 @@ public final class AssetPackArchives {
           openings.forEach(resources::add);
         }
       }
-      NativePackDependencies.validatePublication(resources);
+      Services.PACK.validatePublicationDependencies(resources);
       var archives = new ArrayList<Archive>();
       for (int index = 0; index < resources.size(); index++) {
         checkCurrent(current);

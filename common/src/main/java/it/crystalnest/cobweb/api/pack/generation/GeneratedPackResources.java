@@ -1,6 +1,5 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
-import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
 import it.crystalnest.cobweb.api.pack.generation.PackGeneration.Task;
 import it.crystalnest.cobweb.api.pack.generation.output.ResourceLifetime;
 import it.crystalnest.cobweb.mixin.OverlayedPackResourcesAccessor;
@@ -111,7 +110,7 @@ final class GeneratedPackResources implements PackResources {
     List<PackResources> layers = pack instanceof OverlayedPackResources overlay
       ? ((OverlayedPackResourcesAccessor) overlay).getPackResourcesStack().reversed() : List.of(pack);
     var bundles = new Bundles(nativeBundle(layers.getFirst()), layers.subList(1, layers.size()).stream().map(GeneratedPackResources::nativeBundle).toList());
-    return new GeneratedPackResources(null, type, NativePackDependencies.info(type, pack).logicalId(), pack.location(), Map.of(), bundles, true);
+    return new GeneratedPackResources(null, type, Services.PACK.packInfo(type, pack.packId(), pack).logicalId(), pack.location(), Map.of(), bundles, true);
   }
 
   private static BundledResources nativeBundle(PackResources pack) {

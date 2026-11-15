@@ -2,9 +2,9 @@ package it.crystalnest.cobweb.api.pack.generation;
 
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
-import it.crystalnest.cobweb.platform.services.PackHelper;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
+import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
@@ -124,7 +124,7 @@ public final class GeneratedPackExport {
     metadata.remove("neoforge:overlays");
     metadata.add(section.name(), section.codec().encodeStart(JsonOps.INSTANCE, Objects.requireNonNull(snapshot.getMetadataSection(section))).getOrThrow());
     if (inspection) {
-      NativePackDependencies.exportMetadata(metadata, Objects.requireNonNull(snapshot.definition).declaration());
+      Services.PACK.writeDependencyMetadata(metadata, Objects.requireNonNull(snapshot.definition).declaration());
     } else {
       // The downloaded copy can coexist with a locally registered pack of the same logical ID.
       metadata.remove("cobweb");

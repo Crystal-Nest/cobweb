@@ -1,7 +1,7 @@
 package it.crystalnest.cobweb.api.pack.query;
 
 import com.google.common.collect.MapMaker;
-import it.crystalnest.cobweb.api.pack.dependency.NativePackDependencies;
+import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
@@ -98,7 +98,7 @@ public final class PackQueryLifecycle {
    * @return load-scoped query state and completion handle.
    */
   public static Request begin(PackType type, PackRepository repository, List<PackResources> packs) {
-    List<PackInfo> requested = packs.stream().map(pack -> NativePackDependencies.info(type, pack)).distinct().toList();
+    List<PackInfo> requested = packs.stream().map(pack -> Services.PACK.packInfo(type, pack.packId(), pack)).distinct().toList();
     synchronized (STATES) {
       var before = STATES.get(repository);
       var state = new State(requested, before == null ? null : before.applied);
@@ -137,7 +137,7 @@ public final class PackQueryLifecycle {
     synchronized (IDENTITIES) {
       return IDENTITIES.computeIfAbsent(pack, ignored -> new EnumMap<>(PackType.class)).computeIfAbsent(type, side -> {
         try (var metadata = pack.openMetadata()) {
-          return NativePackDependencies.info(side, pack.getId(), metadata);
+          return Services.PACK.packInfo(side, pack.getId(), metadata);
         }
       });
     }

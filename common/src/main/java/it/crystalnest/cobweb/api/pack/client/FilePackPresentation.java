@@ -4,13 +4,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.dependency.Mods;
 import it.crystalnest.cobweb.api.pack.presentation.PackIcon;
 import it.crystalnest.cobweb.api.pack.presentation.PackPresentation;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.api.pack.query.PackQuestion;
 import it.crystalnest.cobweb.api.pack.query.PackReference;
 import it.crystalnest.cobweb.api.pack.query.PackStatus;
+import it.crystalnest.cobweb.api.platform.PlatformQueries;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
@@ -101,7 +101,7 @@ final class FilePackPresentation {
 
   private static boolean matches(JsonObject condition, PackReference self, PackQueries queries) {
     if (condition.keySet().equals(Set.of("mod_loaded"))) {
-      return Mods.isLoaded(string(condition, "mod_loaded"));
+      return PlatformQueries.isModLoaded(string(condition, "mod_loaded"));
     }
     if (!condition.keySet().equals(Set.of("pack", "is"))) {
       throw new IllegalArgumentException("Expected a mod_loaded or pack predicate");
