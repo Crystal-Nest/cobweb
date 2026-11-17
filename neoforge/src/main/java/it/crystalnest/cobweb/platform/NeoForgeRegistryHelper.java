@@ -44,7 +44,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   /**
    * NeoForge event bus.
    */
-  private IEventBus bus = null;
+  private volatile IEventBus bus;
 
   /**
    * Declarations gathered from mod constructors before the shared native registry event.
@@ -100,6 +100,11 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
   @SuppressWarnings("unchecked")
   public <R> Register<R> of(ResourceKey<? extends Registry<R>> registryKey, String namespace) {
     return (Register<R>) registries.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> {
+      var initializedBus = bus;
+      if (initializedBus == null) {
+        throw new IllegalStateException("Cannot open registry " + registryKey.identifier() + " for namespace " + namespace
+          + " before Cobweb's NeoForge registry service is ready. Set ordering = \"AFTER\" on the required Cobweb dependency in neoforge.mods.toml.");
+      }
       Register<?> register;
       if (registryKey.equals(Registries.ITEM)) {
         register = new Register.Items(namespace);
@@ -116,7 +121,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
       } else {
         register = new Register<>(registryKey, namespace);
       }
-      register.register(bus);
+      register.register(initializedBus);
       return register;
     });
   }

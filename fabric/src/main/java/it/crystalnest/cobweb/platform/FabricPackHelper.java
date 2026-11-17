@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.PackSources;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.fabricmc.loader.api.FabricLoader;
@@ -68,7 +69,8 @@ public final class FabricPackHelper extends PackHelper {
   }
 
   @Override
-  protected void addPackSource(PackType type, Supplier<Pack> supplier) {
+  protected void addPackSource(ResourcePack pack, Supplier<Pack> supplier) {
+    PackType type = pack.type();
     switch (type) {
       case SERVER_DATA -> DATA_PACKS.add(supplier);
       case CLIENT_RESOURCES -> ASSET_PACKS.add(supplier);

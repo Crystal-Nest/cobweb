@@ -72,7 +72,7 @@ public final class PackExportCommand {
       if (error == null) {
         success.accept(Component.translatable("commands.cobweb.export.success", directory.getFileName().toString()));
       } else {
-        Constants.LOGGER.warn("Unable to export {}", pack.id(), error);
+        Constants.LOGGER.error("Unable to export {}", pack.id(), error);
         failure.accept(Component.translatable("commands.cobweb.export.failed", pack.id().toString()));
       }
     }));

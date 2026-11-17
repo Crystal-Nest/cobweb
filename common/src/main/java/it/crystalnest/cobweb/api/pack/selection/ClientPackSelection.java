@@ -98,12 +98,13 @@ public final class ClientPackSelection {
       } catch (NoSuchFileException missing) {
         previous = Set.of();
       } catch (IOException | RuntimeException failure) {
-        Constants.LOGGER.warn("Cannot read static resource pack tracker {}; retaining saved selections", tracker, failure);
+        Constants.LOGGER.error("Cannot read static resource pack tracker {}; retaining saved selections", tracker, failure);
         return null;
       }
 
       Set<String> seen = new HashSet<>();
       List<Pack> selected = new ArrayList<>(repository.getSelectedPacks());
+      List<String> autoEnabled = new ArrayList<>();
       for (Pack pack : repository.getAvailablePacks()) {
         PackActivation activation = Services.PACK.activation(PackType.CLIENT_RESOURCES, pack.getId());
         if (activation == null || Services.PLATFORM.isPackHidden(pack)) {
@@ -112,6 +113,7 @@ public final class ClientPackSelection {
         seen.add(pack.getId());
         if (!previous.contains(pack.getId()) && activation == PackActivation.DEFAULT_ENABLED && pack.getCompatibility().isCompatible() && !selected.contains(pack)) {
           pack.getDefaultPosition().insert(selected, pack, Pack::selectionConfig, false);
+          autoEnabled.add(pack.getId());
         }
       }
 
@@ -119,9 +121,12 @@ public final class ClientPackSelection {
         try {
           write(tracker, seen);
         } catch (IOException | RuntimeException failure) {
-          Constants.LOGGER.warn("Cannot save static resource pack tracker {}; retaining saved selections", tracker, failure);
+          Constants.LOGGER.error("Cannot save static resource pack tracker {}; retaining saved selections", tracker, failure);
           return null;
         }
+      }
+      if (!autoEnabled.isEmpty()) {
+        Constants.LOGGER.debug("Asset pack discovery enabled first-discovery defaults {}", autoEnabled);
       }
       return selected.stream().map(Pack::getId).toList();
     }

@@ -10,6 +10,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 - **Miscellaneous changes**
   - Ported to 26.3
   - Added common platform queries for the active loader, development environment, loaded mods, and mod versions.
+  - Removed the configuration API and Forge Config API Port integration. Suggested replacement is either Fzzy Config, for any loader and multiloader, or NeoForge native + Forge Config API Port for Fabric and multiloader support.
+  - Added startup and registration debug logs, pack-load summaries with attempt IDs and cache counts, and clearer errors for early NeoForge registrations.
+  - Added asset publication revision and offer IDs to trace retries and see whether a failed offer allowed the join to continue or disconnected the player.
+  - Reported failed operations as errors, including failures with Java stack traces.
 
 - **Registry changes**
   - Removed the Fabric-only `Register` and `RegisterProvider` API. Use `CobwebRegistry` on all platforms.
@@ -65,9 +69,6 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
   - Organized the pack API into subpackages for generation, dependencies, presentation, and queries. Generation declarations are grouped by input, output, and lifecycle. Client asset helpers live with generation, and editor presentation helpers live with presentation. `PackActivation` lives in `pack.query`. Internal selection, export commands, and server delivery live in `pack.selection`, `pack.command`, and `pack.delivery`.
   - Split pack references into logical and native variants with typed ID accessors, and moved native query lifecycle state behind the public query methods.
   - Preserved resource capture limits through native DEBUG leak-detection streams and kept discovery identities separate for distinct packs with equal locations.
-
-- **Configuration changes**
-  - Removed the configuration API and Forge Config API Port integration.
 
 ## [v1.4.0] - 2026/10/02
 

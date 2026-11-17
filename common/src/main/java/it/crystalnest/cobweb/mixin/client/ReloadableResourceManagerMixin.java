@@ -3,6 +3,7 @@ package it.crystalnest.cobweb.mixin.client;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.PackLoadLog;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import net.minecraft.client.Minecraft;
@@ -61,21 +62,29 @@ public abstract class ReloadableResourceManagerMixin {
     if (type != PackType.CLIENT_RESOURCES) {
       return original.call(backgroundExecutor, mainThreadExecutor, initialTask, resourcePacks);
     }
+    var log = new PackLoadLog(type, kind);
+    var tracker = new DynamicPackLoads.AttemptTracker(log);
     List<PackResources> prepared;
     try {
-      prepared = DynamicPackLoads.prepare(type, resourcePacks, kind, null);
+      prepared = DynamicPackLoads.prepare(type, resourcePacks, kind, null, log);
     } catch (RuntimeException | Error failure) {
-      return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), null);
+      return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), tracker);
     }
     CompletableFuture<ReloadInstance> nativeReload;
-    DynamicPackLoads.Attempt opened = null;
     try {
       var repository = Minecraft.getInstance().getResourcePackRepository();
       PackQueryLifecycle.bindClient(repository, (ReloadableResourceManager) (Object) this);
-      var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of("cobweb", "cache", "assets"), repository);
-      opened = attempt;
-      nativeReload = attempt.generates() ? attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared), mainThreadExecutor)
-        : CompletableFuture.completedFuture(original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared));
+      var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of("cobweb", "cache", "assets"), repository, log);
+      tracker.bind(attempt);
+      if (attempt.generates()) {
+        nativeReload = attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> {
+          log.handoff();
+          return original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared);
+        }, mainThreadExecutor);
+      } else {
+        log.handoff();
+        nativeReload = CompletableFuture.completedFuture(original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared));
+      }
     } catch (RuntimeException | Error failure) {
       nativeReload = CompletableFuture.failedFuture(failure);
     }
@@ -84,6 +93,6 @@ public abstract class ReloadableResourceManagerMixin {
         DynamicPackLoads.closeAfterFailure(prepared, failure);
       }
     });
-    return DynamicPackLoads.gatedReload(nativeReload, opened);
+    return DynamicPackLoads.gatedReload(nativeReload, tracker);
   }
 }

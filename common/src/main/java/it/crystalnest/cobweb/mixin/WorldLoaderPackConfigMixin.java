@@ -3,6 +3,7 @@ package it.crystalnest.cobweb.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.PackLoadLog;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import net.minecraft.server.WorldLoader;
 import net.minecraft.server.packs.PackResources;
@@ -28,6 +29,6 @@ public abstract class WorldLoaderPackConfigMixin {
    */
   @WrapOperation(method = "createResourceManager", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/packs/repository/PackRepository;openAllSelected()Ljava/util/List;"))
   private List<PackResources> wrapOpenAllSelected(PackRepository instance, Operation<List<PackResources>> original) {
-    return DynamicPackLoads.prepare(PackType.SERVER_DATA, original.call(instance), LoadKind.FULL_LOAD, null);
+    return DynamicPackLoads.prepare(PackType.SERVER_DATA, original.call(instance), LoadKind.FULL_LOAD, null, PackLoadLog.fullLoad());
   }
 }

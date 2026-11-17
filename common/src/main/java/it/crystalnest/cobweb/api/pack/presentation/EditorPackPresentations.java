@@ -77,7 +77,7 @@ public final class EditorPackPresentations {
             icon = patch.icon() == null ? icon : patch.icon();
           }
         } catch (RuntimeException failure) {
-          Constants.LOGGER.warn("Unable to refresh pack presentation for {}", id, failure);
+          Constants.LOGGER.error("Unable to refresh pack presentation for {}", id, failure);
         }
       }
       Identifier texture = icon == null ? null : texture(pack, icon);
@@ -170,7 +170,7 @@ public final class EditorPackPresentations {
         throw failure;
       }
     } catch (IOException | RuntimeException failure) {
-      Constants.LOGGER.warn("Unable to load presentation icon {} for {}", icon, pack.getId(), failure);
+      Constants.LOGGER.error("Unable to load presentation icon {} for {}", icon, pack.getId(), failure);
       return Optional.empty();
     }
   }

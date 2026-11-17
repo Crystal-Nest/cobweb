@@ -1,10 +1,13 @@
 package it.crystalnest.cobweb.platform.services;
 
 import com.mojang.serialization.Codec;
+import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.registry.CobwebDataPackRegistry;
 import it.crystalnest.cobweb.api.registry.CobwebEntry;
 import it.crystalnest.cobweb.api.registry.CobwebRegister;
 import it.crystalnest.cobweb.api.registry.CobwebRegistry;
+import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.model.Platform;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -20,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -46,6 +50,11 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   private boolean dataPackRegistriesClosed;
 
   /**
+   * Data-pack registry declaration counts grouped by namespace.
+   */
+  private final Map<String, Integer> dataPackDeclarations = new TreeMap<>();
+
+  /**
    * Specialized views for custom component registries, sharing the canonical native register.
    */
   private final Map<String, Map<Identifier, CobwebRegister.DataComponents>> componentRegisters = new ConcurrentHashMap<>();
@@ -62,7 +71,7 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   public final synchronized <R> CobwebRegister<R> create(ResourceKey<Registry<R>> registryKey, String namespace, CobwebRegistry.Settings settings) {
     Objects.requireNonNull(settings);
     if (createdRegistries.contains(registryKey.identifier())) {
-      throw new IllegalStateException("Registry already created: " + registryKey.identifier());
+      throw new IllegalStateException("Registry already created: " + registryKey.identifier() + " (requested entry namespace " + namespace + ")");
     }
     CobwebRegister<R> register = createRegistry(registryKey, namespace, settings);
     createdRegistries.add(registryKey.identifier());
@@ -97,13 +106,36 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
     }
     addDataPackRegistry(definition, networkCodec);
     createdRegistries.add(id);
+    dataPackDeclarations.merge(id.getNamespace(), 1, Integer::sum);
   }
 
   /**
    * Ends the loader's data pack registry declaration window.
    */
   public final synchronized void closeDataPackRegistries() {
-    dataPackRegistriesClosed = true;
+    if (!dataPackRegistriesClosed) {
+      dataPackRegistriesClosed = true;
+      Constants.LOGGER.debug("Data-pack registry declarations closed: {}", dataPackDeclarations);
+    }
+  }
+
+  /**
+   * Reports the entries consumers declared through Cobweb during loader setup.
+   */
+  public final void logEntryDeclarations() {
+    String action = Services.PLATFORM.getPlatformName() == Platform.FABRIC ? "registered" : "queued";
+    new TreeMap<>(registries).forEach((namespace, registers) -> {
+      var counts = new TreeMap<Identifier, Integer>();
+      registers.forEach((key, register) -> {
+        int size = register.entries().size();
+        if (size != 0) {
+          counts.put(key, size);
+        }
+      });
+      if (!counts.isEmpty()) {
+        Constants.LOGGER.debug("Registry entries {} through Cobweb for namespace {}: {}", action, namespace, counts);
+      }
+    });
   }
 
   /**

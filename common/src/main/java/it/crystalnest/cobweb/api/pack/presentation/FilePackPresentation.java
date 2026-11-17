@@ -59,13 +59,13 @@ final class FilePackPresentation {
             apply(value.getAsJsonObject(), self, queries, result);
           }
         } catch (RuntimeException failure) {
-          Constants.LOGGER.warn("Unable to evaluate file presentation for {}", pack.getId(), failure);
+          Constants.LOGGER.error("Unable to evaluate file presentation for {}", pack.getId(), failure);
           return base;
         }
       }
       return result.build();
     } catch (IOException | RuntimeException failure) {
-      Constants.LOGGER.warn("Unable to read file presentation for {}", pack.getId(), failure);
+      Constants.LOGGER.error("Unable to read file presentation for {}", pack.getId(), failure);
       return null;
     }
   }

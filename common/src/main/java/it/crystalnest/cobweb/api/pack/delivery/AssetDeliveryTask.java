@@ -2,7 +2,6 @@ package it.crystalnest.cobweb.api.pack.delivery;
 
 import io.netty.channel.Channel;
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.api.pack.generation.AssetPackArchives;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;
@@ -24,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -44,6 +44,21 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    * Time allowed for the whole offer, including any retry.
    */
   private static final long APPLICATION_TIMEOUT = Duration.ofMinutes(2).toMillis();
+
+  /**
+   * Assigns transient IDs to connection offers without identifying players.
+   */
+  private static final AtomicLong nextOfferId = new AtomicLong();
+
+  /**
+   * Identifies this offer and any retry in the server log.
+   */
+  private final long offerId = nextOfferId.incrementAndGet();
+
+  /**
+   * Published revision pinned to this connection, or zero before an archive is offered.
+   */
+  private long revision;
 
   /**
    * Server publication service used by this connection.
@@ -148,6 +163,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
   public void start(@NonNull Consumer<Packet<?>> send) {
     this.send = send;
     deadline = Util.getMillis() + PREPARATION_TIMEOUT;
+    Constants.LOGGER.debug("Asset offer #{} waiting for publication; required={}", offerId, required);
   }
 
   /**
@@ -170,30 +186,34 @@ public final class AssetDeliveryTask implements ConfigurationTask {
         if (publication != null) {
           offer(publication);
         } else {
-          publicationUnavailable();
+          publicationUnavailable(delivery.unavailable() ? "Cobweb asset publication failed" : "timed out waiting for Cobweb asset publication");
         }
       } catch (IllegalArgumentException failure) {
-        Constants.LOGGER.warn("Cannot prepare Cobweb asset pack offers", failure);
-        publicationUnavailable();
+        publicationUnavailable(failure.getMessage());
       }
     }
     if (!pending.isEmpty() && Util.getMillis() >= deadline) {
       if (required) {
+        Constants.LOGGER.error("{} timed out applying required server resource packs {}; disconnecting", label(), pending.values());
         reject(Component.literal("Timed out applying required server resource packs: " + String.join(", ", pending.values())));
         return false;
       }
-      Constants.LOGGER.warn("Timed out applying optional server resource packs {}", pending.values());
+      Constants.LOGGER.error("{}: Timed out applying optional server resource packs {}; allowing join to continue", label(), pending.values());
       pending.keySet().forEach(id -> send.accept(new ClientboundResourcePackPopPacket(Optional.of(id))));
       pending.clear();
     } else if (pending.isEmpty() && retryableFailure != null) {
       if (Util.getMillis() < deadline) {
         retry();
       } else if (required) {
+        Constants.LOGGER.error("{} failed with {} at the application deadline; disconnecting", label(), retryableFailure);
         reject(packFailure(retryableFailure));
+      } else {
+        Constants.LOGGER.error("{} failed with {} at the application deadline; allowing join to continue", label(), retryableFailure);
       }
     }
     if (phase != Phase.REJECTED && pending.isEmpty()) {
       phase = Phase.COMPLETE;
+      Constants.LOGGER.debug("{} completed; allowing join to continue", label());
     }
     return phase == Phase.COMPLETE;
   }
@@ -211,8 +231,11 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     }
     if (packet.action().isTerminal()) {
       String label = pending.remove(packet.id());
-      if (label != null && packet.action() != Action.SUCCESSFULLY_LOADED) {
-        handleFailure(label, packet.action());
+      if (label != null) {
+        Constants.LOGGER.debug("{} received {} for {}", label(), packet.action(), label);
+        if (packet.action() != Action.SUCCESSFULLY_LOADED) {
+          handleFailure(label, packet.action());
+        }
       }
     }
     return true;
@@ -235,9 +258,14 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     retryAllowed = false;
     retryableFailure = null;
     if (required) {
+      if (action == Action.DECLINED) {
+        Constants.LOGGER.info("{}: required server resource pack {} declined; disconnecting", label(), label);
+      } else {
+        Constants.LOGGER.error("{}: Required server resource pack {} failed with {}; disconnecting", label(), label, action);
+      }
       reject(action == Action.DECLINED ? Component.translatable("multiplayer.requiredTexturePrompt.disconnect") : packFailure(detail));
     } else if (action != Action.DECLINED) {
-      Constants.LOGGER.warn("Optional server resource pack {} failed with {}", label, action);
+      Constants.LOGGER.error("{}: Optional server resource pack {} failed with {}; allowing join to continue", label(), label, action);
     }
   }
 
@@ -254,14 +282,15 @@ public final class AssetDeliveryTask implements ConfigurationTask {
   /**
    * Offers the native pack first, followed by the published archives in increasing priority.
    *
-   * @param archives last complete publication.
+   * @param publication last complete publication.
    * @throws IllegalArgumentException if the base URL cannot be resolved or a published archive duplicates the native offer ID.
    */
-  private void offer(List<AssetPackArchives.Archive> archives) {
+  private void offer(AssetDelivery.Publication publication) {
+    revision = publication.revision();
     var base = delivery.baseUrl(channel);
     var offers = new ArrayList<Offer>();
     configured.ifPresent(info -> offers.add(configuredOffer(info)));
-    for (var archive : archives) {
+    for (var archive : publication.archives()) {
       if (configured.isPresent() && configured.get().id().equals(archive.uuid())) {
         throw new IllegalArgumentException("Duplicate native offer UUID for " + archive.id());
       }
@@ -273,13 +302,16 @@ public final class AssetDeliveryTask implements ConfigurationTask {
 
   /**
    * Rejects a required connection when publication is unavailable, or continues an optional connection with only the native offer if configured.
+   *
+   * @param reason publication or offer preparation failure.
    */
-  private void publicationUnavailable() {
+  private void publicationUnavailable(String reason) {
     phase = Phase.APPLYING;
     if (required) {
+      Constants.LOGGER.error("{}: {}; disconnecting", label(), reason);
       reject(Component.literal("The server's required resource packs are unavailable. Try again later or contact the server operator."));
     } else {
-      Constants.LOGGER.debug("No Cobweb asset publication was available for an optional offer");
+      Constants.LOGGER.error("{}: {}; continuing with {}", label(), reason, configured.isPresent() ? "only the server.properties pack" : "no resource packs");
       configured.ifPresent(info -> startOffers(List.of(configuredOffer(info))));
     }
   }
@@ -311,7 +343,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    * The original application deadline still applies.
    */
   private void retry() {
-    Constants.LOGGER.info("Retrying server resource pack batch after {}", retryableFailure);
+    Constants.LOGGER.info("{}: Retrying server resource pack batch after {}", label(), retryableFailure);
     retryAllowed = false;
     retryableFailure = null;
     var offers = new ArrayList<Offer>();
@@ -333,8 +365,20 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    */
   private void sendBatch(List<Offer> offers) {
     batch = List.copyOf(offers);
+    if (Constants.LOGGER.isDebugEnabled()) {
+      Constants.LOGGER.debug("{} sending packs (lowest priority first): {}", label(), offers.stream().map(Offer::label).toList());
+    }
     offers.forEach(offer -> pending.put(offer.id(), offer.label()));
     offers.forEach(offer -> send.accept(new ClientboundResourcePackPushPacket(offer.id(), offer.url(), offer.hash(), offer.required(), offer.prompt())));
+  }
+
+  /**
+   * Identifies the offer and its pinned publication in diagnostic messages.
+   *
+   * @return process-local offer label.
+   */
+  private String label() {
+    return "Asset offer #" + offerId + (revision == 0 ? "" : " (revision #" + revision + ")");
   }
 
   /**

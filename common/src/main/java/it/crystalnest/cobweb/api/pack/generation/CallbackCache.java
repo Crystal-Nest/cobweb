@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -250,7 +251,7 @@ final class CallbackCache {
         }
         environment = CacheObservations.hex(digest);
       } catch (IOException | RuntimeException failure) {
-        Constants.LOGGER.warn("Persistent pack caching could not fingerprint loaded code", failure);
+        Constants.LOGGER.error("Persistent pack caching could not fingerprint loaded code", failure);
       }
     }
     return environment;
@@ -317,15 +318,17 @@ final class CallbackCache {
    * @param file cache record path.
    * @param fingerprint expected callback fingerprint.
    * @param verifier tracker used to verify native observations.
+   * @param miss reports why the cached contribution could not be reused.
    * @return retained batch, or {@code null} when no matching record is usable.
    */
   @Nullable
-  static Batch read(Path file, String fingerprint, CacheObservations verifier) {
+  static Batch read(Path file, String fingerprint, CacheObservations verifier, Consumer<String> miss) {
     Batch current;
     synchronized (LATEST) {
       current = BASELINES.get(file);
       if (current != null) {
         if (!fingerprint.equals(current.fingerprint())) {
+          miss.accept("callback fingerprint changed");
           return null;
         }
         current.values().forEach(PackContribution::retain);
@@ -335,6 +338,9 @@ final class CallbackCache {
       boolean valid = false;
       try {
         valid = verifier.matches(current.observations());
+        if (!valid) {
+          miss.accept("observed inputs changed or could not be verified");
+        }
         return valid ? current : null;
       } finally {
         if (!valid) {
@@ -343,6 +349,7 @@ final class CallbackCache {
       }
     }
     if (!Files.isRegularFile(file)) {
+      miss.accept("no previous contribution");
       return null;
     }
     List<PackContribution> values = new ArrayList<>();
@@ -354,15 +361,18 @@ final class CallbackCache {
       var digest = CacheObservations.digest();
       try (var source = new DigestInputStream(new BufferedInputStream(Files.newInputStream(file)), digest); var input = new DataInputStream(source)) {
         if (input.readInt() != FORMAT) {
+          miss.accept("cache format changed");
           return null;
         }
         String revision = input.readUTF();
         synchronized (LATEST) {
           if (LATEST.containsKey(file) && !revision.equals(LATEST.get(file))) {
+            miss.accept("a newer contribution superseded the cache record");
             return null;
           }
         }
         if (!fingerprint.equals(input.readUTF())) {
+          miss.accept("callback fingerprint changed");
           return null;
         }
         var observations = new LinkedHashMap<CacheObservations.Request, String>();
@@ -371,6 +381,7 @@ final class CallbackCache {
           var request = readRequest(input);
           String saved = input.readUTF();
           if (!saved.equals(verification.fingerprint(request))) {
+            miss.accept("observed inputs changed or could not be verified");
             return null;
           }
           observations.put(request, saved);
@@ -412,7 +423,8 @@ final class CallbackCache {
         return new Batch(revision, fingerprint, observations, List.copyOf(values));
       }
     } catch (IOException | RuntimeException failure) {
-      Constants.LOGGER.warn("Unable to reuse generated pack cache {}", file, failure);
+      miss.accept("cache record could not be read");
+      Constants.LOGGER.error("Unable to reuse generated pack cache {}", file, failure);
       return null;
     } finally {
       if (!accepted) {
@@ -520,7 +532,7 @@ final class CallbackCache {
             write(file, batch);
           }
         } catch (IOException | RuntimeException failure) {
-          Constants.LOGGER.warn("Unable to persist generated pack cache {}", file, failure);
+          Constants.LOGGER.error("Unable to persist generated pack cache {}", file, failure);
         } finally {
           if (batch != null && !hit) {
             batch.values().forEach(PackContribution::release);

@@ -2,6 +2,7 @@ package it.crystalnest.cobweb.platform.services;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.AssetPack;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.dependency.ModRequirement;
@@ -35,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -74,10 +76,10 @@ public abstract class PackHelper {
   /**
    * Adds a source to the native repository for the given pack type.
    *
-   * @param type native resource type.
+   * @param pack declaration that supplies the native pack.
    * @param supplier opens the native pack during discovery.
    */
-  protected abstract void addPackSource(PackType type, Supplier<Pack> supplier);
+  protected abstract void addPackSource(ResourcePack pack, Supplier<Pack> supplier);
 
   /**
    * Registers a definition and reserves its native pack identity.
@@ -91,8 +93,20 @@ public abstract class PackHelper {
     if (byId.containsKey(pack.packId())) {
       throw new IllegalStateException("Pack already registered for " + pack.type() + ": " + pack.identifier());
     }
-    addPackSource(pack.type(), () -> toPack(registration));
+    addPackSource(pack, () -> toPack(registration));
     byId.put(pack.packId(), registration);
+  }
+
+  /**
+   * Reports the closure of pack declarations and counts them by pack owner and type.
+   */
+  public final synchronized void logDeclarations() {
+    var counts = new TreeMap<String, Map<PackType, Integer>>();
+    packs.forEach((type, registrations) -> registrations.values().forEach(registration -> {
+      String owner = registration.pack().identifier().getNamespace();
+      counts.computeIfAbsent(owner, ignored -> new TreeMap<>()).merge(type, 1, Integer::sum);
+    }));
+    Constants.LOGGER.debug("Pack declarations closed: {}", counts);
   }
 
   /**

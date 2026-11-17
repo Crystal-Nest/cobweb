@@ -4,6 +4,7 @@ import it.crystalnest.cobweb.api.pack.command.PackExportCommand;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -14,6 +15,9 @@ import org.jetbrains.annotations.ApiStatus;
 public final class ClientModLoader implements ClientModInitializer {
   @Override
   public void onInitializeClient() {
+    String version = ModLoader.version(FabricLoader.getInstance());
+    CommonModLoader.logSetup("client setup started", version, "Fabric", "CLIENT");
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) -> PackExportCommand.registerClient(dispatcher, Minecraft.getInstance(), FabricClientCommandSource::sendFeedback, FabricClientCommandSource::sendError));
+    CommonModLoader.logSetup("client setup completed", version, "Fabric", "CLIENT");
   }
 }

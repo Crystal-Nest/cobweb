@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
@@ -22,16 +23,20 @@ public final class NeoForgePackHelper extends PackHelper {
   /**
    * NeoForge event bus used for pack discovery.
    */
-  private IEventBus bus;
+  private volatile IEventBus bus;
 
   @Override
-  protected void addPackSource(PackType type, Supplier<Pack> supplier) {
-    bus.addListener((AddPackFindersEvent event) -> {
-      if (event.getPackType() == type) {
+  protected void addPackSource(ResourcePack pack, Supplier<Pack> supplier) {
+    var initializedBus = bus;
+    if (initializedBus == null) {
+      throw new IllegalStateException("Cannot declare " + pack.type() + " pack " + pack.identifier() + " before Cobweb's NeoForge pack service is ready. Set ordering = \"AFTER\" on the required Cobweb dependency in neoforge.mods.toml.");
+    }
+    initializedBus.addListener((AddPackFindersEvent event) -> {
+      if (event.getPackType() == pack.type()) {
         event.addRepositorySource(consumer -> {
-          Pack pack = supplier.get();
-          if (pack != null) {
-            consumer.accept(pack);
+          Pack nativePack = supplier.get();
+          if (nativePack != null) {
+            consumer.accept(nativePack);
           }
         });
       }

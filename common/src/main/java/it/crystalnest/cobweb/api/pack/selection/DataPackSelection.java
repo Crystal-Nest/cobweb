@@ -1,5 +1,7 @@
 package it.crystalnest.cobweb.api.pack.selection;
 
+import it.crystalnest.cobweb.Constants;
+import it.crystalnest.cobweb.api.pack.generation.PackLoadLog;
 import it.crystalnest.cobweb.api.pack.query.PackActivation;
 import it.crystalnest.cobweb.platform.Services;
 import net.minecraft.server.packs.PackType;
@@ -90,7 +92,18 @@ public final class DataPackSelection {
     selected.removeIf(id -> {
       PackActivation activation = Services.PACK.activation(PackType.SERVER_DATA, id);
       Pack pack = repository.getPack(id);
-      return activation != null && !previous.contains(id) && activation != PackActivation.ALWAYS_ACTIVE && (activation == PackActivation.DEFAULT_DISABLED || pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
+      if (activation == null || previous.contains(id) || activation == PackActivation.ALWAYS_ACTIVE) {
+        return false;
+      }
+      if (activation == PackActivation.DEFAULT_DISABLED) {
+        Constants.LOGGER.debug("Data pack discovery left {} disabled by default", id);
+        return true;
+      }
+      boolean missingFeatures = pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures());
+      if (missingFeatures) {
+        Constants.LOGGER.debug("Data pack discovery left {} disabled because the world lacks its requested features", id);
+      }
+      return missingFeatures;
     });
     return requirePacks(repository, orderNewPacks(repository, selected, previous));
   }
@@ -103,10 +116,27 @@ public final class DataPackSelection {
    * @return selection including always-active packs.
    */
   public static List<String> requirePacks(PackRepository repository, Collection<String> selected) {
+    return requirePacks(repository, selected, null);
+  }
+
+  /**
+   * Restores required packs and records the decision in a native load trace when supplied.
+   *
+   * @param repository repository.
+   * @param selected requested pack IDs.
+   * @param log native load trace, or {@code null} before a reload is requested.
+   * @return selection including always-active packs.
+   */
+  public static List<String> requirePacks(PackRepository repository, Collection<String> selected, @Nullable PackLoadLog log) {
     List<Pack> ordered = packs(repository, selected);
     for (Pack pack : repository.getAvailablePacks()) {
       if (isAlwaysActive(pack) && !ordered.contains(pack)) {
         pack.getDefaultPosition().insert(ordered, pack, Pack::selectionConfig, false);
+        if (log == null) {
+          Constants.LOGGER.debug("Data pack discovery restored always-active pack {}", pack.getId());
+        } else {
+          log.restoredRequired(pack.getId());
+        }
       }
     }
     return ids(ordered);

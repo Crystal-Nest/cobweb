@@ -345,7 +345,7 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
       try {
         stream.close();
       } catch (IOException failure) {
-        Constants.LOGGER.warn("Unable to close an input stream of {}", pack, failure);
+        Constants.LOGGER.error("Unable to close an input stream of {}", pack, failure);
       }
     }
   }

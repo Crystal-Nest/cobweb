@@ -8,6 +8,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import it.crystalnest.cobweb.api.pack.delivery.AssetDelivery;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
+import it.crystalnest.cobweb.api.pack.generation.PackLoadLog;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
 import it.crystalnest.cobweb.api.pack.selection.DataPackSelection;
 import net.minecraft.server.MinecraftServer;
@@ -103,11 +104,14 @@ public abstract class MinecraftServerMixin {
    * Restores required Cobweb packs before native resource loading begins.
    *
    * @param original requested pack IDs.
+   * @param shared trace and cancellation tracker for this reload.
    * @return selection including required Cobweb packs.
    */
   @ModifyVariable(method = "reloadResources", at = @At("HEAD"), argsOnly = true)
-  private Collection<String> modifyPacksToEnable(Collection<String> original) {
-    return DataPackSelection.requirePacks(packRepository, original);
+  private Collection<String> modifyPacksToEnable(Collection<String> original, @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
+    var log = new PackLoadLog(PackType.SERVER_DATA, LoadKind.RELOAD);
+    shared.set(new DynamicPackLoads.AttemptTracker(log));
+    return DataPackSelection.requirePacks(packRepository, original, log);
   }
 
   /**
@@ -125,8 +129,8 @@ public abstract class MinecraftServerMixin {
   private <R> CompletableFuture<R> wrapThenCompose(CompletableFuture<ImmutableList<PackResources>> instance, Function<ImmutableList<PackResources>, CompletableFuture<R>> fn, Operation<CompletableFuture<R>> original,
                                                    @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
     MinecraftServer server = (MinecraftServer) (Object) this;
-    var tracker = new DynamicPackLoads.AttemptTracker();
-    shared.set(tracker);
+    var tracker = shared.get();
+    var log = tracker.log();
     return original.call(instance, (Function<ImmutableList<PackResources>, CompletableFuture<R>>) packs -> {
       try {
         fullLoadFiles.capture(server.getResourceManager());
@@ -136,19 +140,22 @@ public abstract class MinecraftServerMixin {
       }
       ImmutableList<PackResources> prepared;
       try {
-        prepared = ImmutableList.copyOf(DynamicPackLoads.prepare(PackType.SERVER_DATA, packs, LoadKind.RELOAD, fullLoadFiles));
+        prepared = ImmutableList.copyOf(DynamicPackLoads.prepare(PackType.SERVER_DATA, packs, LoadKind.RELOAD, fullLoadFiles, log));
       } catch (RuntimeException | Error failure) {
         return CompletableFuture.failedFuture(failure);
       }
       DynamicPackLoads.Attempt attempt;
       try {
-        attempt = DynamicPackLoads.open(PackType.SERVER_DATA, prepared, LoadKind.RELOAD, server.getWorldPath(LevelResource.ROOT).resolve("cobweb/cache/data"), server.getPackRepository());
+        attempt = DynamicPackLoads.open(PackType.SERVER_DATA, prepared, LoadKind.RELOAD, server.getWorldPath(LevelResource.ROOT).resolve("cobweb/cache/data"), server.getPackRepository(), log);
       } catch (RuntimeException | Error failure) {
         DynamicPackLoads.closeAfterFailure(prepared, failure);
         return CompletableFuture.failedFuture(failure);
       }
       tracker.bind(attempt);
-      return attempt.begin(server.registryAccess(), server.getWorldData().enabledFeatures()).thenCompose(ignored -> fn.apply(prepared)).whenComplete((result, failure) -> {
+      return attempt.begin(server.registryAccess(), server.getWorldData().enabledFeatures()).thenCompose(ignored -> {
+        log.handoff();
+        return fn.apply(prepared);
+      }).whenComplete((result, failure) -> {
         if (failure != null && attempt.hasRegisteredPacks() && !attempt.closed()) {
           DynamicPackLoads.closeAfterFailure(prepared, failure);
         }

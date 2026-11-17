@@ -377,7 +377,7 @@ final class AssetPackHttp implements AutoCloseable {
         context.write(response);
         context.writeAndFlush(new HttpChunkedInput(contents)).addListener(ChannelFutureListener.CLOSE);
       } catch (IOException | RuntimeException failure) {
-        Constants.LOGGER.warn("Cannot serve published asset archive {}", archive.address(), failure);
+        Constants.LOGGER.error("Cannot serve published asset archive {}", archive.address(), failure);
         fail(context, HttpResponseStatus.INTERNAL_SERVER_ERROR);
       }
     }

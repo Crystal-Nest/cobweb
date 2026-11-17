@@ -53,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
@@ -70,7 +71,7 @@ public final class DynamicPackLoads {
   /**
    * Whether initialization has ended and generation declarations are frozen.
    */
-  private static volatile boolean declarationsClosed;
+  private static final AtomicBoolean declarationsClosed = new AtomicBoolean();
 
   private DynamicPackLoads() {}
 
@@ -91,33 +92,38 @@ public final class DynamicPackLoads {
    * @param packs selected openings whose ownership transfers to the result.
    * @param kind current load kind.
    * @param fullLoadFiles retained world output for a server reload, if applicable.
+   * @param log trace shared with the native load.
    * @return openings in unchanged native priority order.
    * @throws IllegalArgumentException if a selected file rule manifest is invalid.
    */
-  public static List<PackResources> prepare(PackType type, List<PackResources> packs, LoadKind kind, @Nullable FullLoadFiles fullLoadFiles) {
+  public static List<PackResources> prepare(PackType type, List<PackResources> packs, LoadKind kind, @Nullable FullLoadFiles fullLoadFiles, PackLoadLog log) {
     var prepared = new ArrayList<>(packs);
+    log.select(packs);
     try {
       for (int index = 0; index < prepared.size(); index++) {
         var pack = prepared.get(index);
         if (pack instanceof GeneratedPackResources generated) {
+          log.start();
           generated.rules = FilePackRules.read(type, pack);
           if (fullLoadFiles != null) {
-            fullLoadFiles.restore(generated);
+            fullLoadFiles.restore(generated, log);
           }
         } else if (pack.location().source() != PackSource.SERVER && pack.packId().startsWith("file/")) {
           var rules = FilePackRules.read(type, pack);
           if (!rules.rules().isEmpty() || fullLoadFiles != null && fullLoadFiles.contains(pack.packId())) {
+            log.start();
             var wrapper = GeneratedPackResources.wrap(type, pack);
             wrapper.rules = rules;
             prepared.set(index, wrapper);
             if (fullLoadFiles != null) {
-              fullLoadFiles.restore(wrapper);
+              fullLoadFiles.restore(wrapper, log);
             }
           }
         }
       }
       return List.copyOf(prepared);
     } catch (RuntimeException | Error failure) {
+      log.validationFailed(failure);
       notifyObservers(type, prepared, kind, failure);
       closeAfterFailure(prepared, failure);
       throw failure;
@@ -156,7 +162,7 @@ public final class DynamicPackLoads {
    * @return whether registrations have closed.
    */
   public static boolean declarationsClosed() {
-    return declarationsClosed;
+    return declarationsClosed.get();
   }
 
   /**
@@ -185,21 +191,20 @@ public final class DynamicPackLoads {
    * Closes the callback declaration window before native loading.
    */
   public static void closeDeclarations() {
-    declarationsClosed = true;
+    if (declarationsClosed.compareAndSet(false, true) && Constants.LOGGER.isDebugEnabled()) {
+      Services.PACK.logDeclarations();
+      Services.REGISTRY.logEntryDeclarations();
+    }
   }
 
   /**
    * Exposes the native client reload once generation has completed.
    *
    * @param reload future creating the native reload instance.
-   * @param attempt generated pack attempt, if opened.
+   * @param tracker native load tracker.
    * @return progress and result covering generation and native loading.
    */
-  public static ReloadInstance gatedReload(CompletableFuture<ReloadInstance> reload, @Nullable Attempt attempt) {
-    var tracker = new AttemptTracker();
-    if (attempt != null) {
-      tracker.bind(attempt);
-    }
+  public static ReloadInstance gatedReload(CompletableFuture<ReloadInstance> reload, AttemptTracker tracker) {
     var done = tracker.watch(reload.thenCompose(ReloadInstance::done));
     return new ReloadInstance() {
       @Override
@@ -219,6 +224,11 @@ public final class DynamicPackLoads {
    */
   public static final class AttemptTracker {
     /**
+     * Diagnostics shared with preparation and the generation attempt.
+     */
+    private final PackLoadLog log;
+
+    /**
      * The generation attempt bound to the native future.
      */
     @Nullable
@@ -230,7 +240,21 @@ public final class DynamicPackLoads {
     @Nullable
     private CancellationException cancellation;
 
-    public AttemptTracker() {}
+    /**
+     * @param log diagnostics for the native load.
+     */
+    public AttemptTracker(PackLoadLog log) {
+      this.log = log;
+    }
+
+    /**
+     * Returns the diagnostic context for this load.
+     *
+     * @return native load trace.
+     */
+    public PackLoadLog log() {
+      return log;
+    }
 
     /**
      * Associates the candidate once opened, propagating any earlier cancellation.
@@ -274,6 +298,8 @@ public final class DynamicPackLoads {
             cancellation = new CancellationException("Resource load cancelled");
             if (attempt != null) {
               attempt.cancel(cancellation);
+            } else {
+              log.finish(cancellation);
             }
             return super.cancel(mayInterruptIfRunning);
           }
@@ -284,6 +310,8 @@ public final class DynamicPackLoads {
           if (cancellation == null) {
             if (attempt != null) {
               attempt.finish(failure);
+            } else {
+              log.finish(failure);
             }
             if (failure == null) {
               try {
@@ -310,16 +338,18 @@ public final class DynamicPackLoads {
    * @param kind load kind.
    * @param cacheRoot directory for persistent callback contributions, if available.
    * @param repository repository providing native selection state.
+   * @param log trace shared with pack preparation.
    * @return current attempt.
    */
-  public static Attempt open(PackType type, List<PackResources> packs, LoadKind kind, @Nullable Path cacheRoot, PackRepository repository) {
+  public static Attempt open(PackType type, List<PackResources> packs, LoadKind kind, @Nullable Path cacheRoot, PackRepository repository, PackLoadLog log) {
     List<GeneratedPackResources> generated = generated(packs.stream());
     closeDeclarations();
     var request = PackQueryLifecycle.begin(type, repository, packs);
     try {
       var required = Services.PACK.validateDependencies(type, packs);
-      return new Attempt(type, List.copyOf(packs), generated, required, kind, cacheRoot, request);
+      return new Attempt(type, List.copyOf(packs), generated, required, kind, cacheRoot, request, log);
     } catch (RuntimeException | Error failure) {
+      log.validationFailed(failure);
       request.finish(false);
       notifyObservers(type, packs, kind, failure);
       throw failure;
@@ -386,11 +416,15 @@ public final class DynamicPackLoads {
      * Restores retained full-load backing to the matching selected opening.
      *
      * @param pack currently selected pack opening.
+     * @param log diagnostics for the reload.
      */
-    private synchronized void restore(GeneratedPackResources pack) {
+    private synchronized void restore(GeneratedPackResources pack, PackLoadLog log) {
       var earlier = retained.get(pack.ownerKey());
       if (earlier != null) {
         pack.retainFullLoad(earlier);
+        if (Constants.LOGGER.isDebugEnabled()) {
+          log.debug("retained full-load files for " + pack.packId());
+        }
       }
     }
 
@@ -522,6 +556,11 @@ public final class DynamicPackLoads {
    */
   public static final class Attempt {
     /**
+     * Diagnostics shared with pack preparation and native application.
+     */
+    private final PackLoadLog log;
+
+    /**
      * Native resource type of this attempt.
      */
     private final PackType type;
@@ -615,14 +654,16 @@ public final class DynamicPackLoads {
      * @param kind full load or reload.
      * @param cacheRoot physical cache scope, or {@code null} when unavailable.
      * @param request requested selection tracked by this attempt.
+     * @param log diagnostics for this native load.
      */
     private Attempt(PackType type, List<PackResources> packs, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind,
-      @Nullable Path cacheRoot, PackQueryLifecycle.Request request) {
+      @Nullable Path cacheRoot, PackQueryLifecycle.Request request, PackLoadLog log) {
       this.type = type;
       this.packs = packs;
       this.kind = kind;
       this.cacheRoot = cacheRoot;
       this.request = request;
+      this.log = log;
       plan = new GenerationPlan(type, generated, required, kind, cacheRoot);
       packs.stream().filter(GeneratedPackResources.class::isInstance).map(GeneratedPackResources.class::cast).forEach(pack -> pack.attempt = this);
     }
@@ -723,7 +764,7 @@ public final class DynamicPackLoads {
           try {
             CallbackCache.apply(update.address, update.batch, update.hit, update.persistent);
           } catch (RuntimeException cacheFailure) {
-            Constants.LOGGER.warn("Unable to publish callback cache {}", update.address, cacheFailure);
+            Constants.LOGGER.error("Unable to publish callback cache {}", update.address, cacheFailure);
           }
         });
       }
@@ -731,6 +772,7 @@ public final class DynamicPackLoads {
       if (applied) {
         plan.order.keySet().forEach(GeneratedPackResources::releaseSuperseded);
       }
+      log.finish(failure);
       notifyObservers(type, packs, kind, failure);
     }
 
@@ -775,6 +817,7 @@ public final class DynamicPackLoads {
       Map<PackResources, PackResources> baseline = new IdentityHashMap<>();
       packs.forEach(pack -> baseline.put(pack, pack instanceof GeneratedPackResources generated ? generated.snapshot(snapshots) : snapshots.wrap(pack)));
       Map<GeneratedPackResources, CompletableFuture<Void>> finished = new LinkedHashMap<>();
+      long startedAt = 0;
       for (var entry : plan.order.entrySet()) {
         GeneratedPackResources pack = entry.getKey();
         List<Task> tasks = pack.javaTasks().stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
@@ -783,6 +826,10 @@ public final class DynamicPackLoads {
         if (tasks.isEmpty() && rules.isEmpty()) {
           finished.put(pack, ready);
           continue;
+        }
+        if (startedAt == 0 && Constants.LOGGER.isDebugEnabled()) {
+          startedAt = System.nanoTime();
+          Constants.LOGGER.debug("{} started {}/{}", log.label(), phase, stage);
         }
         var predecessors = Set.copyOf(entry.getValue());
         finished.put(pack, ready.thenCompose(ignored -> {
@@ -805,9 +852,13 @@ public final class DynamicPackLoads {
           });
         }));
       }
+      long traceStartedAt = startedAt;
       return all(finished.values()).whenComplete((ignored, failure) -> {
         snapshots.close();
         stageSnapshots.remove(snapshots);
+        if (traceStartedAt != 0) {
+          Constants.LOGGER.debug("{} {} {}/{} in {} ms", log.label(), failure == null ? "completed" : "stopped", phase, stage, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - traceStartedAt));
+        }
       });
     }
 
@@ -842,20 +893,29 @@ public final class DynamicPackLoads {
       var output = new GenerationOutput(context, contribution -> submit(pack, task, phase, submissions, recorded, contribution));
       return CompletableFuture.supplyAsync(() -> {
         checkActive();
+      log.task(task.fileRule());
         String fingerprint = null;
         if (address != null) {
           try {
             fingerprint = CallbackCache.fingerprint(task, context, values, policy, persistent);
           } catch (RuntimeException failure) {
-            Constants.LOGGER.warn("Cannot fingerprint callback {} in {}", task.index(), pack.packId(), failure);
+            Constants.LOGGER.error("Cannot fingerprint callback {} in {}", task.index(), pack.packId(), failure);
           }
         }
         if (address != null && fingerprint != null) {
-          var hit = CallbackCache.read(address, fingerprint, observations);
-          if (hit != null && replay(pack, task, phase, submissions, recorded, hit)) {
-            cacheUpdates.add(new CacheUpdate(address, hit, true, persistent));
-            return CompletableFuture.<Void>completedFuture(null);
+          var hit = CallbackCache.read(address, fingerprint, observations, reason -> log.cacheMiss(pack, task, reason));
+          if (hit != null) {
+            if (replay(pack, task, phase, submissions, recorded, hit)) {
+              log.cacheHit();
+              cacheUpdates.add(new CacheUpdate(address, hit, true, persistent));
+              return CompletableFuture.<Void>completedFuture(null);
+            }
+            log.cacheMiss(pack, task, "cached contribution failed validation");
           }
+        } else if (address != null) {
+          log.cacheMiss(pack, task, "callback fingerprint unavailable");
+        } else if (task.fileRule() || policy != null) {
+          log.cacheMiss(pack, task, "cache scope unavailable for this load");
         }
         try {
           CompletionStage<Void> result = Objects.requireNonNull(task.callback().generate(context, output), "Generation completion stage");
@@ -869,7 +929,7 @@ public final class DynamicPackLoads {
               var contributions = recorded.stream().sorted(Comparator.comparingLong(Recorded::sequence)).map(Recorded::contribution).toList();
               batch = new CallbackCache.Batch(UUID.randomUUID().toString(), proof, observations.entries(), contributions);
             } else {
-              Constants.LOGGER.debug("Generated without cache for callback {} in {} because an input could not be verified", task.index(), pack.packId());
+            Constants.LOGGER.debug("{} could not cache {} {} in {} because an input could not be verified", log.label(), task.fileRule() ? "rule" : "callback", task.index(), pack.packId());
             }
             cacheUpdates.add(new CacheUpdate(address, batch, false, persistent));
           });
@@ -880,7 +940,7 @@ public final class DynamicPackLoads {
         context.close();
         inputs.remove(context);
         if (failure != null) {
-          throw new IllegalStateException("Pack " + pack.packId() + " failed during " + phase + "/" + task.stage(), failure);
+          throw new IllegalStateException(log.label() + ": pack " + pack.packId() + " " + (task.fileRule() ? "rule " : "callback ") + task.index() + " failed during " + phase + "/" + task.stage(), failure);
         }
         return null;
       });
@@ -946,7 +1006,7 @@ public final class DynamicPackLoads {
         pack.adoptBatch(batch.values());
       } catch (RuntimeException failure) {
         batch.values().forEach(PackContribution::release);
-        Constants.LOGGER.warn("Invalid cached contribution in {}", pack.packId(), failure);
+        Constants.LOGGER.error("Invalid cached contribution in {}", pack.packId(), failure);
         return false;
       }
       batch.values().forEach(contribution -> record(task, submissions, recorded, contribution));

@@ -264,7 +264,7 @@ final class PackFile {
     try {
       Files.deleteIfExists(path);
     } catch (IOException failure) {
-      Constants.LOGGER.warn("Cannot remove Cobweb scratch file {}", path, failure);
+      Constants.LOGGER.error("Cannot remove Cobweb scratch file {}", path, failure);
     }
   }
 
@@ -308,7 +308,7 @@ final class PackFile {
         delete(path);
       }
     } catch (IOException | RuntimeException failure) {
-      Constants.LOGGER.warn("Unable to clean abandoned pack scratch storage under {}", root, failure);
+      Constants.LOGGER.error("Unable to clean abandoned pack scratch storage under {}", root, failure);
     }
   }
 

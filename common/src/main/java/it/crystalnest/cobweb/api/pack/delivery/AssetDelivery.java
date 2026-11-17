@@ -111,7 +111,7 @@ public final class AssetDelivery implements AutoCloseable {
    * Last complete publication in increasing priority, or {@code null} until the first successful build.
    */
   @Nullable
-  private volatile List<AssetPackArchives.Archive> publication;
+  private volatile Publication publication;
 
   /**
    * Failure of the current revision, or {@code null} while building or after success.
@@ -205,6 +205,7 @@ public final class AssetDelivery implements AutoCloseable {
         String bind = service.config.bindAddress();
         service.http.listen(bind == null ? server.getLocalIp() : bind, service.config.port());
       }
+      Constants.LOGGER.debug("Asset publication service started; transport={}, configured packs (lowest priority first): {}", service.config.hosting(), service.config.packs());
       service.refresh();
     }
   }
@@ -288,10 +289,10 @@ public final class AssetDelivery implements AutoCloseable {
   /**
    * Returns the last complete publication, including while a replacement builds or after a replacement fails.
    *
-   * @return complete archives in increasing priority, or {@code null} before the first success.
+   * @return complete revision and its ordered archives, or {@code null} before the first success.
    */
   @Nullable
-  List<AssetPackArchives.Archive> publication() {
+  Publication publication() {
     return publication;
   }
 
@@ -320,6 +321,7 @@ public final class AssetDelivery implements AutoCloseable {
       }
       failure = null;
     }
+    Constants.LOGGER.debug("Asset publication revision #{} requested", requested);
     try {
       var build = AssetPackArchives.capture(server, packs, !warned, archiveReuse, () -> current(requested));
       warned = true;
@@ -379,8 +381,8 @@ public final class AssetDelivery implements AutoCloseable {
     for (var archive : archives) {
       served.computeIfAbsent(archive.address(), address -> new Served(archive)).expiresAt = Long.MAX_VALUE;
     }
-    publication = archives;
-    Constants.LOGGER.info("Published {} server asset pack(s)", archives.size());
+    publication = new Publication(requested, archives);
+    Constants.LOGGER.info("Published {} server asset pack(s) in revision #{}", archives.size(), requested);
   }
 
   /**
@@ -392,7 +394,7 @@ public final class AssetDelivery implements AutoCloseable {
   private synchronized void report(long requested, Throwable problem) {
     if (!closed && revision == requested) {
       failure = problem;
-      Constants.LOGGER.error("Cannot publish Cobweb asset packs; keeping the last complete publication if available", problem);
+      Constants.LOGGER.error("Cannot publish Cobweb asset packs in revision #{}; retained revision: {}", requested, publication == null ? "none" : publication.revision(), problem);
     }
   }
 
@@ -459,7 +461,7 @@ public final class AssetDelivery implements AutoCloseable {
         }
       }
     } catch (IOException | RuntimeException problem) {
-      Constants.LOGGER.warn("Unable to prune archived Cobweb assets under {}", folder, problem);
+      Constants.LOGGER.error("Unable to prune archived Cobweb assets under {}", folder, problem);
     }
   }
 
@@ -474,8 +476,17 @@ public final class AssetDelivery implements AutoCloseable {
       worker.shutdownNow();
       http.close();
       served.clear();
+      Constants.LOGGER.debug("Asset publication service stopped");
     }
   }
+
+  /**
+   * One complete revision of the archives offered to new connections.
+   *
+   * @param revision process-local publication revision.
+   * @param archives complete archives in increasing priority.
+   */
+  record Publication(long revision, List<AssetPackArchives.Archive> archives) {}
 
   /**
    * Reader lease that prevents removal of a published archive while a consumer is using it.

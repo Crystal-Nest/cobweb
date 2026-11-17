@@ -120,7 +120,7 @@ public final class GeneratedPackExport {
             Files.deleteIfExists(path);
           }
         } catch (IOException failure) {
-          Constants.LOGGER.warn("Unable to remove unfinished pack export {}", staging, failure);
+          Constants.LOGGER.error("Unable to remove unfinished pack export {}", staging, failure);
         }
       }
     }
