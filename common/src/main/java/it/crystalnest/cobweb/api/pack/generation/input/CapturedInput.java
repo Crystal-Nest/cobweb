@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.api.pack.generation.input;
 
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -46,7 +47,7 @@ public final class CapturedInput<T> implements Input {
    * @return non-null snapshot.
    * @throws NullPointerException if the supplier returns {@code null}.
    */
-  @org.jetbrains.annotations.ApiStatus.Internal
+  @ApiStatus.Internal
   public T capture() {
     return Objects.requireNonNull(supplier.get(), "Captured input returned null");
   }

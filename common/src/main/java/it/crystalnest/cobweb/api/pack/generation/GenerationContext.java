@@ -102,31 +102,25 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
   private volatile boolean open = true;
 
   /**
+   * @param scope callback identity, generation window and native selection.
    * @param manager stable native resource view.
-   * @param pack logical ID of the pack that owns the callback.
-   * @param phase current native generation phase.
-   * @param stage stage within the current phase.
-   * @param loadKind full load or reload.
    * @param registries available registry lookups.
    * @param captured declared values captured at load start.
    * @param tags native prepared tag members.
    * @param observations cache observation tracker.
-   * @param packs pack selection and priority snapshot.
-   * @param features active feature flags.
    */
-  GenerationContext(ResourceManager manager, Identifier pack, Phase phase, Stage stage, LoadKind loadKind, HolderLookup.Provider registries,
-    Map<CapturedInput<?>, Object> captured, Map<TagKey<?>, List<? extends Holder<?>>> tags, CacheObservations observations, PackQueries packs, FeatureFlagSet features) {
+  GenerationContext(GenerationScope scope, ResourceManager manager, HolderLookup.Provider registries, Map<CapturedInput<?>, Object> captured, Map<TagKey<?>, List<? extends Holder<?>>> tags, CacheObservations observations) {
     resources = new GenerationResources(this, manager, observations);
-    this.pack = pack;
-    this.phase = phase;
-    this.stage = stage;
-    this.loadKind = loadKind;
+    pack = scope.pack();
+    phase = scope.phase();
+    stage = scope.stage();
+    loadKind = scope.loadKind();
     this.registries = registries;
     this.captured = captured;
     this.tags = tags;
     this.observations = observations;
-    this.packs = packs;
-    this.features = features;
+    packs = scope.packs();
+    features = scope.features();
   }
 
   /**

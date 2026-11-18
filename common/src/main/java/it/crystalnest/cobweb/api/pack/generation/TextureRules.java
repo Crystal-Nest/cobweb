@@ -40,8 +40,7 @@ final class TextureRules {
    * @throws IOException if reading, decoding, or encoding an image or sidecar fails.
    * @throws IllegalArgumentException if the mask dimensions differ from the template or the reference has no visible palette colors.
    */
-  static void recolor(GenerationOutput output, Identifier destination, GenerationResources.File source, GenerationResources.File palette,
-    @Nullable GenerationResources.File mask) throws IOException {
+  static void recolor(GenerationOutput output, Identifier destination, GenerationResources.File source, GenerationResources.File palette, @Nullable GenerationResources.File mask) throws IOException {
     try (var original = read(source); var reference = read(palette); var region = mask == null ? null : read(mask); var result = ImageTransforms.recolor(original, reference, region)) {
       submit(output, destination, result, metadata(source));
     }

@@ -89,7 +89,10 @@ public final class PackGeneration {
     }
     Objects.requireNonNull(callback);
     boolean complete = inputs.values().stream().anyMatch(input -> input instanceof Input.Native nativeInput && nativeInput.completeSource());
-    Stage stage = requestedStage == null ? complete ? Stage.TRANSFORMATION : Stage.GENERATION : requestedStage;
+    Stage stage = requestedStage;
+    if (stage == null) {
+      stage = complete ? Stage.TRANSFORMATION : Stage.GENERATION;
+    }
     if (complete && stage != Stage.TRANSFORMATION) {
       throw new IllegalArgumentException("Completed ordinary sources require the transformation stage");
     }
@@ -111,24 +114,37 @@ public final class PackGeneration {
     }
     Map<LoadKind, Phase> phases = new EnumMap<>(LoadKind.class);
     for (LoadKind kind : LoadKind.values()) {
-      if (kind == LoadKind.RELOAD && lifetime == ResourceLifetime.FULL_LOAD) {
-        continue;
+      if (kind != LoadKind.RELOAD || lifetime != ResourceLifetime.FULL_LOAD) {
+        phases.put(kind, selectPhase(kind, explicit, inputs, outputs));
       }
-      Phase selected = null;
-      for (Phase candidate : Phase.values()) {
-        if ((explicit == null || candidate == explicit) && compatible(candidate, kind, inputs, outputs)) {
-          selected = candidate;
-          break;
-        }
-      }
-      if (selected == null) {
-        throw new IllegalArgumentException("No compatible " + kind + " phase for " + id + " with " + inputs + " and " + outputs);
-      }
-      phases.put(kind, selected);
     }
     var registration = new CallbackRegistration();
     tasks.add(new Task(Map.copyOf(phases), stage, lifetime, inputs, outputs, callback, registration, tasks.size(), TaskOrigin.JAVA, null));
     return registration;
+  }
+
+  /**
+   * Selects the earliest phase compatible with this callback's contracts on the current load kind.
+   *
+   * @param kind full load or reload.
+   * @param explicit requested phase, or {@code null} for inference.
+   * @param inputs input contracts.
+   * @param outputs output contracts.
+   * @return first compatible native phase.
+   * @throws IllegalArgumentException if no compatible phase exists.
+   */
+  private Phase selectPhase(LoadKind kind, @Nullable Phase explicit, Inputs inputs, Outputs outputs) {
+    Phase selected = null;
+    for (Phase candidate : Phase.values()) {
+      if ((explicit == null || candidate == explicit) && compatible(candidate, kind, inputs, outputs)) {
+        selected = candidate;
+        break;
+      }
+    }
+    if (selected == null) {
+      throw new IllegalArgumentException("No compatible " + kind + " phase for " + id + " with " + inputs + " and " + outputs);
+    }
+    return selected;
   }
 
   /**
@@ -201,8 +217,7 @@ public final class PackGeneration {
    * @param origin Java or file-rule declaration.
    * @param fileRuleFingerprint fingerprint of a file rule, or {@code null} for a Java task.
    */
-  record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index, TaskOrigin origin,
-    @Nullable String fileRuleFingerprint) {
+  record Task(Map<LoadKind, Phase> phases, Stage stage, ResourceLifetime lifetime, Inputs inputs, Outputs outputs, AsyncCallback callback, CallbackRegistration registration, int index, TaskOrigin origin, @Nullable String fileRuleFingerprint) {
     /**
      * Indicates whether this task came from a declarative file rule.
      *

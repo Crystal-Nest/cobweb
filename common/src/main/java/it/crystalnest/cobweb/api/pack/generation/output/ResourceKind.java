@@ -31,7 +31,7 @@ public record ResourceKind<T>(String directory, Codec<T> codec, ResourceLifetime
       throw new IllegalArgumentException("Invalid resource directory: " + directory);
     }
     for (String part : directory.split("/", -1)) {
-      if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+      if (part.isEmpty() || ".".equals(part) || "..".equals(part)) {
         throw new IllegalArgumentException("Invalid resource directory: " + directory);
       }
     }

@@ -5,7 +5,6 @@ import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModList;
@@ -21,9 +20,9 @@ import java.util.function.Supplier;
  */
 public final class NeoForgePackHelper extends PackHelper {
   /**
-   * NeoForge event bus used for pack discovery.
+   * NeoForge event bus used for pack discovery, or {@code null} before loader initialization.
    */
-  private volatile IEventBus bus;
+  private volatile IEventBus bus = null;
 
   @Override
   protected void addPackSource(ResourcePack pack, Supplier<Pack> supplier) {

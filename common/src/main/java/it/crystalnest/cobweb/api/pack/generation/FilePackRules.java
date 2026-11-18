@@ -32,6 +32,11 @@ import java.util.stream.Collectors;
  */
 record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier> after) {
   /**
+   * Schema key selecting the destination-condition mismatch policy.
+   */
+  private static final String ON_MISMATCH = "on_mismatch";
+
+  /**
    * Rule manifest with no callbacks or ordering declarations.
    */
   static final FilePackRules EMPTY = new FilePackRules(List.of(), List.of(), List.of());
@@ -87,16 +92,29 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
           throw new IllegalArgumentException("Too many file rules");
         }
         for (int index = 0; index < entries.size(); index++) {
-          try {
-            rules.add(Rule.read(entries.get(index).getAsJsonObject(), type, index));
-          } catch (RuntimeException failure) {
-            throw new IllegalArgumentException("Rule " + index + ": " + failure.getMessage(), failure);
-          }
+          rules.add(readRule(entries.get(index), type, index));
         }
       }
       return new FilePackRules(List.copyOf(rules), ids(section, "before"), ids(section, "after"));
     } catch (IOException | RuntimeException failure) {
       throw new IllegalArgumentException(pack.packId() + "/cobweb/rules.json: " + failure.getMessage(), failure);
+    }
+  }
+
+  /**
+   * Decodes one rule and adds its manifest index to invalid-rule diagnostics.
+   *
+   * @param entry rule value from the manifest.
+   * @param type native pack type.
+   * @param index declaration index in the manifest.
+   * @return validated rule.
+   * @throws IllegalArgumentException if the rule is invalid.
+   */
+  private static Rule readRule(JsonElement entry, PackType type, int index) {
+    try {
+      return Rule.read(entry.getAsJsonObject(), type, index);
+    } catch (RuntimeException failure) {
+      throw new IllegalArgumentException("Rule " + index + ": " + failure.getMessage(), failure);
     }
   }
 
@@ -154,28 +172,6 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
   }
 
   /**
-   * Reads an explicitly namespaced file identifier and validates its path.
-   *
-   * @param object rule object.
-   * @param key name of the file property.
-   * @return namespaced file identifier.
-   * @throws IllegalArgumentException if the identifier is absent or invalid.
-   */
-  private static Identifier resource(JsonObject object, String key) {
-    String text = string(object.get(key));
-    if (text.indexOf(':') < 1) {
-      throw new IllegalArgumentException("Expected a namespaced resource for " + key);
-    }
-    Identifier id = Identifier.parse(text);
-    try {
-      PackPaths.resourcePath(PackType.CLIENT_RESOURCES, id);
-    } catch (IOException failure) {
-      throw new IllegalArgumentException(failure.getMessage(), failure);
-    }
-    return id;
-  }
-
-  /**
    * Parses a bounded UTF-8 JSON document.
    *
    * @param input stream to read.
@@ -230,6 +226,28 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    */
   record Rule(Payload payload, Identifier to, Stage stage, @Nullable Phase phase, boolean skipMissing, int index, String fingerprint) {
     /**
+     * Reads an explicitly namespaced file identifier and validates its path.
+     *
+     * @param object rule object.
+     * @param key name of the file property.
+     * @return namespaced file identifier.
+     * @throws IllegalArgumentException if the identifier is absent or invalid.
+     */
+    private static Identifier resource(JsonObject object, String key) {
+      String text = string(object.get(key));
+      if (text.indexOf(':') < 1) {
+        throw new IllegalArgumentException("Expected a namespaced resource for " + key);
+      }
+      Identifier id = Identifier.parse(text);
+      try {
+        PackPaths.resourcePath(PackType.CLIENT_RESOURCES, id);
+      } catch (IOException failure) {
+        throw new IllegalArgumentException(failure.getMessage(), failure);
+      }
+      return id;
+    }
+
+    /**
      * Parses and validates a rule, then fingerprints its definition.
      *
      * @param object rule object.
@@ -239,77 +257,115 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
      */
     static Rule read(JsonObject object, PackType type, int index) {
       Operation operation = Operation.valueOf(string(object.get("op")).toUpperCase(Locale.ROOT));
-      if (operation != Operation.WRITE && (object.has("if_destination") || object.has("on_mismatch"))) {
+      if (operation != Operation.WRITE && (object.has("if_destination") || object.has(ON_MISMATCH))) {
         throw new IllegalArgumentException("Destination conditions require a write rule");
       }
+      boolean withMetadata = metadataFlag(object, operation);
       Identifier from = operation == Operation.WRITE ? null : resource(object, "from");
       Identifier to = resource(object, "to");
+      Payload payload = switch (operation) {
+        case COPY -> new Copy(from, withMetadata);
+        case PATCH_JSON -> readPatch(object, from, to);
+        case RECOLOR_TEXTURE, OVERLAY_TEXTURE -> readTexture(object, type, operation, from, to);
+        case WRITE -> InlineWrite.read(object);
+      };
+      var digest = CacheObservations.digest();
+      CacheObservations.text(digest, object.toString());
       var stage = Stage.valueOf(string(object, "stage", "transformation").toUpperCase(Locale.ROOT));
       var phase = object.has("phase") ? Phase.valueOf(string(object.get("phase")).toUpperCase(Locale.ROOT)) : null;
-      boolean skip = switch (string(object, "on_missing", "fail")) {
+      boolean skip = skipMissing(object);
+      return new Rule(payload, to, stage, phase, skip, index, CacheObservations.hex(digest));
+    }
+
+    /**
+     * Reads the policy for an absent source file.
+     *
+     * @param object rule object.
+     * @return whether a missing source skips the rule.
+     * @throws IllegalArgumentException if the policy is unknown.
+     */
+    private static boolean skipMissing(JsonObject object) {
+      return switch (string(object, "on_missing", "fail")) {
         case "skip" -> true;
         case "fail" -> false;
         default -> throw new IllegalArgumentException("Unknown on_missing policy");
       };
-      Identifier secondary = null;
-      Identifier mask = null;
+    }
+
+    /**
+     * Reads the optional sidecar-copy flag and rejects it for other operations.
+     *
+     * @param object rule object.
+     * @param operation selected file operation.
+     * @return whether the copy includes effective metadata.
+     * @throws IllegalArgumentException if the flag is invalid for this operation.
+     */
+    private static boolean metadataFlag(JsonObject object, Operation operation) {
+      if (!object.has("with_metadata")) {
+        return false;
+      }
+      if (operation != Operation.COPY) {
+        throw new IllegalArgumentException("with_metadata requires a copy rule");
+      }
+      var value = object.get("with_metadata");
+      if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
+        throw new IllegalArgumentException("Expected a boolean for with_metadata");
+      }
+      return value.getAsBoolean();
+    }
+
+    /**
+     * Decodes ordered JSON edits after checking their source and destination formats.
+     *
+     * @param object rule object.
+     * @param from source JSON file.
+     * @param to destination JSON file.
+     * @return complete patch payload.
+     * @throws IllegalArgumentException if the paths, edits or edit count are invalid.
+     */
+    private static Patch readPatch(JsonObject object, Identifier from, Identifier to) {
+      if (!from.getPath().endsWith(".json") || !to.getPath().endsWith(".json")) {
+        throw new IllegalArgumentException("patch_json requires JSON file paths");
+      }
       var edits = new ArrayList<JsonEdits.Edit>();
-      InlineWrite inline = null;
-      boolean withMetadata = false;
-      if (object.has("with_metadata")) {
-        if (operation != Operation.COPY) {
-          throw new IllegalArgumentException("with_metadata requires a copy rule");
+      for (var entry : object.getAsJsonArray("edits")) {
+        var edit = entry.getAsJsonObject();
+        var editOp = JsonEdits.Operation.valueOf(string(edit.get("op")).toUpperCase(Locale.ROOT));
+        var value = edit.get("value");
+        if (value == null && editOp != JsonEdits.Operation.REMOVE) {
+          throw new IllegalArgumentException("JSON edit requires a value");
         }
-        var value = object.get("with_metadata");
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
-          throw new IllegalArgumentException("Expected a boolean for with_metadata");
+        if (edits.size() >= MAX_RULES) {
+          throw new IllegalArgumentException("Too many JSON edits");
         }
-        withMetadata = value.getAsBoolean();
+        edits.add(new JsonEdits.Edit(editOp, JsonEdits.pointer(string(edit.get("path"))), value == null ? JsonNull.INSTANCE : value));
       }
-      switch (operation) {
-        case COPY -> {
-        }
-        case WRITE -> inline = InlineWrite.read(object);
-        case PATCH_JSON -> {
-          if (!from.getPath().endsWith(".json") || !to.getPath().endsWith(".json")) {
-            throw new IllegalArgumentException("patch_json requires JSON file paths");
-          }
-          for (var entry : object.getAsJsonArray("edits")) {
-            var edit = entry.getAsJsonObject();
-            var editOp = JsonEdits.Operation.valueOf(string(edit.get("op")).toUpperCase(Locale.ROOT));
-            var value = edit.get("value");
-            if (value == null && editOp != JsonEdits.Operation.REMOVE) {
-              throw new IllegalArgumentException("JSON edit requires a value");
-            }
-            if (edits.size() >= MAX_RULES) {
-              throw new IllegalArgumentException("Too many JSON edits");
-            }
-            edits.add(new JsonEdits.Edit(editOp, JsonEdits.pointer(string(edit.get("path"))), value == null ? JsonNull.INSTANCE : value));
-          }
-        }
-        case RECOLOR_TEXTURE, OVERLAY_TEXTURE -> {
-          if (type != PackType.CLIENT_RESOURCES) {
-            throw new IllegalArgumentException("Texture rules require client assets");
-          }
-          secondary = resource(object, operation == Operation.RECOLOR_TEXTURE ? "palette_from" : "overlay");
-          mask = operation == Operation.RECOLOR_TEXTURE && object.has("mask") ? resource(object, "mask") : null;
-          for (Identifier id : new Identifier[]{from, to, secondary, mask}) {
-            if (id != null && (!id.getPath().startsWith("textures/") || !id.getPath().endsWith(".png") || id.getPath().length() <= 13)) {
-              throw new IllegalArgumentException("Expected a PNG under textures/: " + id);
-            }
-          }
+      return new Patch(from, List.copyOf(edits));
+    }
+
+    /**
+     * Decodes texture inputs and checks that every file is a client PNG under the texture directory.
+     *
+     * @param object rule object.
+     * @param type native pack type.
+     * @param operation selected texture operation.
+     * @param from primary source texture.
+     * @param to destination texture.
+     * @return complete palette-remap or overlay payload.
+     * @throws IllegalArgumentException if the resource side or a texture path is invalid.
+     */
+    private static Payload readTexture(JsonObject object, PackType type, Operation operation, Identifier from, Identifier to) {
+      if (type != PackType.CLIENT_RESOURCES) {
+        throw new IllegalArgumentException("Texture rules require client assets");
+      }
+      Identifier secondary = resource(object, operation == Operation.RECOLOR_TEXTURE ? "palette_from" : "overlay");
+      Identifier mask = operation == Operation.RECOLOR_TEXTURE && object.has("mask") ? resource(object, "mask") : null;
+      for (Identifier id : new Identifier[]{from, to, secondary, mask}) {
+        if (id != null && (!id.getPath().startsWith("textures/") || !id.getPath().endsWith(".png") || id.getPath().length() <= 13)) {
+          throw new IllegalArgumentException("Expected a PNG under textures/: " + id);
         }
       }
-      var digest = CacheObservations.digest();
-      CacheObservations.text(digest, object.toString());
-      Payload payload = switch (operation) {
-        case COPY -> new Copy(from, withMetadata);
-        case PATCH_JSON -> new Patch(from, List.copyOf(edits));
-        case RECOLOR_TEXTURE -> new Recolor(from, secondary, mask);
-        case OVERLAY_TEXTURE -> new Overlay(from, secondary);
-        case WRITE -> inline;
-      };
-      return new Rule(payload, to, stage, phase, skip, index, CacheObservations.hex(digest));
+      return operation == Operation.RECOLOR_TEXTURE ? new Recolor(from, secondary, mask) : new Overlay(from, secondary);
     }
 
     /**
@@ -343,18 +399,18 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
         inputs.put(id, source.get());
       }
       switch (payload) {
-        case Copy copy -> output.copy(to, inputs.get(copy.from()), copy.withMetadata(), MAX_COPY);
-        case Patch patch -> {
-          try (var input = inputs.get(patch.from()).open(MAX_JSON)) {
-            byte[] result = PackIO.json(JsonEdits.apply(readJson(input, MAX_JSON), patch.edits()));
+        case Copy(var from, boolean withMetadata) -> output.copy(to, inputs.get(from), withMetadata, MAX_COPY);
+        case Patch(var from, var edits) -> {
+          try (var input = inputs.get(from).open(MAX_JSON)) {
+            byte[] result = PackIO.json(JsonEdits.apply(readJson(input, MAX_JSON), edits));
             if (result.length > MAX_JSON) {
               throw new IOException("Patched JSON exceeds " + MAX_JSON + " bytes");
             }
             output.write(to, stream -> stream.write(result));
           }
         }
-        case Recolor recolor -> TextureRules.recolor(output, to, inputs.get(recolor.from()), inputs.get(recolor.palette()), inputs.get(recolor.mask()));
-        case Overlay overlay -> TextureRules.overlay(output, to, inputs.get(overlay.from()), inputs.get(overlay.overlay()));
+        case Recolor(var from, var palette, var mask) -> TextureRules.recolor(output, to, inputs.get(from), inputs.get(palette), inputs.get(mask));
+        case Overlay(var from, var overlay) -> TextureRules.overlay(output, to, inputs.get(from), inputs.get(overlay));
         case InlineWrite inline -> inline.generate(context, output, to);
       }
     }
@@ -380,7 +436,9 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    */
   private record Copy(Identifier from, boolean withMetadata) implements Payload {
     @Override
-    public List<Identifier> inputs() { return List.of(from); }
+    public List<Identifier> inputs() {
+      return List.of(from);
+    }
   }
 
   /**
@@ -391,7 +449,9 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    */
   private record Patch(Identifier from, List<JsonEdits.Edit> edits) implements Payload {
     @Override
-    public List<Identifier> inputs() { return List.of(from); }
+    public List<Identifier> inputs() {
+      return List.of(from);
+    }
   }
 
   /**
@@ -403,7 +463,9 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    */
   private record Recolor(Identifier from, Identifier palette, @Nullable Identifier mask) implements Payload {
     @Override
-    public List<Identifier> inputs() { return mask == null ? List.of(from, palette) : List.of(from, palette, mask); }
+    public List<Identifier> inputs() {
+      return mask == null ? List.of(from, palette) : List.of(from, palette, mask);
+    }
   }
 
   /**
@@ -414,7 +476,9 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    */
   private record Overlay(Identifier from, Identifier overlay) implements Payload {
     @Override
-    public List<Identifier> inputs() { return List.of(from, overlay); }
+    public List<Identifier> inputs() {
+      return List.of(from, overlay);
+    }
   }
 
   /**
@@ -440,7 +504,9 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    */
   private record InlineWrite(String contents, @Nullable Destination destination, boolean failOnMismatch) implements Payload {
     @Override
-    public List<Identifier> inputs() { return List.of(); }
+    public List<Identifier> inputs() {
+      return List.of();
+    }
 
     /**
      * Validates inline contents and the destination condition.
@@ -464,10 +530,10 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
         case "absent" -> Destination.ABSENT;
         default -> throw new IllegalArgumentException("Expected present or absent for if_destination");
       };
-      if (destination == null && object.has("on_mismatch")) {
+      if (destination == null && object.has(ON_MISMATCH)) {
         throw new IllegalArgumentException("on_mismatch requires if_destination");
       }
-      boolean failOnMismatch = switch (string(object, "on_mismatch", "skip")) {
+      boolean failOnMismatch = switch (string(object, ON_MISMATCH, "skip")) {
         case "skip" -> false;
         case "fail" -> true;
         default -> throw new IllegalArgumentException("Unknown on_mismatch policy");

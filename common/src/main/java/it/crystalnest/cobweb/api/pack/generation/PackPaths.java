@@ -21,11 +21,11 @@ final class PackPaths {
    * @throws IOException if the path is invalid.
    */
   static String resourcePath(PackType type, Identifier id) throws IOException {
-    if (id.getNamespace().equals(".") || id.getNamespace().equals("..")) {
+    if (".".equals(id.getNamespace()) || "..".equals(id.getNamespace())) {
       throw new IOException("Invalid pack path " + id);
     }
     for (String part : id.getPath().split("/", -1)) {
-      if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+      if (part.isEmpty() || ".".equals(part) || "..".equals(part)) {
         throw new IOException("Invalid pack path " + id);
       }
     }

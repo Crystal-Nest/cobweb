@@ -35,6 +35,21 @@ import java.util.function.Function;
  */
 final class NativePackDependencies {
   /**
+   * Metadata field containing a pack or dependency version.
+   */
+  private static final String VERSION = "version";
+
+  /**
+   * Metadata section containing dependency requirements.
+   */
+  private static final String REQUIRES = "requires";
+
+  /**
+   * Requirement list containing dependencies on packs.
+   */
+  private static final String PACKS = "packs";
+
+  /**
    * Pack service that owns the registrations used for identity and dependency resolution.
    */
   private final PackHelper registrations;
@@ -53,22 +68,22 @@ final class NativePackDependencies {
    * @param declaration registered pack declaration.
    */
   static void exportMetadata(JsonObject document, PackDeclaration declaration) {
-    var section = object(document, "cobweb");
+    var section = object(document, Constants.MOD_ID);
     section.addProperty("id", declaration.id().toString());
     if (declaration.dependencyVersion() != null) {
-      section.addProperty("version", declaration.dependencyVersion());
+      section.addProperty(VERSION, declaration.dependencyVersion());
     }
     if (declaration.requiredPacks() != null || declaration.requiredMods() != null) {
-      var requires = object(section, "requires");
+      var requires = object(section, REQUIRES);
       if (declaration.requiredPacks() != null) {
         var list = new JsonArray();
         for (var value : declaration.requiredPacks()) {
           list.add(switch (value.pack()) {
-            case PackReference.Logical logical -> dependencyJson("id", logical.id().toString(), value.version());
-            case PackReference.Native nativeRef -> dependencyJson("native_id", nativeRef.id(), value.version());
+            case PackReference.Logical(var id) -> dependencyJson("id", id.toString(), value.version());
+            case PackReference.Native(var id) -> dependencyJson("native_id", id, value.version());
           });
         }
-        requires.add("packs", list);
+        requires.add(PACKS, list);
       }
       if (declaration.requiredMods() != null) {
         var list = new JsonArray();
@@ -77,9 +92,9 @@ final class NativePackDependencies {
         }
         requires.add("mods", list);
       }
-      section.add("requires", requires);
+      section.add(REQUIRES, requires);
     }
-    document.add("cobweb", section);
+    document.add(Constants.MOD_ID, section);
   }
 
   /**
@@ -104,7 +119,7 @@ final class NativePackDependencies {
       if (range.maximum() != null) {
         version.addProperty(range.maximum().inclusive() ? "max" : "max_exclusive", range.maximum().version());
       }
-      result.add("version", version);
+      result.add(VERSION, version);
     }
     return result;
   }
@@ -195,7 +210,7 @@ final class NativePackDependencies {
     });
     String category = type == PackType.SERVER_DATA ? "data_packs" : "asset_packs";
     modSections.forEach((mod, section) -> {
-      for (PackRequirement requirement : list(object(section, "requires"), category, NativePackDependencies::requirePack)) {
+      for (PackRequirement requirement : list(object(section, REQUIRES), category, NativePackDependencies::requirePack)) {
         resolve("mod " + mod, requirement, selected);
       }
     });
@@ -214,27 +229,26 @@ final class NativePackDependencies {
     Map<URI, String> owners = new LinkedHashMap<>();
     for (String mod : Services.PLATFORM.loadedModIds()) {
       var source = Services.PLATFORM.modRootPackMetadata(mod);
-      if (source == null) {
-        continue;
-      }
-      try (var reader = new InputStreamReader(source.stream().get(), StandardCharsets.UTF_8)) {
-        JsonObject section = section(reader);
-        if (section.has("id") || section.has("version")) {
-          throw new IllegalArgumentException("Mod root cobweb metadata cannot declare id or version: " + mod);
-        }
-        if (section.has("requires")) {
-          String previous = owners.putIfAbsent(source.location(), mod);
-          if (previous != null) {
-            throw new IllegalArgumentException("Ambiguous mod root pack metadata for " + previous + " and " + mod);
+      if (source != null) {
+        try (var reader = new InputStreamReader(source.stream().get(), StandardCharsets.UTF_8)) {
+          JsonObject section = section(reader);
+          if (section.has("id") || section.has(VERSION)) {
+            throw new IllegalArgumentException("Mod root cobweb metadata cannot declare id or version: " + mod);
           }
-          JsonObject requires = object(section, "requires");
-          if (requires.has("packs") || requires.has("mods")) {
-            throw new IllegalArgumentException("Mod root pack metadata requires data_packs or asset_packs: " + mod);
+          if (section.has(REQUIRES)) {
+            String previous = owners.putIfAbsent(source.location(), mod);
+            if (previous != null) {
+              throw new IllegalArgumentException("Ambiguous mod root pack metadata for " + previous + " and " + mod);
+            }
+            JsonObject requires = object(section, REQUIRES);
+            if (requires.has(PACKS) || requires.has("mods")) {
+              throw new IllegalArgumentException("Mod root pack metadata requires data_packs or asset_packs: " + mod);
+            }
           }
+          sections.put(mod, section);
+        } catch (IOException failure) {
+          throw new UncheckedIOException("Unable to read mod-root pack metadata of " + mod, failure);
         }
-        sections.put(mod, section);
-      } catch (IOException failure) {
-        throw new UncheckedIOException("Unable to read mod-root pack metadata of " + mod, failure);
       }
     }
     return sections;
@@ -265,18 +279,16 @@ final class NativePackDependencies {
     if (java == null && !resources.packId().startsWith("file/") && modSections.containsValue(metadata)) {
       return new Selected(null, null, List.of(), List.of());
     }
-    String id = string(metadata, "id");
-    Identifier logicalId = id == null ? null : logicalId(id);
-    String version = string(metadata, "version");
+    String version = string(metadata, VERSION);
     if (version != null && version.isBlank()) {
       throw new IllegalArgumentException("Blank pack version for " + resources.packId());
     }
-    JsonObject requires = object(metadata, "requires");
+    JsonObject requires = object(metadata, REQUIRES);
     if (requires.has("data_packs") || requires.has("asset_packs")) {
       throw new IllegalArgumentException("Pack dependencies use packs or mods: " + resources.packId());
     }
-    List<PackRequirement> packs = java == null ? null : java.requiredPacks();
-    List<ModRequirement> mods = java == null ? null : java.requiredMods();
+    String id = string(metadata, "id");
+    Identifier logicalId = id == null ? null : logicalId(id);
     if (java != null) {
       if (logicalId != null && !java.id().equals(logicalId)) {
         throw new IllegalArgumentException("Metadata cannot change the logical ID of " + resources.packId() + " to " + logicalId);
@@ -289,7 +301,9 @@ final class NativePackDependencies {
         version = java.dependencyVersion();
       }
     }
-    return new Selected(logicalId, version, packs == null ? list(requires, "packs", NativePackDependencies::requirePack) : packs,
+    List<PackRequirement> packs = java == null ? null : java.requiredPacks();
+    List<ModRequirement> mods = java == null ? null : java.requiredMods();
+    return new Selected(logicalId, version, packs == null ? list(requires, PACKS, NativePackDependencies::requirePack) : packs,
       mods == null ? list(requires, "mods", NativePackDependencies::requireMod) : mods);
   }
 
@@ -305,8 +319,8 @@ final class NativePackDependencies {
   private static String resolve(String owner, PackRequirement requirement, Map<String, Selected> selected) {
     PackReference ref = requirement.pack();
     List<Map.Entry<String, Selected>> matches = selected.entrySet().stream().filter(entry -> switch (ref) {
-      case PackReference.Logical logical -> logical.id().equals(entry.getValue().id);
-      case PackReference.Native nativeRef -> nativeRef.id().equals(entry.getKey());
+      case PackReference.Logical(var id) -> id.equals(entry.getValue().id);
+      case PackReference.Native(var id) -> id.equals(entry.getKey());
     }).toList();
     if (matches.isEmpty()) {
       throw new IllegalStateException(owner + " requires selected pack " + ref);
@@ -329,7 +343,7 @@ final class NativePackDependencies {
    * @return Cobweb section, or an empty object when absent.
    */
   private static JsonObject section(Reader reader) {
-    return object(JsonParser.parseReader(reader).getAsJsonObject(), "cobweb");
+    return object(JsonParser.parseReader(reader).getAsJsonObject(), Constants.MOD_ID);
   }
 
   /**
@@ -432,10 +446,10 @@ final class NativePackDependencies {
    */
   @Nullable
   private static VersionRange range(JsonObject entry) {
-    if (!entry.has("version")) {
+    if (!entry.has(VERSION)) {
       return null;
     }
-    var version = entry.getAsJsonObject("version");
+    var version = entry.getAsJsonObject(VERSION);
     VersionRange.Bound lower = bound(version, "min", "min_exclusive");
     VersionRange.Bound upper = bound(version, "max", "max_exclusive");
     return new VersionRange(string(version, "exact"), lower, upper);
@@ -457,7 +471,10 @@ final class NativePackDependencies {
     }
     String lower = string(version, inclusive);
     String upper = string(version, exclusive);
-    return lower != null ? new VersionRange.Bound(lower, true) : upper != null ? new VersionRange.Bound(upper, false) : null;
+    if (lower != null) {
+      return new VersionRange.Bound(lower, true);
+    }
+    return upper == null ? null : new VersionRange.Bound(upper, false);
   }
 
   /**

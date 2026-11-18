@@ -32,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -188,7 +189,7 @@ public abstract class PackHelper {
    * @param packs selected packs in increasing priority.
    * @return selected dependency IDs indexed by the requiring native pack ID.
    * @throws IllegalStateException if a requirement is unsatisfied or ambiguous.
-   * @throws java.io.UncheckedIOException if dependency metadata cannot be read.
+   * @throws UncheckedIOException if dependency metadata cannot be read.
    */
   public final Map<String, List<String>> validateDependencies(PackType type, List<PackResources> packs) {
     return dependencies.validate(type, packs);

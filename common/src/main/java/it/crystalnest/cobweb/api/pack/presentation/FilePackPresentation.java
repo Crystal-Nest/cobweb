@@ -23,6 +23,11 @@ import java.util.Set;
  * Reads Cobweb's base title and conditional presentation fields from a pack's own metadata.
  */
 final class FilePackPresentation {
+  /**
+   * Cobweb metadata field containing the pack title.
+   */
+  private static final String TITLE = "title";
+
   private FilePackPresentation() {}
 
   /**
@@ -42,31 +47,42 @@ final class FilePackPresentation {
         return null;
       }
       var section = root.getAsJsonObject("cobweb");
-      Component title = text(section, "title");
+      Component title = text(section, TITLE);
       var result = PackPresentation.builder();
       if (title != null) {
         result.title(title);
       }
-      if (evaluateConditions && section.has("presentation")) {
-        var base = result.build();
-        try {
-          var self = PackReference.nativeId(pack.getId());
-          var entries = section.getAsJsonArray("presentation");
-          if (entries.size() > 128) {
-            throw new IllegalArgumentException("Too many presentation entries");
-          }
-          for (var value : entries) {
-            apply(value.getAsJsonObject(), self, queries, result);
-          }
-        } catch (RuntimeException failure) {
-          Constants.LOGGER.error("Unable to evaluate file presentation for {}", pack.getId(), failure);
-          return base;
-        }
-      }
-      return result.build();
+      return evaluateConditions && section.has("presentation") ? evaluatePresentation(section, pack, queries, result) : result.build();
     } catch (IOException | RuntimeException failure) {
       Constants.LOGGER.error("Unable to read file presentation for {}", pack.getId(), failure);
       return null;
+    }
+  }
+
+  /**
+   * Evaluates conditional entries in file order and preserves the base fields if evaluation fails.
+   *
+   * @param section owned Cobweb metadata section.
+   * @param pack displayed pack.
+   * @param queries captured editor observations.
+   * @param result builder containing the base presentation.
+   * @return evaluated presentation, or its base value after a logged failure.
+   */
+  private static PackPresentation evaluatePresentation(JsonObject section, Pack pack, PackQueries queries, PackPresentation.Builder result) {
+    var base = result.build();
+    try {
+      var entries = section.getAsJsonArray("presentation");
+      if (entries.size() > 128) {
+        throw new IllegalArgumentException("Too many presentation entries");
+      }
+      var self = PackReference.nativeId(pack.getId());
+      for (var value : entries) {
+        apply(value.getAsJsonObject(), self, queries, result);
+      }
+      return result.build();
+    } catch (RuntimeException failure) {
+      Constants.LOGGER.error("Unable to evaluate file presentation for {}", pack.getId(), failure);
+      return base;
     }
   }
 
@@ -80,12 +96,9 @@ final class FilePackPresentation {
    * @throws IllegalArgumentException if the entry contains unknown fields or an invalid predicate count.
    */
   private static void apply(JsonObject entry, PackReference self, PackQueries queries, PackPresentation.Builder result) {
-    if (!Set.of("when", "title", "description", "icon").containsAll(entry.keySet())) {
+    if (!Set.of("when", TITLE, "description", "icon").containsAll(entry.keySet())) {
       throw new IllegalArgumentException("Unknown presentation field");
     }
-    Component title = text(entry, "title");
-    Component description = text(entry, "description");
-    PackIcon icon = entry.has("icon") ? PackIcon.bundledPack(string(entry, "icon")) : null;
     var conditions = entry.getAsJsonArray("when");
     if (conditions == null || conditions.isEmpty() || conditions.size() > 32) {
       throw new IllegalArgumentException("Expected 1 to 32 presentation predicates");
@@ -94,6 +107,9 @@ final class FilePackPresentation {
     for (var condition : conditions) {
       matches &= matches(condition.getAsJsonObject(), self, queries);
     }
+    Component title = text(entry, TITLE);
+    Component description = text(entry, "description");
+    PackIcon icon = entry.has("icon") ? PackIcon.bundledPack(string(entry, "icon")) : null;
     if (matches) {
       if (title != null) {
         result.title(title);
@@ -124,15 +140,15 @@ final class FilePackPresentation {
       throw new IllegalArgumentException("Expected a mod_loaded or pack predicate");
     }
     String target = string(condition, "pack");
-    if (!target.equals("self") && !target.contains(":")) {
+    if (!"self".equals(target) && !target.contains(":")) {
       throw new IllegalArgumentException("Expected a namespaced pack ID");
     }
-    var reference = target.equals("self") ? self : PackReference.logical(Identifier.parse(target));
     PackQuestion question = switch (string(condition, "is")) {
       case "available" -> PackQuestion.AVAILABLE;
       case "edited_selected" -> PackQuestion.EDITED_SELECTED;
       default -> throw new IllegalArgumentException("Expected available or edited_selected");
     };
+    var reference = "self".equals(target) ? self : PackReference.logical(Identifier.parse(target));
     return queries.query(reference, question) == PackStatus.YES;
   }
 

@@ -60,34 +60,53 @@ public final class GeneratedPackExport {
         .map(GeneratedPackResources.class::cast)
         .filter(pack -> pack.definition != null && pack.type == type)
         .filter(pack -> switch (reference) {
-          case PackReference.Logical logical -> logical.id().equals(pack.logicalId);
-          case PackReference.Native nativeRef -> nativeRef.id().equals(pack.packId());
+          case PackReference.Logical(var id) -> id.equals(pack.logicalId);
+          case PackReference.Native(var id) -> id.equals(pack.packId());
         })
         .toList();
       if (matches.size() != 1) {
         return CompletableFuture.failedFuture(new IllegalArgumentException("Expected one applied Cobweb pack for " + reference + ", found " + matches.size()));
       }
       var snapshot = matches.getFirst().retainAppliedSnapshot();
-      var result = new CompletableFuture<Path>();
-      try {
-        WRITER.execute(() -> {
-          try {
-            Path path;
-            try (snapshot) {
-              path = copy(snapshot);
-            }
-            result.complete(path);
-          } catch (IOException | RuntimeException failure) {
-            result.completeExceptionally(failure);
-          }
-        });
-      } catch (RuntimeException failure) {
-        snapshot.close();
-        result.completeExceptionally(failure);
-      }
-      return result.minimalCompletionStage();
+      return queueSnapshot(snapshot);
     } catch (RuntimeException failure) {
       return CompletableFuture.failedFuture(failure);
+    }
+  }
+
+  /**
+   * Queues an acquired snapshot and releases it if the export worker rejects the task.
+   *
+   * @param snapshot retained applied snapshot to transfer to the worker.
+   * @return completion of the queued export.
+   */
+  private static CompletionStage<Path> queueSnapshot(GeneratedPackResources snapshot) {
+    var result = new CompletableFuture<Path>();
+    try {
+      WRITER.execute(() -> writeSnapshot(snapshot, result));
+    } catch (RuntimeException failure) {
+      snapshot.close();
+      result.completeExceptionally(failure);
+    }
+    return result.minimalCompletionStage();
+  }
+
+  /**
+   * Writes and releases an acquired snapshot, then completes the export result.
+   * Reports copy and close failures through the result instead of the worker thread.
+   *
+   * @param snapshot retained applied snapshot owned by this worker.
+   * @param result completion to receive the export path or failure.
+   */
+  private static void writeSnapshot(GeneratedPackResources snapshot, CompletableFuture<Path> result) {
+    try {
+      Path path;
+      try (snapshot) {
+        path = copy(snapshot);
+      }
+      result.complete(path);
+    } catch (IOException | RuntimeException failure) {
+      result.completeExceptionally(failure);
     }
   }
 
@@ -110,7 +129,7 @@ public final class GeneratedPackExport {
       Path destination = root.resolve("pack-" + staging.getFileName().toString().substring(".pack-".length()));
       try {
         return Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE);
-      } catch (AtomicMoveNotSupportedException ignored) {
+      } catch (AtomicMoveNotSupportedException _) {
         return Files.move(staging, destination);
       }
     } finally {

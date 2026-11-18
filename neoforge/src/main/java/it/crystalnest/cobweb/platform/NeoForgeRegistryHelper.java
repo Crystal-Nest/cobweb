@@ -42,9 +42,9 @@ import java.util.stream.Stream;
  */
 public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistryHelper.Register<?>> {
   /**
-   * NeoForge event bus.
+   * NeoForge event bus, or {@code null} before loader initialization.
    */
-  private volatile IEventBus bus;
+  private volatile IEventBus bus = null;
 
   /**
    * Declarations gathered from mod constructors before the shared native registry event.

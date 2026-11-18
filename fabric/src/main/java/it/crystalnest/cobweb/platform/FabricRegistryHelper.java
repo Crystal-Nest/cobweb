@@ -8,7 +8,6 @@ import it.crystalnest.cobweb.api.registry.CobwebRegistry;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
-import net.fabricmc.fabric.api.event.registry.FabricRegistry;
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
 import net.fabricmc.fabric.api.event.registry.RegistryAttribute;
 import net.minecraft.core.Holder;
@@ -160,7 +159,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
 
     @Override
     public void addAlias(Identifier from, Identifier to) {
-      ((FabricRegistry) registry).addAlias(from, to);
+      registry.addAlias(from, to);
     }
 
     @Override

@@ -39,6 +39,7 @@ public abstract class ReloadableServerResourcesMixin {
    */
   @WrapMethod(method = "loadResources")
   private static CompletableFuture<ReloadableServerResources> wrapLoadResources(ResourceManager resourceManager, LayeredRegistryAccess<RegistryLayer> contextLayers, List<Registry.PendingTags<?>> updatedContextTags, FeatureFlagSet enabledFeatures, Commands.CommandSelection commandSelection, PermissionSet functionCompilationPermissions, Executor backgroundExecutor, Executor mainThreadExecutor, Operation<CompletableFuture<ReloadableServerResources>> original) {
-    return DynamicPackLoads.beforeReloadable(resourceManager, contextLayers, updatedContextTags).thenCompose(ignored -> original.call(resourceManager, contextLayers, updatedContextTags, enabledFeatures, commandSelection, functionCompilationPermissions, backgroundExecutor, mainThreadExecutor));
+    return DynamicPackLoads.beforeReloadable(resourceManager, contextLayers, updatedContextTags)
+      .thenCompose(ignored -> original.call(resourceManager, contextLayers, updatedContextTags, enabledFeatures, commandSelection, functionCompilationPermissions, backgroundExecutor, mainThreadExecutor));
   }
 }

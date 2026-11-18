@@ -95,7 +95,7 @@ public final class ClientPackSelection {
       Set<String> previous;
       try {
         previous = CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(Files.readString(tracker, StandardCharsets.UTF_8))).getOrThrow();
-      } catch (NoSuchFileException missing) {
+      } catch (NoSuchFileException _) {
         previous = Set.of();
       } catch (IOException | RuntimeException failure) {
         Constants.LOGGER.error("Cannot read static resource pack tracker {}; retaining saved selections", tracker, failure);
@@ -107,13 +107,12 @@ public final class ClientPackSelection {
       List<String> autoEnabled = new ArrayList<>();
       for (Pack pack : repository.getAvailablePacks()) {
         PackActivation activation = Services.PACK.activation(PackType.CLIENT_RESOURCES, pack.getId());
-        if (activation == null || Services.PLATFORM.isPackHidden(pack)) {
-          continue;
-        }
-        seen.add(pack.getId());
-        if (!previous.contains(pack.getId()) && activation == PackActivation.DEFAULT_ENABLED && pack.getCompatibility().isCompatible() && !selected.contains(pack)) {
-          pack.getDefaultPosition().insert(selected, pack, Pack::selectionConfig, false);
-          autoEnabled.add(pack.getId());
+        if (activation != null && !Services.PLATFORM.isPackHidden(pack)) {
+          seen.add(pack.getId());
+          if (!previous.contains(pack.getId()) && activation == PackActivation.DEFAULT_ENABLED && pack.getCompatibility().isCompatible() && !selected.contains(pack)) {
+            pack.getDefaultPosition().insert(selected, pack, Pack::selectionConfig, false);
+            autoEnabled.add(pack.getId());
+          }
         }
       }
 
@@ -145,7 +144,7 @@ public final class ClientPackSelection {
         Files.writeString(temporary, CODEC.encodeStart(JsonOps.INSTANCE, seen).getOrThrow().toString(), StandardCharsets.UTF_8);
         try {
           Files.move(temporary, tracker, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException unsupported) {
+        } catch (AtomicMoveNotSupportedException _) {
           Files.move(temporary, tracker, StandardCopyOption.REPLACE_EXISTING);
         }
       } finally {

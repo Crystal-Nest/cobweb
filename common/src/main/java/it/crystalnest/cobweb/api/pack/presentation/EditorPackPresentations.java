@@ -6,6 +6,7 @@ import it.crystalnest.cobweb.api.pack.query.PackInfo;
 import it.crystalnest.cobweb.api.pack.query.PackQueries;
 import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper.PackDeclaration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
@@ -42,7 +43,7 @@ public final class EditorPackPresentations {
    * Editor observations shared by current display patches, or {@code null} until the first lookup.
    */
   @Nullable
-  private PackQueries queries;
+  private PackQueries queries = null;
 
   /**
    * Resolves presentation once per pack for the current editor state.
@@ -55,47 +56,77 @@ public final class EditorPackPresentations {
    */
   @Nullable
   public Display display(Pack pack, PackRepository repository, List<Pack> selected) {
-    return values.computeIfAbsent(pack.getId(), id -> {
-      var minecraft = Minecraft.getInstance();
-      var type = minecraft.getResourcePackRepository() == repository ? PackType.CLIENT_RESOURCES : PackType.SERVER_DATA;
-      var definition = Services.PACK.packDeclaration(type, id);
-      if (queries == null) {
-        queries = PackQueryLifecycle.editor(type, repository, selected);
-      }
-      var callback = definition == null ? null : definition.presentation();
-      var file = FilePackPresentation.read(pack, queries, callback == null);
-      var title = file == null || definition != null && definition.explicitTitle() ? null : file.title();
-      var description = file == null || definition != null && definition.explicitDescription() ? null : file.description();
-      PackIcon baseIcon = definition == null ? null : definition.icon();
-      PackIcon icon = baseIcon != null || file == null ? baseIcon : file.icon();
-      if (callback != null) {
-        try {
-          var patch = callback.apply(new PackPresentationContext(new PackInfo(id, definition.id()), type, queries));
-          if (patch != null) {
-            title = patch.title() == null ? title : patch.title();
-            description = patch.description() == null ? description : patch.description();
-            icon = patch.icon() == null ? icon : patch.icon();
-          }
-        } catch (RuntimeException failure) {
-          Constants.LOGGER.error("Unable to refresh pack presentation for {}", id, failure);
+    return values.computeIfAbsent(pack.getId(), _ -> resolve(pack, repository, selected)).orElse(null);
+  }
+
+  /**
+   * Combines base fields, conditional presentation and uploaded icons for one editor entry.
+   *
+   * @param pack displayed native pack.
+   * @param repository editor repository.
+   * @param selected proposed pack selection.
+   * @return resolved overrides, or an empty result when native presentation applies.
+   */
+  private Optional<Display> resolve(Pack pack, PackRepository repository, List<Pack> selected) {
+    var minecraft = Minecraft.getInstance();
+    var type = minecraft.getResourcePackRepository() == repository ? PackType.CLIENT_RESOURCES : PackType.SERVER_DATA;
+    if (queries == null) {
+      queries = PackQueryLifecycle.editor(type, repository, selected);
+    }
+    var definition = Services.PACK.packDeclaration(type, pack.getId());
+    var file = FilePackPresentation.read(pack, queries, definition == null || definition.presentation() == null);
+    var patch = applyPresentation(pack, type, definition, basePresentation(definition, file));
+    PackIcon baseIcon = definition == null ? null : definition.icon();
+    Identifier texture = patch.icon() == null ? null : texture(pack, patch.icon());
+    if (texture == null && baseIcon != null && !baseIcon.equals(patch.icon())) {
+      texture = texture(pack, baseIcon);
+    }
+    if (patch.title() == null && patch.description() == null && texture == null) {
+      return Optional.empty();
+    }
+    return Optional.of(new Display(patch, texture));
+  }
+
+  /**
+   * Selects file fields only where Java has not explicitly supplied a base field.
+   *
+   * @param definition registered Java declaration, or {@code null} for an ordinary native pack.
+   * @param file file presentation, or {@code null} when absent.
+   * @return effective base presentation.
+   */
+  private static PackPresentation basePresentation(@Nullable PackDeclaration definition, @Nullable PackPresentation file) {
+    var title = file == null || definition != null && definition.explicitTitle() ? null : file.title();
+    var description = file == null || definition != null && definition.explicitDescription() ? null : file.description();
+    PackIcon baseIcon = definition == null ? null : definition.icon();
+    PackIcon icon = baseIcon != null || file == null ? baseIcon : file.icon();
+    return new PackPresentation(title, description, icon);
+  }
+
+  /**
+   * Applies the Java presentation callback while retaining base fields omitted by its result.
+   * Logs callback failures and preserves the base presentation.
+   *
+   * @param pack displayed native pack.
+   * @param type native resource side.
+   * @param definition Java declaration, or {@code null} when absent.
+   * @param base effective base presentation.
+   * @return callback overrides composed over the base, or the unchanged base.
+   */
+  private PackPresentation applyPresentation(Pack pack, PackType type, @Nullable PackDeclaration definition, PackPresentation base) {
+    if (definition != null && definition.presentation() != null) {
+      try {
+        var patch = definition.presentation().apply(new PackPresentationContext(new PackInfo(pack.getId(), definition.id()), type, queries));
+        if (patch != null) {
+          var title = patch.title() == null ? base.title() : patch.title();
+          var description = patch.description() == null ? base.description() : patch.description();
+          var icon = patch.icon() == null ? base.icon() : patch.icon();
+          return new PackPresentation(title, description, icon);
         }
+      } catch (RuntimeException failure) {
+        Constants.LOGGER.error("Unable to refresh pack presentation for {}", pack.getId(), failure);
       }
-      Identifier texture = icon == null ? null : texture(pack, icon);
-      if (texture == null && baseIcon != null && !baseIcon.equals(icon)) {
-        texture = texture(pack, baseIcon);
-      }
-      if (title == null && description == null && texture == null) {
-        return Optional.empty();
-      }
-      var patch = PackPresentation.builder();
-      if (title != null) {
-        patch.title(title);
-      }
-      if (description != null) {
-        patch.description(description);
-      }
-      return Optional.of(new Display(patch.build(), texture));
-    }).orElse(null);
+    }
+    return base;
   }
 
   /**
@@ -131,7 +162,7 @@ public final class EditorPackPresentations {
    * @param icon icon source and path.
    * @return uploaded texture ID, or an empty result after a logged read or upload failure.
    */
-  private Optional<Identifier> load(Pack pack, PackIcon icon) {
+  private static Optional<Identifier> load(Pack pack, PackIcon icon) {
     try {
       var resource = icon.resource();
       NativeImage pixels = switch (icon.origin()) {
@@ -161,17 +192,28 @@ public final class EditorPackPresentations {
           }
         }
       };
-      var id = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "pack_editor/" + UUID.randomUUID());
-      try {
-        Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(id::toString, pixels));
-        return Optional.of(id);
-      } catch (RuntimeException | Error failure) {
-        pixels.close();
-        throw failure;
-      }
+      return Optional.of(uploadIcon(pixels));
     } catch (IOException | RuntimeException failure) {
       Constants.LOGGER.error("Unable to load presentation icon {} for {}", icon, pack.getId(), failure);
       return Optional.empty();
+    }
+  }
+
+  /**
+   * Registers decoded pixels as a client texture and transfers their ownership to the texture manager.
+   * Closes the pixels if registration fails.
+   *
+   * @param pixels decoded icon pixels owned by the caller.
+   * @return registered texture identifier.
+   */
+  private static Identifier uploadIcon(NativeImage pixels) {
+    var id = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "pack_editor/" + UUID.randomUUID());
+    try {
+      Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(id::toString, pixels));
+      return id;
+    } catch (RuntimeException | Error failure) {
+      pixels.close();
+      throw failure;
     }
   }
 

@@ -22,7 +22,7 @@ public record PackIcon(Origin origin, Identifier resource) {
     Objects.requireNonNull(origin);
     Objects.requireNonNull(resource);
     for (String part : resource.getPath().split("/", -1)) {
-      if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+      if (part.isEmpty() || ".".equals(part) || "..".equals(part)) {
         throw new IllegalArgumentException("Invalid pack icon path: " + resource);
       }
     }

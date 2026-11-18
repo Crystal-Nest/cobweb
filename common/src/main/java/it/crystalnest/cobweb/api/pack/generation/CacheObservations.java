@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
@@ -78,7 +79,7 @@ final class CacheObservations {
       try {
         var request = new Request(kind, id);
         record(request, fingerprint(request));
-      } catch (IOException | RuntimeException failure) {
+      } catch (IOException | RuntimeException _) {
         supported = false;
       }
     }
@@ -97,7 +98,7 @@ final class CacheObservations {
         var digest = digest();
         append.accept(digest);
         record(new Request(kind, key), hex(digest));
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException _) {
         supported = false;
       }
     }
@@ -127,7 +128,7 @@ final class CacheObservations {
           }
         }
         record(request, hex(digest));
-      } catch (IOException | RuntimeException failure) {
+      } catch (IOException | RuntimeException _) {
         supported = false;
       }
     }
@@ -147,7 +148,7 @@ final class CacheObservations {
     }
     try {
       record(new Request(Kind.METADATA, new FileAddress(id, directory, stackIndex, Long.MAX_VALUE)), metadataFingerprint(metadata));
-    } catch (IOException | RuntimeException failure) {
+    } catch (IOException | RuntimeException _) {
       supported = false;
     }
   }
@@ -214,7 +215,7 @@ final class CacheObservations {
         }
       }
       return true;
-    } catch (IOException | RuntimeException failure) {
+    } catch (IOException | RuntimeException _) {
       return false;
     }
   }
@@ -235,7 +236,9 @@ final class CacheObservations {
    *
    * @return verifier scoped to this resource view.
    */
-  Verification verification() { return new Verification(); }
+  Verification verification() {
+    return new Verification();
+  }
 
   /**
    * Replays native queries while sharing listings within one verification.
@@ -429,7 +432,7 @@ final class CacheObservations {
    */
   static void text(MessageDigest digest, String value) {
     byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-    digest.update(java.nio.ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+    digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
     digest.update(bytes);
   }
 
@@ -533,12 +536,16 @@ final class CacheObservations {
      * @param kind kind of observed query.
      * @param key query argument.
      */
-    Request(Kind kind, String key) { this(kind, key, null); }
+    Request(Kind kind, String key) {
+      this(kind, key, null);
+    }
 
     /**
      * @param kind kind of file observation.
      * @param file address of the resolved file.
      */
-    Request(Kind kind, FileAddress file) { this(kind, "", file); }
+    Request(Kind kind, FileAddress file) {
+      this(kind, "", file);
+    }
   }
 }

@@ -23,6 +23,13 @@ public abstract class PackSelectionScreenMixin extends Screen implements EditorP
   private PackSelectionModel model;
 
   /**
+   * @param title screen title.
+   */
+  protected PackSelectionScreenMixin(Component title) {
+    super(title);
+  }
+
+  /**
    * Shadowed {@link PackSelectionScreen#populateLists(PackSelectionModel.EntryBase)}.<br>
    * Rebuilds the native available and selected pack lists.
    *
@@ -33,12 +40,6 @@ public abstract class PackSelectionScreenMixin extends Screen implements EditorP
     throw new AssertionError();
   }
 
-  /**
-   * @param title screen title.
-   */
-  protected PackSelectionScreenMixin(Component title) {
-    super(title);
-  }
 
   @Override
   public void refreshPackPresentation() {

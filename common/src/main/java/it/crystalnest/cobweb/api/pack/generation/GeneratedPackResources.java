@@ -29,6 +29,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -108,8 +109,7 @@ final class GeneratedPackResources implements PackResources {
    * @param bundles opened base and overlay layers, or {@code null} for a generated-only view.
    * @param ownsBundles whether this opening owns a lease on the bundled resources.
    */
-  private GeneratedPackResources(@Nullable RegisteredPack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
-    Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles) {
+  private GeneratedPackResources(@Nullable RegisteredPack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location, Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles) {
     this(definition, type, logicalId, location, files, bundles, ownsBundles, null);
   }
 
@@ -123,8 +123,16 @@ final class GeneratedPackResources implements PackResources {
    * @param ownsBundles whether this opening owns a lease on the bundled resources.
    * @param snapshots first-read captures to use, or {@code null} to open bundled files directly.
    */
-  private GeneratedPackResources(@Nullable RegisteredPack definition, PackType type, @Nullable Identifier logicalId, PackLocationInfo location,
-    Map<Identifier, File> files, @Nullable Bundles bundles, boolean ownsBundles, @Nullable StageResourceSnapshots snapshots) {
+  private GeneratedPackResources(
+    @Nullable RegisteredPack definition,
+    PackType type,
+    @Nullable Identifier logicalId,
+    PackLocationInfo location,
+    Map<Identifier, File> files,
+    @Nullable Bundles bundles,
+    boolean ownsBundles,
+    @Nullable StageResourceSnapshots snapshots
+  ) {
     this.definition = definition;
     this.type = type;
     this.logicalId = logicalId;
@@ -356,7 +364,7 @@ final class GeneratedPackResources implements PackResources {
   @Override
   public @NonNull PackLocationInfo location() {
     if ((!rules.rules().isEmpty() || hasFiles()) && location.knownPackInfo().isPresent()) {
-      return new PackLocationInfo(location.id(), location.title(), location.source(), java.util.Optional.empty());
+      return new PackLocationInfo(location.id(), location.title(), location.source(), Optional.empty());
     }
     return location;
   }
@@ -592,13 +600,13 @@ final class GeneratedPackResources implements PackResources {
      * @return owning generation-aware pack opening.
      */
     private GeneratedPackResources open(PackLocationInfo location, List<String> overlays) {
-      var base = bundled(location, definition.bundledRoot());
       var active = overlays.stream().map(path -> {
-        if (path.equals(".") || path.equals("..")) {
+        if (".".equals(path) || "..".equals(path)) {
           throw new IllegalArgumentException("Overlay must name a directory inside " + definition.bundledRoot() + ": " + path);
         }
         return bundled(location, definition.bundledRoot() + "/" + path);
       }).filter(Objects::nonNull).toList();
+      var base = bundled(location, definition.bundledRoot());
       return new GeneratedPackResources(definition, definition.pack().type(), definition.declaration().id(), location, Map.of(), new Bundles(base, active), true);
     }
 

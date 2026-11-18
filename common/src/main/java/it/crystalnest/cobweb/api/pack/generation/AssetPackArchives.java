@@ -190,7 +190,7 @@ public final class AssetPackArchives {
       if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS) || Files.mismatch(staging, destination) != -1) {
         try {
           Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException ignored) {
+        } catch (AtomicMoveNotSupportedException _) {
           Files.move(staging, destination, StandardCopyOption.REPLACE_EXISTING);
         }
       }

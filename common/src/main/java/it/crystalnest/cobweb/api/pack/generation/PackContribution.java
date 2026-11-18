@@ -111,7 +111,9 @@ sealed interface PackContribution {
     }
 
     @Override
-    public List<PackFile> backing() { return List.of(contents); }
+    public List<PackFile> backing() {
+      return List.of(contents);
+    }
   }
 
   /**
@@ -131,10 +133,14 @@ sealed interface PackContribution {
     }
 
     @Override
-    public List<PackFile> backing() { return List.of(); }
+    public List<PackFile> backing() {
+      return List.of();
+    }
 
     @Override
-    public long bytes() { return 256L + 96L * addition.entries().size(); }
+    public long bytes() {
+      return 256L + 96L * addition.entries().size();
+    }
   }
 
   /**
@@ -157,14 +163,18 @@ sealed interface PackContribution {
     }
 
     @Override
-    public List<PackFile> backing() { return metadata == null ? List.of(contents) : List.of(contents, metadata); }
+    public List<PackFile> backing() {
+      return metadata == null ? List.of(contents) : List.of(contents, metadata);
+    }
 
     /**
      * Resolves the native sidecar name for this contribution.
      *
      * @return destination file identifier with the {@code .mcmeta} suffix.
      */
-    Identifier metadataId() { return id.withPath(path -> path + ".mcmeta"); }
+    Identifier metadataId() {
+      return id.withPath(path -> path + ".mcmeta");
+    }
   }
 
   /**
@@ -187,6 +197,8 @@ sealed interface PackContribution {
     }
 
     @Override
-    public List<PackFile> backing() { return List.of(contents); }
+    public List<PackFile> backing() {
+      return List.of(contents);
+    }
   }
 }

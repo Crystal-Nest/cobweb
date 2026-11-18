@@ -1,7 +1,9 @@
 package it.crystalnest.cobweb.api.pack.generation;
 
 import it.crystalnest.cobweb.Constants;
+import org.jspecify.annotations.NonNull;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
@@ -12,6 +14,8 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.security.DigestOutputStream;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
@@ -47,7 +51,7 @@ final class PackFile {
   /**
    * Pattern used to identify process-specific scratch directories.
    */
-  private static final Pattern SESSION_DIRECTORY = Pattern.compile("session-([0-9]+)-[0-9]+");
+  private static final Pattern SESSION_DIRECTORY = Pattern.compile("session-(\\d+)-\\d+");
 
   /**
    * Private scratch directory created lazily on the first spill.
@@ -110,7 +114,7 @@ final class PackFile {
     try (var spool = new Spool()) {
       writer.write(new FilterOutputStream(spool) {
         @Override
-        public void write(byte[] bytes, int offset, int length) throws IOException {
+        public void write(byte @NonNull [] bytes, int offset, int length) throws IOException {
           out.write(bytes, offset, length);
         }
 
@@ -161,7 +165,7 @@ final class PackFile {
     if (digest == null) {
       var hash = CacheObservations.digest();
       try (var input = path == null ? new ByteArrayInputStream(bytes) : Files.newInputStream(path)) {
-        input.transferTo(new java.security.DigestOutputStream(OutputStream.nullOutputStream(), hash));
+        input.transferTo(new DigestOutputStream(OutputStream.nullOutputStream(), hash));
       }
       digest = CacheObservations.hex(hash);
     }
@@ -201,13 +205,19 @@ final class PackFile {
     /**
      * @param input input stream backed by this file.
      */
-    private FileStream(InputStream input) { super(input); }
+    private FileStream(InputStream input) {
+      super(input);
+    }
 
     @Override
-    public String digest() throws IOException { return PackFile.this.digest(); }
+    public String digest() throws IOException {
+      return PackFile.this.digest();
+    }
 
     @Override
-    public long size() { return size; }
+    public long size() {
+      return size;
+    }
 
     @Override
     public void close() throws IOException {
@@ -234,25 +244,6 @@ final class PackFile {
         SCRATCH.addAndGet(-size);
       }
     }
-  }
-
-  /**
-   * Tries to reserve bytes without exceeding the shared budget.
-   *
-   * @param budget budget counter.
-   * @param size number of bytes to reserve.
-   * @param limit maximum total budget.
-   * @return whether the reservation succeeded.
-   */
-  private static boolean reserve(AtomicLong budget, long size, long limit) {
-    long current;
-    do {
-      current = budget.get();
-      if (size > limit - current) {
-        return false;
-      }
-    } while (!budget.compareAndSet(current, current + size));
-    return true;
   }
 
   /**
@@ -292,20 +283,17 @@ final class PackFile {
     try (var paths = Files.list(root)) {
       for (var path : paths.toList()) {
         var name = SESSION_DIRECTORY.matcher(path.getFileName().toString());
-        if (!path.normalize().startsWith(root) || !name.matches() || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-          continue;
-        }
-        if (ProcessHandle.of(Long.parseLong(name.group(1))).filter(ProcessHandle::isAlive).isPresent()) {
-          continue;
-        }
-        try (var files = Files.newDirectoryStream(path, "resource-*.bin")) {
-          for (var file : files) {
-            if (file.normalize().startsWith(path) && Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
-              delete(file);
+        if (path.normalize().startsWith(root) && name.matches() && Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
+          && ProcessHandle.of(Long.parseLong(name.group(1))).filter(ProcessHandle::isAlive).isEmpty()) {
+          try (var files = Files.newDirectoryStream(path, "resource-*.bin")) {
+            for (var file : files) {
+              if (file.normalize().startsWith(path) && Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+                delete(file);
+              }
             }
           }
+          delete(path);
         }
-        delete(path);
       }
     } catch (IOException | RuntimeException failure) {
       Constants.LOGGER.error("Unable to clean abandoned pack scratch storage under {}", root, failure);
@@ -322,29 +310,29 @@ final class PackFile {
     private ByteArrayOutputStream memory = new ByteArrayOutputStream();
 
     /**
-     * Current scratch output stream once the memory buffer has spilled.
+     * Current scratch output stream, or {@code null} while the file is held in memory.
      */
-    private OutputStream disk;
+    private OutputStream disk = null;
 
     /**
      * Scratch path, or {@code null} when this file is held in memory.
      */
-    private Path path;
+    private Path path = null;
 
     /**
      * Length of this file's encoded contents in bytes.
      */
-    private long size;
+    private long size = 0;
 
     /**
      * Number of bytes reserved in the shared scratch budget for this output.
      */
-    private long reservedDisk;
+    private long reservedDisk = 0;
 
     /**
      * Whether the spool has handed off its backing to a complete file.
      */
-    private boolean finished;
+    private boolean finished = false;
 
     @Override
     public void write(int value) throws IOException {
@@ -365,7 +353,7 @@ final class PackFile {
 
     @Override
     public void write(byte[] source, int offset, int length) throws IOException {
-      java.util.Objects.checkFromIndexSize(offset, length, source.length);
+      Objects.checkFromIndexSize(offset, length, source.length);
       if (finished) {
         throw new IOException("Pack file writer has ended");
       }
@@ -390,7 +378,7 @@ final class PackFile {
       reserveDisk(size);
       var directory = scratchDirectory();
       path = Files.createTempFile(directory, "resource-", ".bin");
-      disk = new java.io.BufferedOutputStream(Files.newOutputStream(path));
+      disk = new BufferedOutputStream(Files.newOutputStream(path));
       memory.writeTo(disk);
       memory = null;
     }
@@ -442,6 +430,25 @@ final class PackFile {
           }
         }
       }
+    }
+
+    /**
+     * Tries to reserve bytes without exceeding the shared budget.
+     *
+     * @param budget budget counter.
+     * @param size number of bytes to reserve.
+     * @param limit maximum total budget.
+     * @return whether the reservation succeeded.
+     */
+    private static boolean reserve(AtomicLong budget, long size, long limit) {
+      long current;
+      do {
+        current = budget.get();
+        if (size > limit - current) {
+          return false;
+        }
+      } while (!budget.compareAndSet(current, current + size));
+      return true;
     }
   }
 }

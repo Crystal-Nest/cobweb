@@ -92,40 +92,33 @@ final class ContributionMerger {
     Map<String, Task> memberOwners = new HashMap<>();
     ResourceLifetime lifetime = ResourceLifetime.RELOADABLE;
     for (Submission submission : operations.stream().sorted(Comparator.comparingLong(Submission::sequence)).toList()) {
-      if (submission.operation instanceof Member member) {
+      if (submission.operation instanceof Member(String name, PackFile contents)) {
         if (members == null) {
           var base = readJson(pack, id, result, snapshots);
           members = base == null ? new JsonObject() : base.getAsJsonObject();
         }
-        var previous = memberOwners.put(member.name(), submission.task);
-        if (previous != null && previous != submission.task || lastReplacement != null && lastReplacement != submission.task && (!lastReplacement.fileRule() || !submission.task.fileRule())) {
-          Constants.LOGGER.warn("Competing callbacks submitted {} in {} of pack {} at {}/{}", member.name(), id, pack.packId(), phase, stage);
+        var previous = memberOwners.put(name, submission.task);
+        if (previous != null && previous != submission.task || competes(lastReplacement, submission.task)) {
+          Constants.LOGGER.warn("Competing callbacks submitted {} in {} of pack {} at {}/{}", name, id, pack.packId(), phase, stage);
         }
-        members.add(member.name(), readJson(new GeneratedPackResources.File(member.contents(), submission.task.lifetime())));
+        members.add(name, readJson(new GeneratedPackResources.File(contents, submission.task.lifetime())));
         lifetime = submission.task.lifetime();
-      } else if (submission.operation instanceof Replacement replacement) {
-        if (lastReplacement != null && lastReplacement != submission.task && (!lastReplacement.fileRule() || !submission.task.fileRule())) {
+      } else if (submission.operation instanceof Replacement(PackFile contents, boolean companion)) {
+        if (competes(lastReplacement, submission.task)) {
           Constants.LOGGER.warn("Competing callbacks submitted {} in pack {} at {}/{}", id, pack.packId(), phase, stage);
         }
         if (memberOwners.values().stream().anyMatch(owner -> owner != submission.task)) {
           Constants.LOGGER.warn("A complete file superseded keyed contributions to {} in pack {} at {}/{}", id, pack.packId(), phase, stage);
         }
         lastReplacement = submission.task;
-        result = new GeneratedPackResources.File(replacement.contents(), submission.task.lifetime(), replacement.companion());
+        result = new GeneratedPackResources.File(contents, submission.task.lifetime(), companion);
         tag = null;
         members = null;
         memberOwners.clear();
       } else if (submission.operation instanceof ClearMetadata && result != null && result.companion()) {
         result = null;
-      } else if (submission.operation instanceof TagAddition addition) {
-        if (tag == null) {
-          var base = readJson(pack, id, result, snapshots);
-          tag = base == null ? new TagFile(List.of(), false) : TagFile.CODEC.parse(JsonOps.INSTANCE, base).getOrThrow();
-        }
-        Map<String, TagEntry> combined = new LinkedHashMap<>();
-        tag.entries().forEach(entry -> combined.put(entry.toString(), entry));
-        addition.tag().entries().forEach(entry -> combined.putIfAbsent(entry.toString(), entry));
-        tag = new TagFile(List.copyOf(combined.values()), addition.tag().replace() == null ? tag.replace() : addition.tag().replace());
+      } else if (submission.operation instanceof TagAddition(GenerationOutput.TagAddition addition)) {
+        tag = appendTag(pack, id, result, snapshots, tag, addition);
       }
     }
     if (members != null) {
@@ -135,6 +128,41 @@ final class ContributionMerger {
       return aggregate(pack, id, TagFile.CODEC.encodeStart(JsonOps.INSTANCE, tag).getOrThrow().toString(), ResourceLifetime.RELOADABLE);
     }
     return result;
+  }
+
+  /**
+   * Checks whether two distinct callbacks compete for a complete file in the same stage.
+   * Ordered file-rule replacements do not produce a competition warning.
+   *
+   * @param previous earlier complete-file writer, or {@code null} when absent.
+   * @param current current writer.
+   * @return whether the overlapping writes require a warning.
+   */
+  private static boolean competes(@Nullable Task previous, Task current) {
+    return previous != null && previous != current && (!previous.fileRule() || !current.fileRule());
+  }
+
+  /**
+   * Appends unique tag entries to the accumulated tag or this pack's initial tag file.
+   * Preserves the accumulated native replace flag unless the addition explicitly supplies one.
+   *
+   * @param pack owning pack opening.
+   * @param id destination tag file.
+   * @param file current generated file, or {@code null} to consult the bundled base.
+   * @param snapshots stage snapshots for bundled reads.
+   * @param tag accumulated tag, or {@code null} before the first addition.
+   * @param addition submitted entries and optional replace flag.
+   * @return combined tag definition.
+   */
+  private static TagFile appendTag(GeneratedPackResources pack, Identifier id, @Nullable GeneratedPackResources.File file, StageResourceSnapshots snapshots, @Nullable TagFile tag, GenerationOutput.TagAddition addition) {
+    if (tag == null) {
+      var base = readJson(pack, id, file, snapshots);
+      tag = base == null ? new TagFile(List.of(), false) : TagFile.CODEC.parse(JsonOps.INSTANCE, base).getOrThrow();
+    }
+    Map<String, TagEntry> combined = new LinkedHashMap<>();
+    tag.entries().forEach(entry -> combined.put(entry.toString(), entry));
+    addition.entries().forEach(entry -> combined.putIfAbsent(entry.toString(), entry));
+    return new TagFile(List.copyOf(combined.values()), addition.replace() == null ? tag.replace() : addition.replace());
   }
 
   /**

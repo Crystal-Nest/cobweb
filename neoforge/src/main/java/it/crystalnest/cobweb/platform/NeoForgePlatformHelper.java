@@ -6,6 +6,7 @@ import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import net.minecraft.server.packs.repository.Pack;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.neoforgespi.language.IModInfo;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.Restriction;
@@ -41,7 +42,7 @@ public final class NeoForgePlatformHelper implements PlatformHelper {
 
   @Override
   public List<String> loadedModIds() {
-    return ModList.get().getMods().stream().map(mod -> mod.getModId()).sorted().toList();
+    return ModList.get().getMods().stream().map(IModInfo::getModId).sorted().toList();
   }
 
   @Override

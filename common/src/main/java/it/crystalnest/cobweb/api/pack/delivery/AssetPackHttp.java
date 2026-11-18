@@ -31,6 +31,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import it.crystalnest.cobweb.Constants;
+import it.crystalnest.cobweb.api.pack.generation.AssetPackArchives;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -70,6 +71,16 @@ final class AssetPackHttp implements AutoCloseable {
   private static final List<byte[]> HTTP_METHODS = Stream.of("GET ", "HEAD ", "POST ", "PUT ", "OPTIONS ", "DELETE ", "PATCH ", "TRACE ", "CONNECT ").map(method -> method.getBytes(StandardCharsets.US_ASCII)).toList();
 
   /**
+   * Maximum number of admitted requests for the built-in HTTP transport.
+   */
+  private static final int MAX_DOWNLOADS = 8;
+
+  /**
+   * Maximum number of requests queued for a transfer slot.
+   */
+  private static final int MAX_WAITING = 64;
+
+  /**
    * Publication service that leases available archives.
    */
   private final AssetDelivery delivery;
@@ -83,16 +94,6 @@ final class AssetPackHttp implements AutoCloseable {
    * Owned HTTP channels, including any channel added after shutdown begins.
    */
   private final DefaultChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
-
-  /**
-   * Maximum number of admitted requests for the built-in HTTP transport.
-   */
-  private static final int MAX_DOWNLOADS = 8;
-
-  /**
-   * Maximum number of requests queued for a transfer slot.
-   */
-  private static final int MAX_WAITING = 64;
 
   /**
    * Validated requests waiting for a slot in arrival order, guarded by this transport's monitor.
@@ -236,27 +237,27 @@ final class AssetPackHttp implements AutoCloseable {
     /**
      * Whether this connection's first request has been handled.
      */
-    private boolean requested;
+    private boolean requested = false;
 
     /**
-     * Handler context captured when a request passes validation.
+     * Handler context captured when a request passes validation, or {@code null} before validation.
      */
-    private ChannelHandlerContext context;
+    private ChannelHandlerContext context = null;
 
     /**
-     * SHA-256 address of the requested archive once validated.
+     * SHA-256 address of the requested archive, or {@code null} before validation.
      */
-    private String address;
+    private String address = null;
 
     /**
      * Whether the validated request is for response headers only.
      */
-    private boolean head;
+    private boolean head = false;
 
     /**
      * Whether this request holds a transfer slot, guarded by the transport's monitor.
      */
-    private boolean admitted;
+    private boolean admitted = false;
 
     /**
      * Validates the request and admits or queues it.
@@ -317,7 +318,7 @@ final class AssetPackHttp implements AutoCloseable {
       activeDownloads++;
       try {
         context.executor().execute(this::serve);
-      } catch (RejectedExecutionException failure) {
+      } catch (RejectedExecutionException _) {
         context.close();
         release();
       }
@@ -366,19 +367,30 @@ final class AssetPackHttp implements AutoCloseable {
         return;
       }
       try {
-        var file = FileChannel.open(archive.path(), StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
-        ChunkedNioFile contents;
-        try {
-          contents = new ChunkedNioFile(file, 0, archive.size(), 64 * 1024);
-        } catch (IOException | RuntimeException failure) {
-          file.close();
-          throw failure;
-        }
+        var contents = openChunkedArchive(archive);
         context.write(response);
         context.writeAndFlush(new HttpChunkedInput(contents)).addListener(ChannelFutureListener.CLOSE);
       } catch (IOException | RuntimeException failure) {
         Constants.LOGGER.error("Cannot serve published asset archive {}", archive.address(), failure);
         fail(context, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
+
+    /**
+     * Opens archive contents and transfers channel ownership to the chunked file reader.
+     * Closes the channel if reader construction fails.
+     *
+     * @param archive immutable published archive.
+     * @return reader that owns the open file channel.
+     * @throws IOException if the archive cannot be opened or the reader cannot be constructed.
+     */
+    private static ChunkedNioFile openChunkedArchive(AssetPackArchives.Archive archive) throws IOException {
+      var file = FileChannel.open(archive.path(), StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
+      try {
+        return new ChunkedNioFile(file, 0, archive.size(), 64 * 1024);
+      } catch (IOException | RuntimeException failure) {
+        file.close();
+        throw failure;
       }
     }
 

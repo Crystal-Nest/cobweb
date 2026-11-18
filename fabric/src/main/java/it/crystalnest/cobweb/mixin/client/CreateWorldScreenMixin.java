@@ -27,7 +27,7 @@ public abstract class CreateWorldScreenMixin {
    * @return updated repository.
    */
   @ModifyVariable(method = "openCreateWorldScreen", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"), name = "vanillaOnlyPackRepository")
-  private static PackRepository modifyPackRepository$openCreateWorldScreen(PackRepository vanillaOnlyPackRepository) {
+  private static PackRepository modifyPackRepository(PackRepository vanillaOnlyPackRepository) {
     return FabricPackHelper.registerDataPacks(vanillaOnlyPackRepository);
   }
 }

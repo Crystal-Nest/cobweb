@@ -50,7 +50,7 @@ public final class AssetDelivery implements AutoCloseable {
   /**
    * Temporary ZIP names eligible for pruning in the staging directory.
    */
-  private static final Pattern STAGING_FILE = Pattern.compile("[.]pending-[0-9]+[.]zip");
+  private static final Pattern STAGING_FILE = Pattern.compile("[.]pending-\\d+[.]zip");
 
   /**
    * Address advertised by the client during the Minecraft handshake.
@@ -451,12 +451,11 @@ public final class AssetDelivery implements AutoCloseable {
       for (var path : files.filter(candidate -> filenames.matcher(candidate.getFileName().toString()).matches()).toList()) {
         String name = path.getFileName().toString();
         String address = name.substring(0, name.length() - 4);
+        boolean eligible;
         synchronized (this) {
-          if (closed || served.containsKey(address)) {
-            continue;
-          }
+          eligible = !closed && !served.containsKey(address);
         }
-        if (Files.getLastModifiedTime(path, LinkOption.NOFOLLOW_LINKS).toMillis() <= now - GRACE_MILLIS) {
+        if (eligible && Files.getLastModifiedTime(path, LinkOption.NOFOLLOW_LINKS).toMillis() <= now - GRACE_MILLIS) {
           Files.deleteIfExists(path);
         }
       }

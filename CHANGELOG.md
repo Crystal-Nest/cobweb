@@ -13,7 +13,6 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 - **Miscellaneous changes**
   - Ported to 26.3
-  - Added Italian, French, Spanish, German, Brazilian Portuguese, Polish, Russian, Japanese, Simplified Chinese, upside-down English, Shakespearean English, and Pirate Speak translations.
   - Added four main-menu splashes alongside Minecraft's own.
   - Added common platform queries for the active loader, development environment, loaded mods, and mod versions.
   - Removed the configuration API and Forge Config API Port integration. Suggested replacement is either Fzzy Config, for any loader and multiloader, or NeoForge native + Forge Config API Port for Fabric and multiloader support.

@@ -33,13 +33,15 @@ import net.minecraft.util.Util;
 import net.minecraft.world.flag.FeatureFlagSet;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,7 +68,7 @@ public final class DynamicPackLoads {
   /**
    * World directories associated with native repositories without retaining those repositories.
    */
-  private static final Map<PackRepository, Path> WORLD_ROOTS = java.util.Collections.synchronizedMap(new WeakHashMap<>());
+  private static final Map<PackRepository, Path> WORLD_ROOTS = Collections.synchronizedMap(new WeakHashMap<>());
 
   /**
    * Whether initialization has ended and generation declarations are frozen.
@@ -208,7 +210,7 @@ public final class DynamicPackLoads {
     var done = tracker.watch(reload.thenCompose(ReloadInstance::done));
     return new ReloadInstance() {
       @Override
-      public CompletableFuture<?> done() {
+      public @NonNull CompletableFuture<?> done() {
         return done;
       }
 
@@ -498,14 +500,17 @@ public final class DynamicPackLoads {
    * @param decoded native frozen result.
    * @return completion with the unchanged native registry batch.
    */
-  public static CompletableFuture<RegistryAccess.Frozen> afterBatch(ResourceManager manager, List<HolderLookup.RegistryLookup<?>> available,
-    List<RegistryDataLoader.RegistryData<?>> definitions, RegistryAccess.Frozen decoded) {
+  public static CompletableFuture<RegistryAccess.Frozen> afterBatch(ResourceManager manager, List<HolderLookup.RegistryLookup<?>> available, List<RegistryDataLoader.RegistryData<?>> definitions, RegistryAccess.Frozen decoded) {
     Attempt attempt = find(manager);
     if (attempt == null) {
       return CompletableFuture.completedFuture(decoded);
     }
-    Phase phase = contains(definitions, Registries.ENCHANTMENT) ? Phase.WORLD_REGISTRIES_READY
-      : contains(definitions, Registries.RECIPE) ? Phase.RELOADABLE_REGISTRIES_READY : null;
+    Phase phase;
+    if (contains(definitions, Registries.ENCHANTMENT)) {
+      phase = Phase.WORLD_REGISTRIES_READY;
+    } else {
+      phase = contains(definitions, Registries.RECIPE) ? Phase.RELOADABLE_REGISTRIES_READY : null;
+    }
     if (phase == null) {
       return CompletableFuture.completedFuture(decoded);
     }
@@ -614,7 +619,7 @@ public final class DynamicPackLoads {
     /**
      * Phases that have already started in this attempt.
      */
-    private final Set<Phase> started = new HashSet<>();
+    private final Set<Phase> started = EnumSet.noneOf(Phase.class);
 
     /**
      * Whether a native pack opening has released this attempt.
@@ -656,8 +661,7 @@ public final class DynamicPackLoads {
      * @param request requested selection tracked by this attempt.
      * @param log diagnostics for this native load.
      */
-    private Attempt(PackType type, List<PackResources> packs, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind,
-      @Nullable Path cacheRoot, PackQueryLifecycle.Request request, PackLoadLog log) {
+    private Attempt(PackType type, List<PackResources> packs, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind, @Nullable Path cacheRoot, PackQueryLifecycle.Request request, PackLoadLog log) {
       this.type = type;
       this.packs = packs;
       this.kind = kind;
@@ -754,26 +758,25 @@ public final class DynamicPackLoads {
      * @param failure load failure, or {@code null} on success.
      */
     public void finish(@Nullable Throwable failure) {
-      if (!reported.compareAndSet(false, true)) {
-        return;
+      if (reported.compareAndSet(false, true)) {
+        applied = failure == null;
+        request.finish(applied);
+        if (applied) {
+          cacheUpdates.forEach(update -> {
+            try {
+              CallbackCache.apply(update.address, update.batch, update.hit, update.persistent);
+            } catch (RuntimeException cacheFailure) {
+              Constants.LOGGER.error("Unable to publish callback cache {}", update.address, cacheFailure);
+            }
+          });
+        }
+        cacheUpdates.clear();
+        if (applied) {
+          plan.order.keySet().forEach(GeneratedPackResources::releaseSuperseded);
+        }
+        log.finish(failure);
+        notifyObservers(type, packs, kind, failure);
       }
-      applied = failure == null;
-      request.finish(applied);
-      if (applied) {
-        cacheUpdates.forEach(update -> {
-          try {
-            CallbackCache.apply(update.address, update.batch, update.hit, update.persistent);
-          } catch (RuntimeException cacheFailure) {
-            Constants.LOGGER.error("Unable to publish callback cache {}", update.address, cacheFailure);
-          }
-        });
-      }
-      cacheUpdates.clear();
-      if (applied) {
-        plan.order.keySet().forEach(GeneratedPackResources::releaseSuperseded);
-      }
-      log.finish(failure);
-      notifyObservers(type, packs, kind, failure);
     }
 
     /**
@@ -823,34 +826,31 @@ public final class DynamicPackLoads {
         List<Task> tasks = pack.javaTasks().stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
         var rules = plan.fileTasks.get(pack).stream().filter(task -> task.phases().get(kind) == phase && task.stage() == stage).toList();
         CompletableFuture<Void> ready = all(entry.getValue().stream().map(finished::get).toList());
-        if (tasks.isEmpty() && rules.isEmpty()) {
-          finished.put(pack, ready);
-          continue;
-        }
-        if (startedAt == 0 && Constants.LOGGER.isDebugEnabled()) {
-          startedAt = System.nanoTime();
-          Constants.LOGGER.debug("{} started {}/{}", log.label(), phase, stage);
-        }
-        var predecessors = Set.copyOf(entry.getValue());
-        finished.put(pack, ready.thenCompose(ignored -> {
-          var snapshot = new MultiPackResourceManager(type, packs.stream().map(source -> source instanceof GeneratedPackResources generated && predecessors.contains(generated)
-            ? generated.snapshot(snapshots) : baseline.get(source)).toList());
-          Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions = new ConcurrentHashMap<>();
-          var runs = new ArrayList<CompletableFuture<Void>>();
-          tasks.forEach(task -> runs.add(invoke(pack, task, phase, snapshot, registries, submissions)));
-          CompletableFuture<Void> ordered = CompletableFuture.completedFuture(null);
-          for (var rule : rules) {
-            ordered = ordered.thenCompose(result -> invoke(pack, rule, phase, snapshot, registries, submissions));
+        finished.put(pack, ready);
+        if (!tasks.isEmpty() || !rules.isEmpty()) {
+          if (startedAt == 0 && Constants.LOGGER.isDebugEnabled()) {
+            startedAt = System.nanoTime();
+            Constants.LOGGER.debug("{} started {}/{}", log.label(), phase, stage);
           }
-          runs.add(ordered);
-          return all(runs).thenRun(() -> {
-            if (!closed && !aborted.isDone()) {
-              Map<Identifier, GeneratedPackResources.File> files = new HashMap<>();
-              submissions.forEach((id, operations) -> files.put(id, ContributionMerger.merge(pack, id, operations, phase, stage, snapshots)));
-              pack.publish(files);
+          var predecessors = Set.copyOf(entry.getValue());
+          finished.put(pack, ready.thenCompose(ignored -> {
+            // This manager borrows shared stage views; closing it here would invalidate asynchronous readers.
+            // The stage releases captured file backing after all participating callbacks finish.
+            var snapshot = new MultiPackResourceManager(
+              type,
+              packs.stream().map(source -> source instanceof GeneratedPackResources generated && predecessors.contains(generated) ? generated.snapshot(snapshots) : baseline.get(source)).toList()
+            );
+            Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions = new ConcurrentHashMap<>();
+            var runs = new ArrayList<CompletableFuture<Void>>();
+            tasks.forEach(task -> runs.add(invoke(pack, task, phase, snapshot, registries, submissions)));
+            CompletableFuture<Void> ordered = CompletableFuture.completedFuture(null);
+            for (var rule : rules) {
+              ordered = ordered.thenCompose(result -> invoke(pack, rule, phase, snapshot, registries, submissions));
             }
-          });
-        }));
+            runs.add(ordered);
+            return all(runs).thenRun(() -> publishStage(pack, phase, stage, snapshots, submissions));
+          }));
+        }
       }
       long traceStartedAt = startedAt;
       return all(finished.values()).whenComplete((ignored, failure) -> {
@@ -860,6 +860,23 @@ public final class DynamicPackLoads {
           Constants.LOGGER.debug("{} {} {}/{} in {} ms", log.label(), failure == null ? "completed" : "stopped", phase, stage, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - traceStartedAt));
         }
       });
+    }
+
+    /**
+     * Publishes one pack's merged stage output while its load still accepts changes.
+     *
+     * @param pack owning pack opening.
+     * @param phase active native phase.
+     * @param stage completed generation stage.
+     * @param snapshots stage captures used to resolve aggregate bases.
+     * @param submissions completed contributions by destination file.
+     */
+    private void publishStage(GeneratedPackResources pack, Phase phase, Stage stage, StageResourceSnapshots snapshots, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions) {
+      if (!closed && !aborted.isDone()) {
+        Map<Identifier, GeneratedPackResources.File> files = new HashMap<>();
+        submissions.forEach((id, operations) -> files.put(id, ContributionMerger.merge(pack, id, operations, phase, stage, snapshots)));
+        pack.publish(files);
+      }
     }
 
     /**
@@ -873,8 +890,7 @@ public final class DynamicPackLoads {
      * @param submissions stage submissions for the owning pack.
      * @return completion of cache replay or the callback and its returned asynchronous work.
      */
-    private CompletableFuture<Void> invoke(GeneratedPackResources pack, Task task, Phase phase, ResourceManager manager,
-      HolderLookup.Provider registries, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions) {
+    private CompletableFuture<Void> invoke(GeneratedPackResources pack, Task task, Phase phase, ResourceManager manager, HolderLookup.Provider registries, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions) {
       Map<CapturedInput<?>, Object> values = new IdentityHashMap<>();
       task.inputs().values().forEach(input -> {
         if (input instanceof CapturedInput<?> capture) {
@@ -887,56 +903,51 @@ public final class DynamicPackLoads {
       Path address = caching.mode() == TaskCachePolicy.Mode.DISABLED ? null : CallbackCache.address(cacheRoot, pack, task, policy);
       var observations = new CacheObservations(manager, request.queries(), features, address != null);
       Identifier owner = pack.logicalId == null ? Identifier.fromNamespaceAndPath(Constants.MOD_ID, "file_pack") : pack.logicalId;
-      var context = new GenerationContext(manager, owner, phase, task.stage(), kind, registries, values, tags, observations, request.queries(), features);
+      var scope = new GenerationScope(owner, phase, task.stage(), kind, request.queries(), features);
+      var context = new GenerationContext(scope, manager, registries, values, tags, observations);
       inputs.add(context);
       Collection<Recorded> recorded = new ConcurrentLinkedQueue<>();
       var output = new GenerationOutput(context, contribution -> submit(pack, task, phase, submissions, recorded, contribution));
-      return CompletableFuture.supplyAsync(() -> {
-        checkActive();
-      log.task(task.fileRule());
-        String fingerprint = null;
-        if (address != null) {
+      return CompletableFuture.supplyAsync(
+        () -> {
+          checkActive();
+          log.task(task.fileRule());
+          String fingerprint = null;
+          if (address != null) {
+            try {
+              fingerprint = CallbackCache.fingerprint(task, context, values, policy, persistent);
+            } catch (RuntimeException failure) {
+              Constants.LOGGER.error("Cannot fingerprint callback {} in {}", task.index(), pack.packId(), failure);
+            }
+          }
+          if (address != null && fingerprint != null) {
+            var hit = CallbackCache.read(address, fingerprint, observations, reason -> log.cacheMiss(pack, task, reason));
+            if (hit != null) {
+              if (replay(pack, task, phase, submissions, recorded, hit)) {
+                log.cacheHit();
+                cacheUpdates.add(new CacheUpdate(address, hit, true, persistent));
+                return CompletableFuture.<Void>completedFuture(null);
+              }
+              log.cacheMiss(pack, task, "cached contribution failed validation");
+            }
+          } else if (address != null) {
+            log.cacheMiss(pack, task, "callback fingerprint unavailable");
+          } else if (task.fileRule() || policy != null) {
+            log.cacheMiss(pack, task, "cache scope unavailable for this load");
+          }
           try {
-            fingerprint = CallbackCache.fingerprint(task, context, values, policy, persistent);
-          } catch (RuntimeException failure) {
-            Constants.LOGGER.error("Cannot fingerprint callback {} in {}", task.index(), pack.packId(), failure);
-          }
-        }
-        if (address != null && fingerprint != null) {
-          var hit = CallbackCache.read(address, fingerprint, observations, reason -> log.cacheMiss(pack, task, reason));
-          if (hit != null) {
-            if (replay(pack, task, phase, submissions, recorded, hit)) {
-              log.cacheHit();
-              cacheUpdates.add(new CacheUpdate(address, hit, true, persistent));
-              return CompletableFuture.<Void>completedFuture(null);
+            CompletionStage<Void> result = Objects.requireNonNull(task.callback().generate(context, output), "Generation completion stage");
+            if (address == null) {
+              return result;
             }
-            log.cacheMiss(pack, task, "cached contribution failed validation");
+            var cache = new CacheProof(address, fingerprint, persistent);
+            return result.thenRun(() -> recordCache(pack, task, cache, observations, recorded));
+          } catch (Exception failure) {
+            return CompletableFuture.<Void>failedFuture(failure);
           }
-        } else if (address != null) {
-          log.cacheMiss(pack, task, "callback fingerprint unavailable");
-        } else if (task.fileRule() || policy != null) {
-          log.cacheMiss(pack, task, "cache scope unavailable for this load");
-        }
-        try {
-          CompletionStage<Void> result = Objects.requireNonNull(task.callback().generate(context, output), "Generation completion stage");
-          String proof = fingerprint;
-          if (address == null) {
-            return result;
-          }
-          return result.thenRun(() -> {
-            CallbackCache.Batch batch = null;
-            if (proof != null && observations.validate()) {
-              var contributions = recorded.stream().sorted(Comparator.comparingLong(Recorded::sequence)).map(Recorded::contribution).toList();
-              batch = new CallbackCache.Batch(UUID.randomUUID().toString(), proof, observations.entries(), contributions);
-            } else {
-            Constants.LOGGER.debug("{} could not cache {} {} in {} because an input could not be verified", log.label(), task.fileRule() ? "rule" : "callback", task.index(), pack.packId());
-            }
-            cacheUpdates.add(new CacheUpdate(address, batch, false, persistent));
-          });
-        } catch (Exception failure) {
-          return CompletableFuture.<Void>failedFuture(failure);
-        }
-      }, Util.backgroundExecutor()).thenCompose(CompletionStage::toCompletableFuture).handle((ignored, failure) -> {
+        },
+        Util.backgroundExecutor()
+      ).thenCompose(CompletionStage::toCompletableFuture).handle((ignored, failure) -> {
         context.close();
         inputs.remove(context);
         if (failure != null) {
@@ -945,6 +956,36 @@ public final class DynamicPackLoads {
         return null;
       });
     }
+
+    /**
+     * Records a completed callback batch for adoption only after native load success.
+     * Leaves unverifiable output uncached while preserving the applied-baseline update.
+     *
+     * @param pack owning pack opening.
+     * @param task completed callback or file rule.
+     * @param cache cache address and callback fingerprint.
+     * @param observations input observations collected by the callback.
+     * @param recorded contributions in submission order.
+     */
+    private void recordCache(GeneratedPackResources pack, Task task, CacheProof cache, CacheObservations observations, Collection<Recorded> recorded) {
+      CallbackCache.Batch batch = null;
+      if (cache.fingerprint() != null && observations.validate()) {
+        var contributions = recorded.stream().sorted(Comparator.comparingLong(Recorded::sequence)).map(Recorded::contribution).toList();
+        batch = new CallbackCache.Batch(UUID.randomUUID().toString(), cache.fingerprint(), observations.entries(), contributions);
+      } else {
+        Constants.LOGGER.debug("{} could not cache {} {} in {} because an input could not be verified", log.label(), task.fileRule() ? "rule" : "callback", task.index(), pack.packId());
+      }
+      cacheUpdates.add(new CacheUpdate(cache.address(), batch, false, cache.persistent()));
+    }
+
+    /**
+     * Identifies the record and fingerprint of one callback's successful output.
+     *
+     * @param address record path in the current cache scope.
+     * @param fingerprint callback fingerprint, or {@code null} when unavailable.
+     * @param persistent whether the identity survives a process restart.
+     */
+    private record CacheProof(Path address, @Nullable String fingerprint, boolean persistent) {}
 
     /**
      * Validates, records and adopts a completed contribution.
@@ -956,8 +997,7 @@ public final class DynamicPackLoads {
      * @param recorded callback's ordered contribution log.
      * @param contribution completed contribution whose backing is transferred.
      */
-    private void submit(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
-      Collection<Recorded> recorded, PackContribution contribution) {
+    private void submit(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions, Collection<Recorded> recorded, PackContribution contribution) {
       validateSubmission(pack, task, phase, contribution);
       record(task, submissions, recorded, contribution);
       pack.adoptBatch(List.of(contribution));
@@ -971,8 +1011,7 @@ public final class DynamicPackLoads {
      * @param recorded callback's ordered contribution log.
      * @param contribution completed contribution.
      */
-    private void record(Task task, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
-      Collection<Recorded> recorded, PackContribution contribution) {
+    private void record(Task task, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions, Collection<Recorded> recorded, PackContribution contribution) {
       long order = sequence.incrementAndGet();
       ContributionMerger.Operation operation = switch (contribution) {
         case PackContribution.File file -> new ContributionMerger.Replacement(file.contents(), false);
@@ -999,8 +1038,7 @@ public final class DynamicPackLoads {
      * @param batch cached batch with retained contribution backing.
      * @return whether the batch was replayed.
      */
-    private boolean replay(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions,
-      Collection<Recorded> recorded, CallbackCache.Batch batch) {
+    private boolean replay(GeneratedPackResources pack, Task task, Phase phase, Map<Identifier, ConcurrentLinkedQueue<ContributionMerger.Submission>> submissions, Collection<Recorded> recorded, CallbackCache.Batch batch) {
       try {
         batch.values().forEach(contribution -> validateSubmission(pack, task, phase, contribution));
         pack.adoptBatch(batch.values());
@@ -1033,16 +1071,15 @@ public final class DynamicPackLoads {
       plan.checkOutput(task, phase, id);
     }
 
-  }
-
-  /**
-   * Joins completion of generation tasks.
-   *
-   * @param futures generation task completions.
-   * @return future that completes when all supplied futures complete.
-   */
-  private static CompletableFuture<Void> all(Collection<CompletableFuture<Void>> futures) {
-    return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    /**
+     * Joins completion of generation tasks.
+     *
+     * @param futures generation task completions.
+     * @return future that completes when all supplied futures complete.
+     */
+    private static CompletableFuture<Void> all(Collection<CompletableFuture<Void>> futures) {
+      return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+    }
   }
 
   /**
@@ -1062,5 +1099,4 @@ public final class DynamicPackLoads {
    * @param contribution complete submitted contribution.
    */
   private record Recorded(long sequence, PackContribution contribution) {}
-
 }

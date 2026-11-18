@@ -57,11 +57,12 @@ public abstract class ReloadableResourceManagerMixin {
    */
   @WrapMethod(method = "createReload")
   private ReloadInstance wrapCreateReload(Executor backgroundExecutor, Executor mainThreadExecutor, CompletableFuture<Unit> initialTask, List<PackResources> resourcePacks, Operation<ReloadInstance> original) {
-    LoadKind kind = started ? LoadKind.RELOAD : LoadKind.FULL_LOAD;
-    started = true;
     if (type != PackType.CLIENT_RESOURCES) {
+      started = true;
       return original.call(backgroundExecutor, mainThreadExecutor, initialTask, resourcePacks);
     }
+    LoadKind kind = started ? LoadKind.RELOAD : LoadKind.FULL_LOAD;
+    started = true;
     var log = new PackLoadLog(type, kind);
     var tracker = new DynamicPackLoads.AttemptTracker(log);
     List<PackResources> prepared;

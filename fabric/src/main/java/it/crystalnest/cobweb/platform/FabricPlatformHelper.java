@@ -114,9 +114,12 @@ public final class FabricPlatformHelper implements PlatformHelper {
     if (!bound.inclusive() && !(endpoint instanceof SemanticVersion)) {
       throw new IllegalArgumentException("Fabric cannot use an opaque version as an exclusive bound: " + bound.version());
     }
-    var operator = lower
-      ? (bound.inclusive() ? VersionComparisonOperator.GREATER_EQUAL : VersionComparisonOperator.GREATER)
-      : (bound.inclusive() ? VersionComparisonOperator.LESS_EQUAL : VersionComparisonOperator.LESS);
+    VersionComparisonOperator operator;
+    if (lower) {
+      operator = bound.inclusive() ? VersionComparisonOperator.GREATER_EQUAL : VersionComparisonOperator.GREATER;
+    } else {
+      operator = bound.inclusive() ? VersionComparisonOperator.LESS_EQUAL : VersionComparisonOperator.LESS;
+    }
     return operator.test(actual, endpoint);
   }
 

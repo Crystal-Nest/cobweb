@@ -4,6 +4,7 @@ import it.crystalnest.cobweb.api.pack.command.PackExportCommand;
 import it.crystalnest.cobweb.platform.NeoForgePackHelper;
 import it.crystalnest.cobweb.platform.NeoForgeRegistryHelper;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.model.Platform;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -25,11 +26,11 @@ public final class ModLoader {
   public ModLoader(IEventBus bus, ModContainer mod) {
     String version = mod.getModInfo().getVersion().toString();
     String side = FMLEnvironment.getDist().name();
-    CommonModLoader.logSetup("common setup started", version, "NeoForge", side);
+    CommonModLoader.logSetup("common setup started", version, Platform.NEOFORGE.toString(), side);
     ((NeoForgeRegistryHelper) Services.REGISTRY).register(bus);
     ((NeoForgePackHelper) Services.PACK).register(bus);
-    CommonModLoader.logSetup("registration services ready", version, "NeoForge", side);
+    CommonModLoader.logSetup("registration services ready", version, Platform.NEOFORGE.toString(), side);
     NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PackExportCommand.registerServer(event.getDispatcher()));
-    CommonModLoader.logSetup("common setup completed", version, "NeoForge", side);
+    CommonModLoader.logSetup("common setup completed", version, Platform.NEOFORGE.toString(), side);
   }
 }

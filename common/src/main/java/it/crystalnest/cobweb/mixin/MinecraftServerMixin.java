@@ -126,8 +126,7 @@ public abstract class MinecraftServerMixin {
    * @return native reload gated on generation.
    */
   @WrapOperation(method = "reloadResources", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;thenCompose(Ljava/util/function/Function;)Ljava/util/concurrent/CompletableFuture;", ordinal = 0))
-  private <R> CompletableFuture<R> wrapThenCompose(CompletableFuture<ImmutableList<PackResources>> instance, Function<ImmutableList<PackResources>, CompletableFuture<R>> fn, Operation<CompletableFuture<R>> original,
-                                                   @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
+  private <R> CompletableFuture<R> wrapThenCompose(CompletableFuture<ImmutableList<PackResources>> instance, Function<ImmutableList<PackResources>, CompletableFuture<R>> fn, Operation<CompletableFuture<R>> original, @Share("generationAttempt") LocalRef<DynamicPackLoads.AttemptTracker> shared) {
     MinecraftServer server = (MinecraftServer) (Object) this;
     var tracker = shared.get();
     var log = tracker.log();

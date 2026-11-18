@@ -230,8 +230,14 @@ public final class PackLoadLog {
       failure = failure.getCause();
     }
     boolean cancelled = failure instanceof CancellationException;
-    String result = cancelled ? "cancelled" : failure == null ? "applied"
-      : (validationFailed ? "failed validation" : "failed") + " (" + failure.getClass().getSimpleName() + ")";
+    String result;
+    if (cancelled) {
+      result = "cancelled";
+    } else if (failure == null) {
+      result = "applied";
+    } else {
+      result = (validationFailed ? "failed validation" : "failed") + " (" + failure.getClass().getSimpleName() + ")";
+    }
     long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     long callbackCount = callbacks.sum();
     long ruleCount = rules.sum();

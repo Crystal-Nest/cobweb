@@ -3,6 +3,7 @@ package it.crystalnest.cobweb.api.pack.generation.output;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Declared generation outputs and optional lifetime for custom files.
@@ -41,6 +42,6 @@ public record Outputs(List<Output> values, @Nullable ResourceLifetime rawLifetim
    * @return declaration for generic file submissions.
    */
   public static Outputs raw(ResourceLifetime lifetime) {
-    return new Outputs(List.of(), java.util.Objects.requireNonNull(lifetime));
+    return new Outputs(List.of(), Objects.requireNonNull(lifetime));
   }
 }

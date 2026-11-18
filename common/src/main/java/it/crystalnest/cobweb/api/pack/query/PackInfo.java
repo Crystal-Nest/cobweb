@@ -18,8 +18,8 @@ public record PackInfo(String nativeId, @Nullable Identifier logicalId) {
    */
   public boolean matches(PackReference reference) {
     return switch (reference) {
-      case PackReference.Logical logical -> logical.id().equals(logicalId);
-      case PackReference.Native nativeRef -> nativeRef.id().equals(nativeId);
+      case PackReference.Logical(var id) -> id.equals(logicalId);
+      case PackReference.Native(var id) -> id.equals(nativeId);
     };
   }
 }

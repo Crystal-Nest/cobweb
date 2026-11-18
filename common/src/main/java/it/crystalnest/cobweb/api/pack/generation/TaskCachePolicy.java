@@ -21,8 +21,12 @@ record TaskCachePolicy(Mode mode, @Nullable CallbackRegistration.Policy callback
    */
   static TaskCachePolicy resolve(Task task, @Nullable Path root) {
     var callback = task.registration().policy();
-    Mode mode = root == null || !task.fileRule() && callback == null ? Mode.DISABLED
-      : task.fileRule() || callback.key() != null ? Mode.PERSISTENT : Mode.SESSION;
+    Mode mode;
+    if (root == null || !task.fileRule() && callback == null) {
+      mode = Mode.DISABLED;
+    } else {
+      mode = task.fileRule() || callback.key() != null ? Mode.PERSISTENT : Mode.SESSION;
+    }
     return new TaskCachePolicy(mode, callback);
   }
 

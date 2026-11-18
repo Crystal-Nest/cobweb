@@ -17,6 +17,11 @@ import java.io.IOException;
  * Composes Java description and format declarations with the native primary metadata section.
  */
 final class PackMetadataOverrides {
+  /**
+   * Native metadata field containing the pack description.
+   */
+  private static final String DESCRIPTION = "description";
+
   private PackMetadataOverrides() {}
 
   /**
@@ -44,12 +49,12 @@ final class PackMetadataOverrides {
     var format = formats == null ? new InclusiveRange<>(PackFormat.of(Integer.MAX_VALUE)) : formats;
     var overlay = codec.encodeStart(JsonOps.INSTANCE, new PackMetadataSection(description == null ? Component.empty() : description, format)).getOrThrow().getAsJsonObject();
     if (description != null) {
-      json.add("description", overlay.get("description"));
+      json.add(DESCRIPTION, overlay.get(DESCRIPTION));
     } else {
       for (String name : new String[]{"pack_format", "supported_formats", "min_format", "max_format"}) {
         json.remove(name);
       }
-      overlay.remove("description");
+      overlay.remove(DESCRIPTION);
       for (var entry : overlay.entrySet()) {
         json.add(entry.getKey(), entry.getValue());
       }

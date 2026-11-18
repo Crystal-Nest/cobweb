@@ -18,7 +18,9 @@ final class PackFileOwner implements AutoCloseable {
    *
    * @param file backing whose ownership transfers to this owner.
    */
-  void adopt(PackFile file) { files.add(file); }
+  void adopt(PackFile file) {
+    files.add(file);
+  }
 
   /**
    * Retains an independently owned reference when not already held here.

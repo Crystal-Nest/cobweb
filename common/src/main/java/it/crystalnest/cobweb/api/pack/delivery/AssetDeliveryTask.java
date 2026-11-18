@@ -139,8 +139,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    * @param configured existing native pack offer, if present.
    * @param disconnect closes the connection with a reason.
    */
-  public AssetDeliveryTask(AssetDelivery delivery, Channel channel, boolean required, @Nullable Component prompt, Optional<MinecraftServer.ServerResourcePackInfo> configured,
-    Consumer<Component> disconnect) {
+  public AssetDeliveryTask(AssetDelivery delivery, Channel channel, boolean required, @Nullable Component prompt, Optional<MinecraftServer.ServerResourcePackInfo> configured, Consumer<Component> disconnect) {
     this.delivery = delivery;
     this.channel = channel;
     this.required = required;
@@ -213,7 +212,9 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     }
     if (phase != Phase.REJECTED && pending.isEmpty()) {
       phase = Phase.COMPLETE;
-      Constants.LOGGER.debug("{} completed; allowing join to continue", label());
+      if (Constants.LOGGER.isDebugEnabled()) {
+        Constants.LOGGER.debug("{} completed; allowing join to continue", label());
+      }
     }
     return phase == Phase.COMPLETE;
   }
@@ -232,7 +233,9 @@ public final class AssetDeliveryTask implements ConfigurationTask {
     if (packet.action().isTerminal()) {
       String label = pending.remove(packet.id());
       if (label != null) {
-        Constants.LOGGER.debug("{} received {} for {}", label(), packet.action(), label);
+        if (Constants.LOGGER.isDebugEnabled()) {
+          Constants.LOGGER.debug("{} received {} for {}", label(), packet.action(), label);
+        }
         if (packet.action() != Action.SUCCESSFULLY_LOADED) {
           handleFailure(label, packet.action());
         }

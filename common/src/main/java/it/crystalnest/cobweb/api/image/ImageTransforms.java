@@ -58,7 +58,7 @@ public final class ImageTransforms {
     for (int index = 0; index < source.length; index++) {
       // Map both palette endpoints exactly and round intermediate ranks to the nearest target shade.
       // A single source shade has no range, so choose the lower of the target's middle shades.
-      int rank = source.length == 1 ? (target.length - 1) / 2 : Math.round(index * (target.length - 1f) / (source.length - 1));
+      int rank = source.length == 1 ? (target.length - 1) / 2 : Math.round(index * (target.length - 1F) / (source.length - 1));
       remap.put(source[index], target[rank]);
     }
     return transform(template, (x, y, pixel) -> {

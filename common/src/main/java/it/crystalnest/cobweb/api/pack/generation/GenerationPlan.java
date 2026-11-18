@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,11 @@ import java.util.stream.Stream;
  * Compiles the selected declarations, output contracts and dependency order for one native load.
  */
 final class GenerationPlan {
+  /**
+   * File extension shared by JSON resource families.
+   */
+  private static final String JSON_EXTENSION = ".json";
+
   /**
    * Generation participants in topological order, each mapped to its transitive predecessors.
    */
@@ -84,15 +90,11 @@ final class GenerationPlan {
   GenerationPlan(PackType type, List<GeneratedPackResources> generated, Map<String, List<String>> required, LoadKind kind, @Nullable Path cacheRoot) {
     this.type = type;
     this.kind = kind;
-    Map<Task, TaskCachePolicy> caching = new IdentityHashMap<>();
-    Map<CapturedInput<?>, Object> captured = new IdentityHashMap<>();
-    Map<GeneratedPackResources, List<Task>> fileTasks = new IdentityHashMap<>();
-    Map<GeneratedPackResources, List<GeneratedPackResources>> order = new LinkedHashMap<>();
     if (type == PackType.SERVER_DATA) {
       Services.REGISTRY.worldRegistries().forEach(entry -> addRegistryRules(entry.key(), Phase.STATIC_TAGS_READY, ResourceLifetime.FULL_LOAD));
       RegistryDataLoader.DIMENSION_REGISTRIES.forEach(entry -> addRegistryRules(entry.key(), Phase.WORLD_REGISTRIES_READY, ResourceLifetime.FULL_LOAD));
       Services.REGISTRY.reloadableRegistries().forEach(entry -> addRegistryRules(entry.key(), Phase.WORLD_CONTEXT_READY, ResourceLifetime.RELOADABLE));
-      BuiltInRegistries.REGISTRY.forEach(registry -> fileRules.add(new FileRule(Registries.tagsDirPath(registry.key()), ".json", Output.TAGS)));
+      BuiltInRegistries.REGISTRY.forEach(registry -> fileRules.add(new FileRule(Registries.tagsDirPath(registry.key()), JSON_EXTENSION, Output.TAGS)));
       fileRules.add(new FileRule("function", ".mcfunction", new Output(Phase.RELOADABLE_REGISTRIES_READY, ResourceLifetime.RELOADABLE, null)));
       fileRules.add(new FileRule("structure", ".nbt", Output.STRUCTURES));
     }
@@ -127,6 +129,9 @@ final class GenerationPlan {
       }
     }
     Set<GeneratedPackResources> path = new LinkedHashSet<>();
+    Map<GeneratedPackResources, List<GeneratedPackResources>> order = new LinkedHashMap<>();
+    Map<CapturedInput<?>, Object> captured = new IdentityHashMap<>();
+    Map<GeneratedPackResources, List<Task>> fileTasks = new IdentityHashMap<>();
     for (GeneratedPackResources pack : generated) {
       visit(pack, edges, path, order);
       Set<String> cacheKeys = new HashSet<>();
@@ -141,13 +146,14 @@ final class GenerationPlan {
         }
       }
     }
+    Map<Task, TaskCachePolicy> caching = new IdentityHashMap<>();
     for (GeneratedPackResources pack : generated) {
       Stream.concat(pack.javaTasks().stream(), fileTasks.get(pack).stream()).forEach(task -> caching.put(task, TaskCachePolicy.resolve(task, cacheRoot)));
     }
-    this.order = java.util.Collections.unmodifiableMap(order);
-    this.fileTasks = java.util.Collections.unmodifiableMap(fileTasks);
-    this.captured = java.util.Collections.unmodifiableMap(captured);
-    this.caching = java.util.Collections.unmodifiableMap(caching);
+    this.order = Collections.unmodifiableMap(order);
+    this.fileTasks = Collections.unmodifiableMap(fileTasks);
+    this.captured = Collections.unmodifiableMap(captured);
+    this.caching = Collections.unmodifiableMap(caching);
   }
 
   /**
@@ -166,18 +172,17 @@ final class GenerationPlan {
         if (phase.type() != type || phase.ordinal() > destination.deadline().ordinal() || phase.fullLoadOnly() && destination.lifetime() == ResourceLifetime.RELOADABLE) {
           throw new IllegalArgumentException(rule.to() + " cannot be generated in " + phase + " on " + kind);
         }
-        if (kind == LoadKind.RELOAD && destination.lifetime() == ResourceLifetime.FULL_LOAD) {
-          continue;
+        if (kind != LoadKind.RELOAD || destination.lifetime() != ResourceLifetime.FULL_LOAD) {
+          tasks.add(new Task(Map.of(kind, phase), rule.stage(), destination.lifetime(), Inputs.NONE, Outputs.UNSPECIFIED, (context, output) -> {
+            try {
+              rule.generate(context, output);
+              return CompletableFuture.completedFuture(null);
+            } catch (IOException | RuntimeException failure) {
+              var route = rule.from() == null ? rule.to().toString() : rule.from() + " -> " + rule.to();
+              throw new IllegalArgumentException("cobweb/rules.json rule " + rule.index() + " (" + route + "): " + failure.getMessage(), failure);
+            }
+          }, new CallbackRegistration(), rule.index(), TaskOrigin.FILE_RULE, rule.fingerprint()));
         }
-        tasks.add(new Task(Map.of(kind, phase), rule.stage(), destination.lifetime(), Inputs.NONE, Outputs.UNSPECIFIED, (context, output) -> {
-          try {
-            rule.generate(context, output);
-            return CompletableFuture.completedFuture(null);
-          } catch (IOException | RuntimeException failure) {
-            var route = rule.from() == null ? rule.to().toString() : rule.from() + " -> " + rule.to();
-            throw new IllegalArgumentException("cobweb/rules.json rule " + rule.index() + " (" + route + "): " + failure.getMessage(), failure);
-          }
-        }, new CallbackRegistration(), rule.index(), TaskOrigin.FILE_RULE, rule.fingerprint()));
       } catch (RuntimeException failure) {
         throw new IllegalArgumentException(pack.packId() + "/cobweb/rules.json rule " + rule.index() + ": " + failure.getMessage(), failure);
       }
@@ -206,9 +211,9 @@ final class GenerationPlan {
    * @param lifetime native lifetime for registry entries.
    */
   private void addRegistryRules(ResourceKey<? extends Registry<?>> key, Phase deadline, ResourceLifetime lifetime) {
-    fileRules.add(new FileRule(Registries.elementsDirPath(key), ".json", new Output(deadline, lifetime, key)));
+    fileRules.add(new FileRule(Registries.elementsDirPath(key), JSON_EXTENSION, new Output(deadline, lifetime, key)));
     Phase tagDeadline = lifetime == ResourceLifetime.FULL_LOAD && kind == LoadKind.RELOAD ? Phase.DATA_RESOURCES : deadline;
-    fileRules.add(new FileRule(Registries.tagsDirPath(key), ".json", new Output(tagDeadline, ResourceLifetime.RELOADABLE, null)));
+    fileRules.add(new FileRule(Registries.tagsDirPath(key), JSON_EXTENSION, new Output(tagDeadline, ResourceLifetime.RELOADABLE, null)));
   }
 
   /**
@@ -225,7 +230,7 @@ final class GenerationPlan {
     }
     List<Output> rules = fileRules.stream().filter(rule -> rule.matches(id)).map(FileRule::output).toList();
     boolean declared = task.outputs().values().stream().anyMatch(output -> output.directory() != null
-      && id.getPath().startsWith(output.directory() + "/") && id.getPath().endsWith(".json"));
+      && id.getPath().startsWith(output.directory() + "/") && id.getPath().endsWith(JSON_EXTENSION));
     if (rules.isEmpty() && !declared && task.outputs().rawLifetime() == null && !phase.fullLoadOnly()) {
       throw new IllegalArgumentException("Custom data output needs an explicit lifetime: " + id);
     }
@@ -249,7 +254,7 @@ final class GenerationPlan {
    * @param order completed topological order.
    * @throws IllegalStateException if a generation ordering cycle is encountered.
    */
-  private void visit(GeneratedPackResources pack, Map<GeneratedPackResources, Set<GeneratedPackResources>> edges, Set<GeneratedPackResources> path, Map<GeneratedPackResources, List<GeneratedPackResources>> order) {
+  private static void visit(GeneratedPackResources pack, Map<GeneratedPackResources, Set<GeneratedPackResources>> edges, Set<GeneratedPackResources> path, Map<GeneratedPackResources, List<GeneratedPackResources>> order) {
     if (order.containsKey(pack)) {
       return;
     }

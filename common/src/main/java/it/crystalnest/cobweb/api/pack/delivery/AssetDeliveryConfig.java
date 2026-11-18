@@ -63,14 +63,14 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
       };
       int port = json.has("port") ? json.getAsJsonPrimitive("port").getAsBigDecimal().intValueExact() : 0;
       String bind = string(json, "bind_address");
-      String host = string(json, "public_host");
-      String base = string(json, "public_base_url");
       if (hosting == Hosting.SEPARATE_PORT ? port < 1 || port > 65_535 : json.has("port") || bind != null) {
         throw new IllegalArgumentException("Use port 1 through 65535 and optional bind_address with separate-port hosting");
       }
+      String host = string(json, "public_host");
       if (host != null) {
         httpBase(host, 80);
       }
+      String base = string(json, "public_base_url");
       URI url = base == null ? null : publicUrl(base);
       if (hosting == Hosting.EXTERNAL && url == null) {
         throw new IllegalArgumentException("External asset hosting requires public_base_url");
@@ -95,7 +95,12 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
     if (publicBaseUrl != null) {
       return publicBaseUrl;
     }
-    int advertisedPort = hosting == Hosting.SEPARATE_PORT ? port : publicHost == null ? advertisedGamePort : gamePort;
+    int advertisedPort;
+    if (hosting == Hosting.SEPARATE_PORT) {
+      advertisedPort = port;
+    } else {
+      advertisedPort = publicHost == null ? advertisedGamePort : gamePort;
+    }
     return httpBase(publicHost == null ? host : publicHost, advertisedPort);
   }
 

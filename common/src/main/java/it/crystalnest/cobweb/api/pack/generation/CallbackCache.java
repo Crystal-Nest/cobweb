@@ -20,6 +20,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,12 +37,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
@@ -86,7 +88,7 @@ final class CallbackCache {
   /**
    * Pattern for temporary record files created by the cache writer.
    */
-  private static final Pattern TEMP_RECORD = Pattern.compile("record-([0-9]{1,18})-[0-9]+\\.tmp");
+  private static final Pattern TEMP_RECORD = Pattern.compile("record-(\\d{1,18})-\\d+\\.tmp");
 
   /**
    * Process-local identifier used by unkeyed Java callbacks.
@@ -164,11 +166,11 @@ final class CallbackCache {
    */
   @Nullable
   static String fingerprint(Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, @Nullable CallbackRegistration.Policy policy, boolean persistent) {
-    var digest = CacheObservations.digest();
     String profile = persistent ? environment() : SESSION;
     if (profile == null) {
       return null;
     }
+    var digest = CacheObservations.digest();
     CacheObservations.text(digest, profile);
     CacheObservations.text(digest, context.phase().name());
     if (!task.fileRule()) {
@@ -278,7 +280,7 @@ final class CallbackCache {
       }
     } else {
       try (var jar = new ZipFile(path.toFile())) {
-        for (var entry : jar.stream().filter(item -> !item.isDirectory() && codeFile(item.getName())).sorted(Comparator.comparing(java.util.zip.ZipEntry::getName)).toList()) {
+        for (var entry : jar.stream().filter(item -> !item.isDirectory() && codeFile(item.getName())).sorted(Comparator.comparing(ZipEntry::getName)).toList()) {
           try (var bytes = jar.getInputStream(entry)) {
             append(digest, entry.getName(), bytes);
           }
@@ -294,7 +296,7 @@ final class CallbackCache {
    * @return whether the entry contributes to the environment fingerprint.
    */
   private static boolean codeFile(String name) {
-    return name.endsWith(".class") || name.endsWith(".jar") || name.endsWith(".mixins.json") || name.endsWith(".accesswidener") || name.equals("fabric.mod.json") || name.startsWith("META-INF/");
+    return name.endsWith(".class") || name.endsWith(".jar") || name.endsWith(".mixins.json") || name.endsWith(".accesswidener") || "fabric.mod.json".equals(name) || name.startsWith("META-INF/");
   }
 
   /**
@@ -388,32 +390,7 @@ final class CallbackCache {
         }
         for (int remaining = count(input); remaining > 0; remaining--) {
           Identifier id = Identifier.parse(input.readUTF());
-          int operation = input.readUnsignedByte();
-          if (operation == 0) {
-            values.add(PackContribution.file(id, readFile(input)));
-          } else if (operation == 1) {
-            Boolean replace = switch (input.readByte()) {
-              case 0 -> null;
-              case 1 -> false;
-              case 2 -> true;
-              default -> throw new IOException("Invalid cached tag operation");
-            };
-            var tag = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(readText(input))).getOrThrow();
-            values.add(PackContribution.tag(id, new GenerationOutput.TagAddition(tag.entries(), replace)));
-          } else if (operation == 2) {
-            var contents = readFile(input);
-            try {
-              values.add(PackContribution.withMetadata(id, contents, input.readBoolean() ? readFile(input) : null));
-            } catch (IOException | RuntimeException | Error failure) {
-              contents.release();
-              throw failure;
-            }
-          } else if (operation == 3) {
-            String member = readText(input);
-            values.add(PackContribution.member(id, member, readFile(input)));
-          } else {
-            throw new IOException("Invalid cached pack operation");
-          }
+          values.add(readContribution(input, id));
         }
         source.on(false);
         if (!MessageDigest.isEqual(digest.digest(), input.readNBytes(32)) || input.read() != -1) {
@@ -430,6 +407,55 @@ final class CallbackCache {
       if (!accepted) {
         values.forEach(PackContribution::release);
       }
+    }
+  }
+
+  /**
+   * Decodes one contribution using its native cache operation discriminator.
+   *
+   * @param input cache record stream.
+   * @param id destination resource identifier.
+   * @return decoded contribution with owned backing.
+   * @throws IOException if the operation or its contents are invalid.
+   */
+  private static PackContribution readContribution(DataInputStream input, Identifier id) throws IOException {
+    return switch (input.readUnsignedByte()) {
+      case 0 -> PackContribution.file(id, readFile(input));
+      case 1 -> {
+        Boolean replace = switch (input.readByte()) {
+          case 0 -> null;
+          case 1 -> false;
+          case 2 -> true;
+          default -> throw new IOException("Invalid cached tag operation");
+        };
+        var tag = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(readText(input))).getOrThrow();
+        yield PackContribution.tag(id, new GenerationOutput.TagAddition(tag.entries(), replace));
+      }
+      case 2 -> readWithMetadata(input, id);
+      case 3 -> {
+        String member = readText(input);
+        yield PackContribution.member(id, member, readFile(input));
+      }
+      default -> throw new IOException("Invalid cached pack operation");
+    };
+  }
+
+  /**
+   * Reads a complete file and its optional sidecar as one owned contribution.
+   * Releases the first file if the remaining contribution cannot be decoded.
+   *
+   * @param input cache record stream.
+   * @param id destination file identifier.
+   * @return contribution owning the decoded backing files.
+   * @throws IOException if the record is truncated or invalid.
+   */
+  private static PackContribution readWithMetadata(DataInputStream input, Identifier id) throws IOException {
+    var contents = readFile(input);
+    try {
+      return PackContribution.withMetadata(id, contents, input.readBoolean() ? readFile(input) : null);
+    } catch (IOException | RuntimeException | Error failure) {
+      contents.release();
+      throw failure;
     }
   }
 
@@ -473,7 +499,8 @@ final class CallbackCache {
    */
   private static void copy(InputStream source, OutputStream output, long size) throws IOException {
     byte[] buffer = new byte[8192];
-    for (long remaining = size; remaining > 0;) {
+    long remaining = size;
+    while (remaining > 0) {
       int count = source.readNBytes(buffer, 0, (int) Math.min(buffer.length, remaining));
       if (count == 0) {
         throw new EOFException("Truncated cached file");
@@ -621,7 +648,11 @@ final class CallbackCache {
             case PackContribution.Tag tagEntry -> {
               var tag = tagEntry.addition();
               output.writeByte(1);
-              output.writeByte(tag.replace() == null ? 0 : tag.replace() ? 2 : 1);
+              int replace = 0;
+              if (tag.replace() != null) {
+                replace = tag.replace() ? 2 : 1;
+              }
+              output.writeByte(replace);
               writeText(output, TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(tag.entries(), false)).getOrThrow().toString());
             }
             case PackContribution.WithMetadata grouped -> {
@@ -650,7 +681,7 @@ final class CallbackCache {
         }
         try {
           Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException ignored) {
+        } catch (AtomicMoveNotSupportedException _) {
           Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
         }
         evict(directory);
@@ -710,7 +741,7 @@ final class CallbackCache {
    * @throws IOException if the underlying I/O operation fails.
    */
   private static void writeText(DataOutputStream output, String value) throws IOException {
-    byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
     if (bytes.length > RECORD_LIMIT) {
       throw new IOException("Cached text exceeds its size limit");
     }
@@ -734,7 +765,7 @@ final class CallbackCache {
     if (bytes.length != length) {
       throw new EOFException("Truncated cached text");
     }
-    return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+    return new String(bytes, StandardCharsets.UTF_8);
   }
 
   /**
@@ -774,10 +805,9 @@ final class CallbackCache {
         }
       }
       long total = sizes.values().stream().mapToLong(Long::longValue).sum();
-      for (Path path : dates.keySet().stream().sorted(Comparator.comparingLong(dates::get)).toList()) {
-        if (total <= SCOPE_LIMIT) {
-          break;
-        }
+      var oldest = dates.keySet().stream().sorted(Comparator.comparingLong(dates::get)).iterator();
+      while (total > SCOPE_LIMIT && oldest.hasNext()) {
+        Path path = oldest.next();
         if (Files.deleteIfExists(path)) {
           total -= sizes.get(path);
         }
