@@ -7,6 +7,10 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 
 ## [Unreleased]
 
+- Nothing new.
+
+## [v2.0.0] - 2026/11/18
+
 - **Miscellaneous changes**
   - Ported to 26.3
   - Added common platform queries for the active loader, development environment, loaded mods, and mod versions.
@@ -336,6 +340,8 @@ and this project adheres to [Crystal Nest Semantic Versioning](https://crystalne
 [Unreleased]: https://github.com/crystal-nest/cobweb
 
 [README]: https://github.com/crystal-nest/cobweb#readme
+
+[v2.0.0]: https://github.com/crystal-nest/cobweb/releases?q=2.0.0
 
 [v1.4.0]: https://github.com/crystal-nest/cobweb/releases?q=1.4.0
 

@@ -2,7 +2,7 @@
 
 ---
 
-![Minecraft](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/minecraft.svg "Minecraft")[![26.3](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/26-3.svg "26.3")](https://modrinth.com/mod/cobweb/versions?g=26.3)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![26.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/26-2.svg "26.2")](https://modrinth.com/mod/cobweb/versions?g=26.2)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![26.1.x](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/26-1-x.svg "26.1.x")](https://modrinth.com/mod/cobweb/versions?g=26.1)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.11](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-11.svg "1.21.11")](https://modrinth.com/mod/cobweb/versions?g=1.21.11)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.10](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-10.svg "1.21.10")](https://modrinth.com/mod/cobweb/versions?g=1.21.10)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.8](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-8.svg "1.21.8")](https://modrinth.com/mod/cobweb/versions?g=1.21.8)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.7](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-7.svg "1.21.7")](https://modrinth.com/mod/cobweb/versions?g=1.21.7)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.6](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-6.svg "1.21.6")](https://modrinth.com/mod/cobweb/versions?g=1.21.6)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.5](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-5.svg "1.21.5")](https://modrinth.com/mod/cobweb/versions?g=1.21.5)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.4](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-4.svg "1.21.4")](https://modrinth.com/mod/cobweb/versions?g=1.21.4)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.3](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-3.svg "1.21.3")](https://modrinth.com/mod/cobweb/versions?g=1.21.3)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21.1](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21-1.svg "1.21.1")](https://modrinth.com/mod/cobweb/versions?g=1.21.1)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![1.21](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/1-21.svg "1.21")](https://modrinth.com/mod/cobweb/versions?g=1.21)
+![Minecraft](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/minecraft.svg "Minecraft")[![26.3](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/26-3.svg "26.3")](https://modrinth.com/mod/cobweb/versions?g=26.3)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![26.2](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/26-2.svg "26.2")](https://modrinth.com/mod/cobweb/versions?g=26.2)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![26.1.x](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/minecraft/26-1-x.svg "26.1.x")](https://modrinth.com/mod/cobweb/versions?g=26.1)
 
 ![Loader](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/loader.svg "Loader")[![NeoForge](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/neoforge.svg "NeoForge")](https://modrinth.com/mod/cobweb/versions?l=neoforge)![Separator](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/separator.svg)[![Fabric](https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/loader/fabric.svg "Fabric")](https://modrinth.com/mod/cobweb/versions?l=fabric)
 
@@ -14,8 +14,11 @@
 
 ## 📝 **Description**
 
-**Cobweb** is a shared API for Minecraft mods on **Fabric and NeoForge**. It simplifies registration and resource-pack creation through APIs available from common code.  
-Developed for **Crystal Nest** projects and available to other mod developers!
+**Cobweb** is **Crystal Nest's multiloader API** for modders and pack authors.  
+Its Java API works directly in the **common module** of a multiloader project and in individual loader projects, bringing content registration and resource-pack creation into shared code.
+
+Register your mod's content, define new systems through data packs, and build packs whose contents adapt to game data and available resources.  
+Generate recipes for your mod's variants, create matching textures from existing assets, or use JSON files to let an ordinary pack generate and transform its own resources.
 
 📚 See the **[wiki](https://github.com/Crystal-Nest/cobweb/wiki)** for setup and usage.
 
@@ -25,18 +28,42 @@ Mods using Cobweb's client features still require it on the client.
 
 ## ✨ **Features**
 
-* ✅ **Registration** - common factories and helpers for game objects, custom registries, and data-pack registries.
-* 📦 **Resource packs** - bundled and generated assets or data, using Java callbacks or JSON rules.
-* 📦 **Server asset delivery** - publish resource packs to players using unmodified Minecraft clients.
-* 🔍 **Utilities** - identifier lookups, loader and mod queries, image transformations, and flexible block-entity types.
+### ✅ **Common registration**
+
+Declare items, blocks, entity types, potions, creative tabs, and data components directly from shared code.  
+Specialized helpers handle builders, properties, and block items, while generic registers cover other game objects.
+
+### 🗂️ **Custom registries**
+
+Create registries for your own content, including data-pack registries whose entries are defined in JSON.  
+Choose world-load or reloadable entries and opt into client synchronization for world registries.
+
+### 📦 **Resource packs and data packs**
+
+Combine bundled files with content generated while Minecraft loads your packs.  
+Use existing resources and game data to generate tags, recipes, enchantments, models, textures, translations, and sound definitions.
+
+Modders can use Java to decide what to create and how.  
+Pack authors can add JSON rules to a normal folder or ZIP pack to copy files, edit JSON, write new content, and transform textures.  
+For example, recolor an existing texture to match a new material or adapt a recipe supplied by another pack.
+
+Give players selectable packs with custom titles, descriptions, and icons, declare dependencies on other packs or mods, and generate content at the right point during loading or reloading.  
+Caching reuses eligible generated content, streamed files support large packs, and exports let you inspect the result.
+
+Dedicated servers can offer selected resource packs as ordinary Minecraft downloads, including assets generated from the world's data.  
+Players can receive those packs using an unmodified Minecraft client.
+
+### 🔍 **Shared utilities**
+
+Query loaders and installed mods, inspect pack selection and priority, transform images, and create block-entity types with flexible valid blocks.
 
 ## 📜 **License and right of use**
 
 Feel free to use this mod for any mod, modpack, or video, just be sure to give credit and possibly link [here](https://github.com/crystal-nest/cobweb#readme).  
 This project is published under the [Crystal Nest Community License v1](https://github.com/crystal-nest/cobweb/blob/master/LICENSE).
 
-## ❤️ **Support us**
+## ❤️ **Support the Nest**
 
-<a href="https://crystalnest.it"><img alt="Crystal Nest Website" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/crystal-nest/pic512.png" width="14.286%"></a><a href="https://discord.gg/BP6EdBfAmt"><img alt="Discord" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/discord/discord512.png" width="14.286%"></a><a href="https://www.patreon.com/crystalspider"><img alt="Patreon" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/patreon/patreon512.png" width="14.286%"></a><a href="https://ko-fi.com/crystalspider"><img alt="Ko-fi" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/kofi/kofi512.png" width="14.286%"></a><a href="https://github.com/Crystal-Nest"><img alt="Our other projects" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/github/github512.png" width="14.286%"><a href="https://modrinth.com/organization/crystal-nest"><img alt="Modrinth" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/modrinth/modrinth512.png" width="14.286%"></a><a href="https://www.curseforge.com/members/crystalspider/projects"><img alt="CurseForge" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/curseforge/curseforge512.png" width="14.286%"></a>
+<a href="https://crystalnest.it"><img alt="Crystal Nest Website" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/crystal-nest/pic512.png" width="14.286%"></a><a href="https://discord.gg/BP6EdBfAmt"><img alt="Discord" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/discord/discord512.png" width="14.286%"></a><a href="https://www.patreon.com/crystalspider"><img alt="Patreon" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/patreon/patreon512.png" width="14.286%"></a><a href="https://ko-fi.com/crystalspider"><img alt="Ko-fi" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/kofi/kofi512.png" width="14.286%"></a><a href="https://github.com/Crystal-Nest"><img alt="Our other projects" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/github/github512.png" width="14.286%"></a><a href="https://modrinth.com/organization/crystal-nest"><img alt="Modrinth" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/modrinth/modrinth512.png" width="14.286%"></a><a href="https://www.curseforge.com/members/crystalspider/projects"><img alt="CurseForge" src="https://raw.githubusercontent.com/crystal-nest/mod-fancy-assets/main/curseforge/curseforge512.png" width="14.286%"></a>
 
 [![Bisect Hosting](https://www.bisecthosting.com/partners/custom-banners/d559b544-474c-4109-b861-1b2e6ca6026a.webp "Bisect Hosting")](https://bisecthosting.com/crystalspider)
