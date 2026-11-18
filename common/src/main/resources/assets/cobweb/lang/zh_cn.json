@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "无法禁用必需的数据包“%s”",
+  "commands.cobweb.export.success": "已将包导出至 cobweb/exports/%s",
+  "commands.cobweb.export.failed": "无法导出包“%s”。详情请查看日志。"
+}

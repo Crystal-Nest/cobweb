@@ -11,7 +11,8 @@
   ],
   "client": [
     "client.CreateWorldScreenMixin",
-    "client.MinecraftMixin"
+    "client.MinecraftMixin",
+    "client.SplashManagerMixin"
   ],
   "server": [
     "MainMixin"
