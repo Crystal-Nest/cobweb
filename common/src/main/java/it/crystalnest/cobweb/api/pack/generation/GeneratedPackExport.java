@@ -6,6 +6,7 @@ import it.crystalnest.cobweb.api.pack.query.PackReference;
 import it.crystalnest.cobweb.platform.Services;
 import it.crystalnest.cobweb.platform.services.PackHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.resources.IoSupplier;
@@ -64,11 +65,10 @@ public final class GeneratedPackExport {
           case PackReference.Native(var id) -> id.equals(pack.packId());
         })
         .toList();
-      if (matches.size() != 1) {
-        return CompletableFuture.failedFuture(new IllegalArgumentException("Expected one applied Cobweb pack for " + reference + ", found " + matches.size()));
+      if (matches.size() == 1) {
+        return queueSnapshot(matches.getFirst().retainAppliedSnapshot());
       }
-      var snapshot = matches.getFirst().retainAppliedSnapshot();
-      return queueSnapshot(snapshot);
+      return CompletableFuture.failedFuture(new IllegalArgumentException("Expected one applied Cobweb pack for " + reference + ", found " + matches.size()));
     } catch (RuntimeException failure) {
       return CompletableFuture.failedFuture(failure);
     }
@@ -118,7 +118,7 @@ public final class GeneratedPackExport {
    * @throws IOException if the underlying I/O operation fails.
    */
   private static Path copy(GeneratedPackResources snapshot) throws IOException {
-    Path root = Files.createDirectories(Path.of("cobweb", "exports")).toAbsolutePath().normalize();
+    Path root = Files.createDirectories(Path.of(Constants.MOD_ID, "exports")).toAbsolutePath().normalize();
     Path staging = Files.createTempDirectory(root, ".pack-");
     try {
       writeContents(snapshot, true, (name, input) -> {
@@ -165,10 +165,10 @@ public final class GeneratedPackExport {
       Services.PACK.writeDependencyMetadata(metadata, Objects.requireNonNull(snapshot.definition).declaration());
     } else {
       // The downloaded copy can coexist with a locally registered pack of the same logical ID.
-      metadata.remove("cobweb");
+      metadata.remove(Constants.MOD_ID);
     }
     try (var input = new ByteArrayInputStream(metadata.toString().getBytes(StandardCharsets.UTF_8))) {
-      writer.write("pack.mcmeta", input);
+      writer.write(PackResources.PACK_META, input);
     }
     var icon = snapshot.getRootResource("pack.png");
     if (icon != null) {

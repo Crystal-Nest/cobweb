@@ -7,6 +7,21 @@ import org.jetbrains.annotations.ApiStatus;
  */
 @ApiStatus.Internal
 public final class CommonModLoader {
+  /**
+   * Shared common setup started milestone.
+   */
+  static final String COMMON_SETUP_STARTED = "common setup started";
+
+  /**
+   * Shared client setup started milestone.
+   */
+  static final String CLIENT_SETUP_STARTED = "client setup started";
+
+  /**
+   * Shared client setup completed milestone.
+   */
+  static final String CLIENT_SETUP_COMPLETED = "client setup completed";
+
   private CommonModLoader() {}
 
   /**

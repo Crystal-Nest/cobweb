@@ -9,6 +9,7 @@ import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import it.crystalnest.cobweb.api.pack.query.PackQueryLifecycle;
 import it.crystalnest.cobweb.platform.Services;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import it.crystalnest.cobweb.platform.services.PackHelper.RegisteredPack;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
@@ -110,7 +111,7 @@ public final class DynamicPackLoads {
           if (fullLoadFiles != null) {
             fullLoadFiles.restore(generated, log);
           }
-        } else if (pack.location().source() != PackSource.SERVER && pack.packId().startsWith("file/")) {
+        } else if (pack.location().source() != PackSource.SERVER && pack.packId().startsWith(PackHelper.FILE_PACK_PREFIX)) {
           var rules = FilePackRules.read(type, pack);
           if (!rules.rules().isEmpty() || fullLoadFiles != null && fullLoadFiles.contains(pack.packId())) {
             log.start();
@@ -186,7 +187,17 @@ public final class DynamicPackLoads {
   @Nullable
   public static Path worldCache(PackRepository repository) {
     Path world = WORLD_ROOTS.get(repository);
-    return world == null ? null : world.resolve("cobweb/cache/data");
+    return world == null ? null : worldCache(world);
+  }
+
+  /**
+   * Resolves the data-pack cache beneath a saved world's root without creating directories.
+   *
+   * @param world saved world root.
+   * @return world-local data-pack cache directory.
+   */
+  public static Path worldCache(Path world) {
+    return world.resolve(Constants.MOD_ID).resolve("cache").resolve("data");
   }
 
   /**
@@ -294,16 +305,16 @@ public final class DynamicPackLoads {
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
           synchronized (AttemptTracker.this) {
-            if (isDone()) {
-              return isCancelled();
+            if (!isDone()) {
+              cancellation = new CancellationException("Resource load cancelled");
+              if (attempt != null) {
+                attempt.cancel(cancellation);
+              } else {
+                log.finish(cancellation);
+              }
+              return super.cancel(mayInterruptIfRunning);
             }
-            cancellation = new CancellationException("Resource load cancelled");
-            if (attempt != null) {
-              attempt.cancel(cancellation);
-            } else {
-              log.finish(cancellation);
-            }
-            return super.cancel(mayInterruptIfRunning);
+            return isCancelled();
           }
         }
       };
@@ -502,20 +513,19 @@ public final class DynamicPackLoads {
    */
   public static CompletableFuture<RegistryAccess.Frozen> afterBatch(ResourceManager manager, List<HolderLookup.RegistryLookup<?>> available, List<RegistryDataLoader.RegistryData<?>> definitions, RegistryAccess.Frozen decoded) {
     Attempt attempt = find(manager);
-    if (attempt == null) {
-      return CompletableFuture.completedFuture(decoded);
+    if (attempt != null) {
+      Phase phase;
+      if (contains(definitions, Registries.ENCHANTMENT)) {
+        phase = Phase.WORLD_REGISTRIES_READY;
+      } else {
+        phase = contains(definitions, Registries.RECIPE) ? Phase.RELOADABLE_REGISTRIES_READY : null;
+      }
+      if (phase != null) {
+        var lookups = HolderLookup.Provider.create(Stream.concat(available.stream(), decoded.listRegistries()));
+        return attempt.advance(phase, lookups).thenApply(ignored -> decoded);
+      }
     }
-    Phase phase;
-    if (contains(definitions, Registries.ENCHANTMENT)) {
-      phase = Phase.WORLD_REGISTRIES_READY;
-    } else {
-      phase = contains(definitions, Registries.RECIPE) ? Phase.RELOADABLE_REGISTRIES_READY : null;
-    }
-    if (phase == null) {
-      return CompletableFuture.completedFuture(decoded);
-    }
-    var lookups = HolderLookup.Provider.create(Stream.concat(available.stream(), decoded.listRegistries()));
-    return attempt.advance(phase, lookups).thenApply(ignored -> decoded);
+    return CompletableFuture.completedFuture(decoded);
   }
 
   /**
@@ -528,11 +538,11 @@ public final class DynamicPackLoads {
    */
   public static CompletableFuture<Void> beforeReloadable(ResourceManager manager, LayeredRegistryAccess<RegistryLayer> layers, List<Registry.PendingTags<?>> tags) {
     Attempt attempt = find(manager);
-    if (attempt == null) {
-      return CompletableFuture.completedFuture(null);
+    if (attempt != null) {
+      var lookups = HolderLookup.Provider.create(TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.RELOADABLE), tags).stream());
+      return attempt.advance(Phase.WORLD_CONTEXT_READY, lookups);
     }
-    var lookups = HolderLookup.Provider.create(TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.RELOADABLE), tags).stream());
-    return attempt.advance(Phase.WORLD_CONTEXT_READY, lookups);
+    return CompletableFuture.completedFuture(null);
   }
 
   /**
@@ -787,17 +797,17 @@ public final class DynamicPackLoads {
      * @return completion of the phase, or the cancellation signal.
      */
     private synchronized CompletableFuture<Void> advance(Phase phase, HolderLookup.Provider registries) {
-      if (aborted.isDone()) {
-        return aborted;
-      }
-      if (!started.add(phase)) {
+      if (!aborted.isDone()) {
+        if (started.add(phase)) {
+          CompletableFuture<Void> stages = CompletableFuture.completedFuture(null);
+          for (Stage stage : Stage.values()) {
+            stages = stages.thenCompose(ignored -> runStage(phase, stage, registries));
+          }
+          return CompletableFuture.anyOf(stages, aborted).thenRun(this::checkActive);
+        }
         return CompletableFuture.completedFuture(null);
       }
-      CompletableFuture<Void> stages = CompletableFuture.completedFuture(null);
-      for (Stage stage : Stage.values()) {
-        stages = stages.thenCompose(ignored -> runStage(phase, stage, registries));
-      }
-      return CompletableFuture.anyOf(stages, aborted).thenRun(this::checkActive);
+      return aborted;
     }
 
     /**
@@ -937,11 +947,11 @@ public final class DynamicPackLoads {
           }
           try {
             CompletionStage<Void> result = Objects.requireNonNull(task.callback().generate(context, output), "Generation completion stage");
-            if (address == null) {
-              return result;
+            if (address != null) {
+              var cache = new CacheProof(address, fingerprint, persistent);
+              return result.thenRun(() -> recordCache(pack, task, cache, observations, recorded));
             }
-            var cache = new CacheProof(address, fingerprint, persistent);
-            return result.thenRun(() -> recordCache(pack, task, cache, observations, recorded));
+            return result;
           } catch (Exception failure) {
             return CompletableFuture.<Void>failedFuture(failure);
           }
@@ -973,7 +983,7 @@ public final class DynamicPackLoads {
         var contributions = recorded.stream().sorted(Comparator.comparingLong(Recorded::sequence)).map(Recorded::contribution).toList();
         batch = new CallbackCache.Batch(UUID.randomUUID().toString(), cache.fingerprint(), observations.entries(), contributions);
       } else {
-        Constants.LOGGER.debug("{} could not cache {} {} in {} because an input could not be verified", log.label(), task.fileRule() ? "rule" : "callback", task.index(), pack.packId());
+        Constants.LOGGER.debug("{} could not cache {} {} in {} because an input could not be verified", log.label(), task.origin().label(), task.index(), pack.packId());
       }
       cacheUpdates.add(new CacheUpdate(cache.address(), batch, false, cache.persistent()));
     }

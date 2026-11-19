@@ -1,5 +1,6 @@
 package it.crystalnest.cobweb.platform;
 
+import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.ResourcePack;
 import it.crystalnest.cobweb.api.pack.PackSources;
 import it.crystalnest.cobweb.platform.services.PackHelper;
@@ -79,7 +80,7 @@ public final class FabricPackHelper extends PackHelper {
 
   @Override
   public String bundledKnownPackNamespace() {
-    return "cobweb";
+    return Constants.MOD_ID;
   }
 
   @Override

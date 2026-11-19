@@ -143,13 +143,12 @@ final class CacheObservations {
    * @param metadata effective metadata returned by Minecraft.
    */
   void observeMetadata(Identifier id, @Nullable String directory, int stackIndex, ResourceMetadata metadata) {
-    if (!supported) {
-      return;
-    }
-    try {
-      record(new Request(Kind.METADATA, new FileAddress(id, directory, stackIndex, Long.MAX_VALUE)), metadataFingerprint(metadata));
-    } catch (IOException | RuntimeException _) {
-      supported = false;
+    if (supported) {
+      try {
+        record(new Request(Kind.METADATA, new FileAddress(id, directory, stackIndex, Long.MAX_VALUE)), metadataFingerprint(metadata));
+      } catch (IOException | RuntimeException _) {
+        supported = false;
+      }
     }
   }
 

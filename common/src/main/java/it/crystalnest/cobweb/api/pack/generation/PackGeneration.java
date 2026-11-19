@@ -157,18 +157,18 @@ public final class PackGeneration {
    * @return whether this phase can run the callback.
    */
   private boolean compatible(Phase candidate, LoadKind kind, Inputs inputs, Outputs outputs) {
-    if (candidate.type() != type || kind == LoadKind.RELOAD && candidate.fullLoadOnly()) {
-      return false;
-    }
-    for (Input input : inputs.values()) {
-      if (input instanceof Input.Native(Phase readiness, Phase reloadReadiness, boolean completeSource)) {
-        Phase ready = kind == LoadKind.FULL_LOAD ? readiness : reloadReadiness;
-        if (ready.type() != type || candidate.ordinal() < ready.ordinal() || completeSource && candidate != ready) {
-          return false;
+    if (candidate.type() == type && (kind != LoadKind.RELOAD || !candidate.fullLoadOnly())) {
+      for (Input input : inputs.values()) {
+        if (input instanceof Input.Native(Phase readiness, Phase reloadReadiness, boolean completeSource)) {
+          Phase ready = kind == LoadKind.FULL_LOAD ? readiness : reloadReadiness;
+          if (ready.type() != type || candidate.ordinal() < ready.ordinal() || completeSource && candidate != ready) {
+            return false;
+          }
         }
       }
+      return outputs.values().stream().allMatch(output -> output.deadline().type() == type && candidate.ordinal() <= output.deadline().ordinal());
     }
-    return outputs.values().stream().allMatch(output -> output.deadline().type() == type && candidate.ordinal() <= output.deadline().ordinal());
+    return false;
   }
 
   /**
@@ -196,11 +196,32 @@ public final class PackGeneration {
     /**
      * Task registered by a Java callback.
      */
-    JAVA,
+    JAVA("callback"),
     /**
      * Task compiled from a file rule.
      */
-    FILE_RULE
+    FILE_RULE("rule");
+
+    /**
+     * Human-readable task origin used in diagnostics.
+     */
+    private final String label;
+
+    /**
+     * @param label diagnostic name for this task origin.
+     */
+    TaskOrigin(String label) {
+      this.label = label;
+    }
+
+    /**
+     * Returns the task origin's diagnostic name.
+     *
+     * @return shared diagnostic label.
+     */
+    String label() {
+      return label;
+    }
   }
 
   /**

@@ -103,7 +103,7 @@ public final class GenerationOutput {
     context.checkAssets();
     var json = new JsonObject();
     translations.forEach(json::addProperty);
-    putJson(Identifier.fromNamespaceAndPath(namespace, "lang/" + language + ".json"), json);
+    putJson(PackPaths.language(namespace, language), json);
   }
 
   /**
@@ -169,7 +169,7 @@ public final class GenerationOutput {
    */
   public void putStructure(Identifier structure, CompoundTag value) throws IOException {
     context.checkData();
-    write(structure.withPath(path -> "structure/" + path + ".nbt"), stream -> NbtIo.writeCompressed(value, stream));
+    write(PackPaths.structure(structure), stream -> NbtIo.writeCompressed(value, stream));
   }
 
   /**

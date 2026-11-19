@@ -39,13 +39,13 @@ final class JsonEdits {
    * @return decoded pointer components.
    */
   static List<String> pointer(String path) {
-    if (path.isEmpty()) {
-      return List.of();
-    }
-    if (!path.startsWith("/")) {
+    if (!path.isEmpty()) {
+      if (path.startsWith("/")) {
+        return Arrays.stream(path.substring(1).split("/", -1)).map(JsonEdits::unescape).toList();
+      }
       throw new IllegalArgumentException("Invalid JSON Pointer " + path);
     }
-    return Arrays.stream(path.substring(1).split("/", -1)).map(JsonEdits::unescape).toList();
+    return List.of();
   }
 
   /**
@@ -108,39 +108,39 @@ final class JsonEdits {
      * @return updated document, which may have a new root.
      */
     JsonElement apply(JsonElement document) {
-      if (path.isEmpty()) {
-        if (operation == Operation.REMOVE) {
-          throw new IllegalArgumentException("A JSON rule must produce a complete document");
+      if (!path.isEmpty()) {
+        JsonElement parent = document;
+        for (int i = 0; i < path.size() - 1; i++) {
+          parent = child(parent, path.get(i));
         }
-        return value.deepCopy();
-      }
-      JsonElement parent = document;
-      for (int i = 0; i < path.size() - 1; i++) {
-        parent = child(parent, path.get(i));
-      }
-      String key = path.getLast();
-      if (parent.isJsonArray()) {
-        var array = parent.getAsJsonArray();
-        int index = index(array, key, operation == Operation.ADD);
-        switch (operation) {
-          case ADD -> array.asList().add(index, value.deepCopy());
-          case REPLACE -> array.set(index, value.deepCopy());
-          case REMOVE -> array.remove(index);
-        }
-      } else if (parent.isJsonObject()) {
-        var object = parent.getAsJsonObject();
-        if (operation != Operation.ADD && !object.has(key)) {
-          throw new IllegalArgumentException("Missing JSON member " + key);
-        }
-        if (operation == Operation.REMOVE) {
-          object.remove(key);
+        String key = path.getLast();
+        if (parent.isJsonArray()) {
+          var array = parent.getAsJsonArray();
+          int index = index(array, key, operation == Operation.ADD);
+          switch (operation) {
+            case ADD -> array.asList().add(index, value.deepCopy());
+            case REPLACE -> array.set(index, value.deepCopy());
+            case REMOVE -> array.remove(index);
+          }
+        } else if (parent.isJsonObject()) {
+          var object = parent.getAsJsonObject();
+          if (operation != Operation.ADD && !object.has(key)) {
+            throw new IllegalArgumentException("Missing JSON member " + key);
+          }
+          if (operation == Operation.REMOVE) {
+            object.remove(key);
+          } else {
+            object.add(key, value.deepCopy());
+          }
         } else {
-          object.add(key, value.deepCopy());
+          throw new IllegalArgumentException("JSON Pointer parent must be an object or array");
         }
-      } else {
-        throw new IllegalArgumentException("JSON Pointer parent must be an object or array");
+        return document;
       }
-      return document;
+      if (operation == Operation.REMOVE) {
+        throw new IllegalArgumentException("A JSON rule must produce a complete document");
+      }
+      return value.deepCopy();
     }
 
     /**
@@ -155,14 +155,14 @@ final class JsonEdits {
       if (add && "-".equals(key)) {
         return array.size();
       }
-      if (!ARRAY_INDEX.matcher(key).matches()) {
-        throw new IllegalArgumentException("Invalid JSON array index " + key);
-      }
-      int value = Integer.parseInt(key);
-      if (value > array.size() || !add && value == array.size()) {
+      if (ARRAY_INDEX.matcher(key).matches()) {
+        int value = Integer.parseInt(key);
+        if (!(value > array.size() || !add && value == array.size())) {
+          return value;
+        }
         throw new IllegalArgumentException("JSON array index is out of range: " + key);
       }
-      return value;
+      throw new IllegalArgumentException("Invalid JSON array index " + key);
     }
 
     /**

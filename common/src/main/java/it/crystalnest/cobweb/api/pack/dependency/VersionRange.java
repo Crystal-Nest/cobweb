@@ -5,65 +5,137 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * Describes one exact dependency version or one continuous interval with at least one bound.
- * The active loader compares versions for both mod and pack requirements.
- * Each exact version or boundary supplies a single nonblank version string.
- *
- * @param exact exact requested version, or {@code null} for an interval.
- * @param minimum lower bound, or {@code null} when unbounded.
- * @param maximum upper bound, or {@code null} when unbounded.
+ * Describes one exact version or one continuous interval with at least one bound.
+ * The active loader compares version strings for both mod and pack requirements.
  */
-public record VersionRange(@Nullable String exact, @Nullable Bound minimum, @Nullable Bound maximum) {
+public sealed interface VersionRange permits VersionRange.Exact, VersionRange.Interval {
   /**
-   * @param exact exact requested version, or {@code null} for an interval.
-   * @param minimum lower bound, or {@code null} when unbounded.
-   * @param maximum upper bound, or {@code null} when unbounded.
+   * Creates an exact version requirement.
+   *
+   * @param version required version string.
+   * @return exact version requirement.
+   * @throws NullPointerException if the version is {@code null}.
+   * @throws IllegalArgumentException if the version is blank.
    */
-  public VersionRange {
-    if (exact == null && minimum == null && maximum == null || exact != null && (exact.isBlank() || minimum != null || maximum != null)) {
-      throw new IllegalArgumentException("Supply one exact version or at least one interval bound");
+  static Exact exact(String version) {
+    return new Exact(version);
+  }
+
+  /**
+   * Creates an interval with one or two endpoints.
+   * The active loader determines endpoint ordering and comparison behavior.
+   *
+   * @param minimum lower bound, or {@code null} when unbounded below.
+   * @param maximum upper bound, or {@code null} when unbounded above.
+   * @return interval requirement.
+   * @throws IllegalArgumentException if both endpoints are absent.
+   */
+  static Interval interval(@Nullable Bound minimum, @Nullable Bound maximum) {
+    return new Interval(minimum, maximum);
+  }
+
+  /**
+   * Validates a version string without interpreting the loader's version syntax.
+   *
+   * @param version version string to validate.
+   * @return supplied nonblank version.
+   * @throws NullPointerException if the version is {@code null}.
+   * @throws IllegalArgumentException if the version is blank.
+   */
+  private static String requireVersion(String version) {
+    if (!Objects.requireNonNull(version).isBlank()) {
+      return version;
+    }
+    throw new IllegalArgumentException("Version must not be blank");
+  }
+
+  /**
+   * Requires an exact version without exposing irrelevant interval fields.
+   *
+   * @param version required nonblank version string.
+   */
+  record Exact(String version) implements VersionRange {
+    /**
+     * @param version required nonblank version string.
+     */
+    public Exact {
+      version = requireVersion(version);
     }
   }
 
   /**
-   * Requires one exact version.
+   * Requires a continuous interval with at least one endpoint.
+   * Missing endpoints represent unbounded sides; two missing endpoints are invalid.
    *
-   * @param value required version.
-   * @return exact version constraint.
-   * @throws IllegalArgumentException if the version is blank.
+   * @param minimum lower bound, or {@code null} when unbounded below.
+   * @param maximum upper bound, or {@code null} when unbounded above.
    */
-  public static VersionRange exact(String value) {
-    return new VersionRange(Objects.requireNonNull(value), null, null);
-  }
-
-  /**
-   * Requires a version within the given bounds according to the active loader.
-   *
-   * @param minimum lower bound, or {@code null} when unbounded.
-   * @param maximum upper bound, or {@code null} when unbounded.
-   * @return interval constraint.
-   * @throws IllegalArgumentException if both bounds are absent.
-   */
-  public static VersionRange interval(@Nullable Bound minimum, @Nullable Bound maximum) {
-    return new VersionRange(null, minimum, maximum);
-  }
-
-  /**
-   * Represents a lower or upper boundary with a nonblank version.
-   *
-   * @param version version at the boundary.
-   * @param inclusive whether the boundary is included.
-   */
-  public record Bound(String version, boolean inclusive) {
+  record Interval(@Nullable Bound minimum, @Nullable Bound maximum) implements VersionRange {
     /**
-     * @param version version at the boundary.
-     * @param inclusive whether the boundary is included.
+     * @param minimum lower bound, or {@code null} when unbounded below.
+     * @param maximum upper bound, or {@code null} when unbounded above.
+     */
+    public Interval {
+      if (minimum == null && maximum == null) {
+        throw new IllegalArgumentException("Supply at least one interval bound");
+      }
+    }
+  }
+
+  /**
+   * Represents one inclusive or exclusive endpoint.
+   * Its position in an interval determines whether it is the lower or upper bound.
+   *
+   * @param version nonblank version string at the endpoint.
+   * @param inclusion endpoint inclusion policy.
+   */
+  record Bound(String version, Bound.Inclusion inclusion) {
+    /**
+     * @param version nonblank version string at the endpoint.
+     * @param inclusion non-null endpoint inclusion policy.
      */
     public Bound {
-      Objects.requireNonNull(version);
-      if (version.isBlank()) {
-        throw new IllegalArgumentException("Version bound cannot be blank");
-      }
+      version = requireVersion(version);
+      Objects.requireNonNull(inclusion);
+    }
+
+    /**
+     * Creates a bound that includes its endpoint.
+     *
+     * @param version version at the endpoint.
+     * @return inclusive bound.
+     * @throws NullPointerException if the version is {@code null}.
+     * @throws IllegalArgumentException if the version is blank.
+     */
+    public static Bound inclusive(String version) {
+      return new Bound(version, Inclusion.INCLUSIVE);
+    }
+
+    /**
+     * Creates a bound that excludes its endpoint.
+     *
+     * @param version version at the endpoint.
+     * @return exclusive bound.
+     * @throws NullPointerException if the version is {@code null}.
+     * @throws IllegalArgumentException if the version is blank.
+     */
+    public static Bound exclusive(String version) {
+      return new Bound(version, Inclusion.EXCLUSIVE);
+    }
+
+    /**
+     * Determines whether an interval accepts its endpoint.
+     */
+    public enum Inclusion {
+      /**
+       * Accepts the endpoint itself.
+       */
+      INCLUSIVE,
+
+      /**
+       * Excludes the endpoint itself.
+       */
+      EXCLUSIVE
     }
   }
 }

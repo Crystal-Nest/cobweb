@@ -81,10 +81,10 @@ public final class EditorPackPresentations {
     if (texture == null && baseIcon != null && !baseIcon.equals(patch.icon())) {
       texture = texture(pack, baseIcon);
     }
-    if (patch.title() == null && patch.description() == null && texture == null) {
-      return Optional.empty();
+    if (!(patch.title() == null && patch.description() == null && texture == null)) {
+      return Optional.of(new Display(patch, texture));
     }
-    return Optional.of(new Display(patch, texture));
+    return Optional.empty();
   }
 
   /**

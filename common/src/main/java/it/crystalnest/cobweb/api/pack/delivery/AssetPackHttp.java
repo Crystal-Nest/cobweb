@@ -53,17 +53,17 @@ final class AssetPackHttp implements AutoCloseable {
   /**
    * Base path for the built-in archive endpoint.
    */
-  static final String ROUTE = "/cobweb/packs/";
+  static final String ROUTE = "/" + Constants.MOD_ID + "/packs/";
 
   /**
    * Pipeline name of the timeout used while waiting for request headers.
    */
-  private static final String HTTP_TIMEOUT = "cobweb_asset_http_timeout";
+  private static final String HTTP_TIMEOUT = Constants.MOD_ID + "_asset_http_timeout";
 
   /**
    * Allowed archive file names, consisting of a lowercase SHA-256 digest and the ZIP extension.
    */
-  private static final Pattern ARCHIVE = Pattern.compile("[a-f0-9]{64}[.]zip");
+  static final Pattern ARCHIVE_FILE_NAME = Pattern.compile("[a-f0-9]{64}[.]zip");
 
   /**
    * Request method prefixes recognized by the shared-port detector, including methods the endpoint rejects.
@@ -150,7 +150,7 @@ final class AssetPackHttp implements AutoCloseable {
    * @param channel newly accepted TCP channel.
    */
   void detect(Channel channel) {
-    channel.pipeline().addLast("cobweb_asset_http_detector", new Detect());
+    channel.pipeline().addLast(Constants.MOD_ID + "_asset_http_detector", new Detect());
   }
 
   /**
@@ -202,6 +202,7 @@ final class AssetPackHttp implements AutoCloseable {
     @Override
     protected void decode(ChannelHandlerContext context, ByteBuf input, List<Object> output) {
       boolean partial = false;
+      boolean detected = false;
       for (byte[] method : HTTP_METHODS) {
         int matched = 0;
         int limit = Math.min(input.readableBytes(), method.length);
@@ -220,11 +221,12 @@ final class AssetPackHttp implements AutoCloseable {
           }
           install(context.channel());
           pipeline.remove(this);
-          return;
+          detected = true;
+          break;
         }
         partial |= matched == limit;
       }
-      if (!partial) {
+      if (!detected && !partial) {
         context.pipeline().remove(this);
       }
     }
@@ -268,42 +270,61 @@ final class AssetPackHttp implements AutoCloseable {
      */
     @Override
     protected void channelRead0(ChannelHandlerContext context, HttpRequest request) {
-      if (requested) {
-        return;
-      }
-      requested = true;
-      context.pipeline().remove(HTTP_TIMEOUT);
-      context.channel().config().setAutoRead(false);
-      if (!request.decoderResult().isSuccess() || HttpUtil.getContentLength(request, 0) != 0 || HttpUtil.isTransferEncodingChunked(request)) {
-        fail(context, HttpResponseStatus.BAD_REQUEST);
-        return;
-      }
-      if (!HttpMethod.GET.equals(request.method()) && !HttpMethod.HEAD.equals(request.method())) {
-        fail(context, HttpResponseStatus.METHOD_NOT_ALLOWED);
-        return;
-      }
-      String uri = request.uri();
-      String name = uri.startsWith(ROUTE) ? uri.substring(ROUTE.length()) : "";
-      if (!ARCHIVE.matcher(name).matches()) {
-        fail(context, HttpResponseStatus.NOT_FOUND);
-        return;
-      }
-      this.context = context;
-      this.address = name.substring(0, 64);
-      this.head = HttpMethod.HEAD.equals(request.method());
-      context.channel().closeFuture().addListener(future -> release());
-      synchronized (AssetPackHttp.this) {
-        if (!context.channel().isActive()) {
-          return;
-        }
-        if (activeDownloads < MAX_DOWNLOADS) {
-          admit();
-        } else if (waiting.size() < MAX_WAITING) {
-          waiting.addLast(this);
-          // Keep detecting peer disconnects while waiting; no file worker blocks on admission.
-          context.channel().config().setAutoRead(true);
+      if (!requested) {
+        requested = true;
+        context.pipeline().remove(HTTP_TIMEOUT);
+        context.channel().config().setAutoRead(false);
+        if (request.decoderResult().isSuccess() && HttpUtil.getContentLength(request, 0) == 0 && !HttpUtil.isTransferEncodingChunked(request)) {
+          routeRequest(context, request);
         } else {
-          fail(context, HttpResponseStatus.SERVICE_UNAVAILABLE);
+          fail(context, HttpResponseStatus.BAD_REQUEST);
+        }
+      }
+    }
+
+    /**
+     * Resolves a body-free GET or HEAD request to an archive address and submits it for admission.
+     * Invalid methods receive HTTP 405, and invalid archive routes receive HTTP 404.
+     *
+     * @param context download handler context.
+     * @param request decoded request whose framing has already been validated.
+     */
+    private void routeRequest(ChannelHandlerContext context, HttpRequest request) {
+      if (HttpMethod.GET.equals(request.method()) || HttpMethod.HEAD.equals(request.method())) {
+        String uri = request.uri();
+        String name = uri.startsWith(ROUTE) ? uri.substring(ROUTE.length()) : "";
+        if (ARCHIVE_FILE_NAME.matcher(name).matches()) {
+          this.context = context;
+          this.address = name.substring(0, 64);
+          this.head = HttpMethod.HEAD.equals(request.method());
+          context.channel().closeFuture().addListener(future -> release());
+          admitDownload(context);
+        } else {
+          fail(context, HttpResponseStatus.NOT_FOUND);
+        }
+      } else {
+        fail(context, HttpResponseStatus.METHOD_NOT_ALLOWED);
+      }
+    }
+
+    /**
+     * Admits or queues an active validated connection while holding the transport monitor.
+     * A full queue receives HTTP 503, and queued connections remain readable to detect disconnects.
+     *
+     * @param context validated download handler context.
+     */
+    private void admitDownload(ChannelHandlerContext context) {
+      synchronized (AssetPackHttp.this) {
+        if (context.channel().isActive()) {
+          if (activeDownloads < MAX_DOWNLOADS) {
+            admit();
+          } else if (waiting.size() < MAX_WAITING) {
+            waiting.addLast(this);
+            // Keep detecting peer disconnects while waiting; no file worker blocks on admission.
+            context.channel().config().setAutoRead(true);
+          } else {
+            fail(context, HttpResponseStatus.SERVICE_UNAVAILABLE);
+          }
         }
       }
     }
@@ -348,31 +369,30 @@ final class AssetPackHttp implements AutoCloseable {
      * After handoff, the chunked-write handler owns the file input.
      */
     private void serve() {
-      if (!context.channel().isActive()) {
-        return;
-      }
-      var lease = delivery.acquire(address);
-      if (lease == null) {
-        fail(context, HttpResponseStatus.NOT_FOUND);
-        return;
-      }
-      context.channel().closeFuture().addListener(future -> lease.close());
-      var archive = lease.archive();
-      var response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-      response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
-      response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/zip");
-      response.headers().set(HttpHeaderNames.CONTENT_LENGTH, archive.size());
-      if (head) {
-        context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-        return;
-      }
-      try {
-        var contents = openChunkedArchive(archive);
-        context.write(response);
-        context.writeAndFlush(new HttpChunkedInput(contents)).addListener(ChannelFutureListener.CLOSE);
-      } catch (IOException | RuntimeException failure) {
-        Constants.LOGGER.error("Cannot serve published asset archive {}", archive.address(), failure);
-        fail(context, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+      if (context.channel().isActive()) {
+        var lease = delivery.acquire(address);
+        if (lease != null) {
+          context.channel().closeFuture().addListener(future -> lease.close());
+          var archive = lease.archive();
+          var response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+          response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+          response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/zip");
+          response.headers().set(HttpHeaderNames.CONTENT_LENGTH, archive.size());
+          if (!head) {
+            try {
+              var contents = openChunkedArchive(archive);
+              context.write(response);
+              context.writeAndFlush(new HttpChunkedInput(contents)).addListener(ChannelFutureListener.CLOSE);
+            } catch (IOException | RuntimeException failure) {
+              Constants.LOGGER.error("Cannot serve published asset archive {}", archive.address(), failure);
+              fail(context, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            }
+          } else {
+            context.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+          }
+        } else {
+          fail(context, HttpResponseStatus.NOT_FOUND);
+        }
       }
     }
 

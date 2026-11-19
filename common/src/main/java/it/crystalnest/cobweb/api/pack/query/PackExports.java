@@ -22,9 +22,9 @@ public final class PackExports {
    */
   public static CompletionStage<Path> export(PackQueries target, PackReference reference) {
     var live = target.target();
-    if (live == null) {
-      return CompletableFuture.failedFuture(new IllegalStateException("An applied pack export needs a live target"));
+    if (live != null) {
+      return GeneratedPackExport.write(live.resources().get(), live.type(), reference);
     }
-    return GeneratedPackExport.write(live.resources().get(), live.type(), reference);
+    return CompletableFuture.failedFuture(new IllegalStateException("An applied pack export needs a live target"));
   }
 }

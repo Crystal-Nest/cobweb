@@ -43,16 +43,16 @@ final class FilePackPresentation {
   static PackPresentation read(Pack pack, PackQueries queries, boolean evaluateConditions) {
     try (var metadata = pack.openMetadata()) {
       var root = PackHelper.readMetadataFile(metadata);
-      if (!root.has("cobweb")) {
-        return null;
+      if (root.has(Constants.MOD_ID)) {
+        var section = root.getAsJsonObject(Constants.MOD_ID);
+        Component title = text(section, TITLE);
+        var result = PackPresentation.builder();
+        if (title != null) {
+          result.title(title);
+        }
+        return evaluateConditions && section.has("presentation") ? evaluatePresentation(section, pack, queries, result) : result.build();
       }
-      var section = root.getAsJsonObject("cobweb");
-      Component title = text(section, TITLE);
-      var result = PackPresentation.builder();
-      if (title != null) {
-        result.title(title);
-      }
-      return evaluateConditions && section.has("presentation") ? evaluatePresentation(section, pack, queries, result) : result.build();
+      return null;
     } catch (IOException | RuntimeException failure) {
       Constants.LOGGER.error("Unable to read file presentation for {}", pack.getId(), failure);
       return null;

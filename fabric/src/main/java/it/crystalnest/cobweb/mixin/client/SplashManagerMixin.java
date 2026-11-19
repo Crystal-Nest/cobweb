@@ -38,17 +38,14 @@ public abstract class SplashManagerMixin {
   @ModifyExpressionValue(method = "prepare(Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/util/profiling/ProfilerFiller;)Ljava/util/List;", at = @At(value = "INVOKE", target = "Ljava/io/BufferedReader;lines()Ljava/util/stream/Stream;"))
   private Stream<String> modifyLines(Stream<String> original, ResourceManager manager, ProfilerFiller profiler) {
     var resource = manager.getResource(ADDITIONAL_SPLASHES);
-    if (resource.isEmpty()) {
-      return original;
+    if (!resource.isEmpty()) {
+      try (var reader = resource.get().openAsReader()) {
+        var additions = reader.lines().filter(line -> !line.isBlank()).toList();
+        return Stream.concat(original, additions.stream());
+      } catch (IOException | UncheckedIOException failure) {
+        Constants.LOGGER.error("Failed to read splash resource {}", ADDITIONAL_SPLASHES, failure);
+      }
     }
-    try (var reader = resource.get().openAsReader()) {
-      var additions = reader.lines()
-        .filter(line -> !line.isBlank())
-        .toList();
-      return Stream.concat(original, additions.stream());
-    } catch (IOException | UncheckedIOException failure) {
-      Constants.LOGGER.error("Failed to read splash resource {}", ADDITIONAL_SPLASHES, failure);
-      return original;
-    }
+    return original;
   }
 }

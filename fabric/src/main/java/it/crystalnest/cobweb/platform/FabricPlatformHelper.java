@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.platform;
 
 import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
+import it.crystalnest.cobweb.api.pack.dependency.VersionRange.Bound.Inclusion;
 import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import net.fabricmc.fabric.impl.resource.pack.FabricPack;
@@ -54,14 +55,12 @@ public final class FabricPlatformHelper implements PlatformHelper {
   @Override
   @Nullable
   public ModResource modResource(String modId, String path) {
-    return FabricLoader.getInstance().getModContainer(modId).flatMap(container -> container.findPath(path))
-      .map(file -> new ModResource(file.toUri(), () -> Files.newInputStream(file))).orElse(null);
+    return FabricLoader.getInstance().getModContainer(modId).flatMap(container -> container.findPath(path)).map(file -> new ModResource(file.toUri(), () -> Files.newInputStream(file))).orElse(null);
   }
 
   @Override
   public boolean matchesModVersion(String modId, VersionRange range) {
-    var actual = FabricLoader.getInstance().getModContainer(modId).orElseThrow().getMetadata().getVersion();
-    return matchesVersion(actual, range);
+    return matchesVersion(FabricLoader.getInstance().getModContainer(modId).orElseThrow().getMetadata().getVersion(), range);
   }
 
   @Override
@@ -77,11 +76,10 @@ public final class FabricPlatformHelper implements PlatformHelper {
    * @return whether the version satisfies the constraint.
    */
   private static boolean matchesVersion(Version actual, VersionRange range) {
-    if (range.exact() != null) {
-      return VersionComparisonOperator.EQUAL.test(actual, parseVersion(range.exact()));
-    }
-    return (range.minimum() == null || matchesBound(actual, range.minimum(), true))
-           && (range.maximum() == null || matchesBound(actual, range.maximum(), false));
+    return switch (range) {
+      case VersionRange.Exact(var version) -> VersionComparisonOperator.EQUAL.test(actual, parseVersion(version));
+      case VersionRange.Interval(var minimum, var maximum) -> matchesBound(actual, minimum, true) && matchesBound(actual, maximum, false);
+    };
   }
 
   /**
@@ -110,17 +108,21 @@ public final class FabricPlatformHelper implements PlatformHelper {
    * @throws IllegalArgumentException if an exclusive boundary uses an opaque version.
    */
   private static boolean matchesBound(Version actual, VersionRange.Bound bound, boolean lower) {
-    var endpoint = parseVersion(bound.version());
-    if (!bound.inclusive() && !(endpoint instanceof SemanticVersion)) {
+    if (bound != null) {
+      var endpoint = parseVersion(bound.version());
+      boolean inclusive = bound.inclusion() == Inclusion.INCLUSIVE;
+      if (inclusive || endpoint instanceof SemanticVersion) {
+        VersionComparisonOperator operator;
+        if (lower) {
+          operator = inclusive ? VersionComparisonOperator.GREATER_EQUAL : VersionComparisonOperator.GREATER;
+        } else {
+          operator = inclusive ? VersionComparisonOperator.LESS_EQUAL : VersionComparisonOperator.LESS;
+        }
+        return operator.test(actual, endpoint);
+      }
       throw new IllegalArgumentException("Fabric cannot use an opaque version as an exclusive bound: " + bound.version());
     }
-    VersionComparisonOperator operator;
-    if (lower) {
-      operator = bound.inclusive() ? VersionComparisonOperator.GREATER_EQUAL : VersionComparisonOperator.GREATER;
-    } else {
-      operator = bound.inclusive() ? VersionComparisonOperator.LESS_EQUAL : VersionComparisonOperator.LESS;
-    }
-    return operator.test(actual, endpoint);
+    return true;
   }
 
   @Override

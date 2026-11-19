@@ -48,6 +48,11 @@ import java.util.function.Supplier;
  */
 public abstract class PackHelper {
   /**
+   * Native repository ID prefix used for packs discovered from folders or ZIP files.
+   */
+  public static final String FILE_PACK_PREFIX = "file/";
+
+  /**
    * Registrations indexed by type and native ID.
    */
   private final Map<PackType, Map<String, RegisteredPack>> packs = new ConcurrentHashMap<>();
@@ -65,7 +70,7 @@ public abstract class PackHelper {
    * @throws IOException if the file cannot be read.
    */
   public static JsonObject readMetadataFile(@Nullable PackMetadataResources resources) throws IOException {
-    var source = resources == null ? null : resources.getRootResource("pack.mcmeta");
+    var source = resources == null ? null : resources.getRootResource(PackResources.PACK_META);
     if (source != null) {
       try (var reader = new InputStreamReader(source.get(), StandardCharsets.UTF_8)) {
         return JsonParser.parseReader(reader).getAsJsonObject();

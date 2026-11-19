@@ -3,6 +3,7 @@ package it.crystalnest.cobweb.platform.services;
 import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
 import it.crystalnest.cobweb.platform.model.Environment;
 import it.crystalnest.cobweb.platform.model.Platform;
+import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.resources.IoSupplier;
 import org.jetbrains.annotations.Nullable;
@@ -78,7 +79,7 @@ public interface PlatformHelper {
    */
   @Nullable
   default ModResource modRootPackMetadata(String modId) {
-    return modResource(modId, "pack.mcmeta");
+    return modResource(modId, PackResources.PACK_META);
   }
 
   /**

@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb;
 
 import it.crystalnest.cobweb.api.pack.command.PackExportCommand;
+import it.crystalnest.cobweb.platform.model.Platform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.neoforged.api.distmarker.Dist;
@@ -21,9 +22,9 @@ public final class ClientModLoader {
    */
   public ClientModLoader(ModContainer mod) {
     String version = mod.getModInfo().getVersion().toString();
-    CommonModLoader.logSetup("client setup started", version, "NeoForge", "CLIENT");
+    CommonModLoader.logSetup(CommonModLoader.CLIENT_SETUP_STARTED, version, Platform.NEOFORGE.toString(), Dist.CLIENT.name());
     NeoForge.EVENT_BUS.addListener((RegisterClientCommandsEvent event) -> PackExportCommand.registerClient(event.getDispatcher(), Minecraft.getInstance(), (source, message) -> source.sendSuccess(() -> message, false),
       CommandSourceStack::sendFailure));
-    CommonModLoader.logSetup("client setup completed", version, "NeoForge", "CLIENT");
+    CommonModLoader.logSetup(CommonModLoader.CLIENT_SETUP_COMPLETED, version, Platform.NEOFORGE.toString(), Dist.CLIENT.name());
   }
 }

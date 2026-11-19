@@ -93,10 +93,9 @@ public record Output(Phase deadline, ResourceLifetime lifetime, @Nullable Resour
    */
   public static Output registryEntries(ResourceKey<? extends Registry<?>> key, ResourceLifetime lifetime) {
     Objects.requireNonNull(key);
-    if (lifetime == ResourceLifetime.RELOADABLE) {
-      return new Output(Phase.WORLD_CONTEXT_READY, lifetime, key);
+    if (lifetime != ResourceLifetime.RELOADABLE) {
+      return new Output(RegistryDataLoader.DIMENSION_REGISTRIES.stream().anyMatch(data -> data.key().equals(key)) ? Phase.WORLD_REGISTRIES_READY : Phase.STATIC_TAGS_READY, lifetime, key);
     }
-    boolean dimension = RegistryDataLoader.DIMENSION_REGISTRIES.stream().anyMatch(data -> data.key().equals(key));
-    return new Output(dimension ? Phase.WORLD_REGISTRIES_READY : Phase.STATIC_TAGS_READY, lifetime, key);
+    return new Output(Phase.WORLD_CONTEXT_READY, lifetime, key);
   }
 }

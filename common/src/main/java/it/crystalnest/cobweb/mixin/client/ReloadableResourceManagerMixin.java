@@ -2,6 +2,7 @@ package it.crystalnest.cobweb.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.generation.DynamicPackLoads;
 import it.crystalnest.cobweb.api.pack.generation.PackLoadLog;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.LoadKind;
@@ -57,43 +58,43 @@ public abstract class ReloadableResourceManagerMixin {
    */
   @WrapMethod(method = "createReload")
   private ReloadInstance wrapCreateReload(Executor backgroundExecutor, Executor mainThreadExecutor, CompletableFuture<Unit> initialTask, List<PackResources> resourcePacks, Operation<ReloadInstance> original) {
-    if (type != PackType.CLIENT_RESOURCES) {
+    if (type == PackType.CLIENT_RESOURCES) {
+      LoadKind kind = started ? LoadKind.RELOAD : LoadKind.FULL_LOAD;
       started = true;
-      return original.call(backgroundExecutor, mainThreadExecutor, initialTask, resourcePacks);
-    }
-    LoadKind kind = started ? LoadKind.RELOAD : LoadKind.FULL_LOAD;
-    started = true;
-    var log = new PackLoadLog(type, kind);
-    var tracker = new DynamicPackLoads.AttemptTracker(log);
-    List<PackResources> prepared;
-    try {
-      prepared = DynamicPackLoads.prepare(type, resourcePacks, kind, null, log);
-    } catch (RuntimeException | Error failure) {
-      return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), tracker);
-    }
-    CompletableFuture<ReloadInstance> nativeReload;
-    try {
-      var repository = Minecraft.getInstance().getResourcePackRepository();
-      PackQueryLifecycle.bindClient(repository, (ReloadableResourceManager) (Object) this);
-      var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of("cobweb", "cache", "assets"), repository, log);
-      tracker.bind(attempt);
-      if (attempt.generates()) {
-        nativeReload = attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> {
+      var log = new PackLoadLog(type, kind);
+      var tracker = new DynamicPackLoads.AttemptTracker(log);
+      List<PackResources> prepared;
+      try {
+        prepared = DynamicPackLoads.prepare(type, resourcePacks, kind, null, log);
+      } catch (RuntimeException | Error failure) {
+        return DynamicPackLoads.gatedReload(CompletableFuture.failedFuture(failure), tracker);
+      }
+      CompletableFuture<ReloadInstance> nativeReload;
+      try {
+        var repository = Minecraft.getInstance().getResourcePackRepository();
+        PackQueryLifecycle.bindClient(repository, (ReloadableResourceManager) (Object) this);
+        var attempt = DynamicPackLoads.open(type, prepared, kind, Path.of(Constants.MOD_ID, "cache", "assets"), repository, log);
+        tracker.bind(attempt);
+        if (attempt.generates()) {
+          nativeReload = attempt.begin(HolderLookup.Provider.create(Stream.empty()), FeatureFlagSet.of()).thenApplyAsync(ignored -> {
+            log.handoff();
+            return original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared);
+          }, mainThreadExecutor);
+        } else {
           log.handoff();
-          return original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared);
-        }, mainThreadExecutor);
-      } else {
-        log.handoff();
-        nativeReload = CompletableFuture.completedFuture(original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared));
+          nativeReload = CompletableFuture.completedFuture(original.call(backgroundExecutor, mainThreadExecutor, initialTask, prepared));
+        }
+      } catch (RuntimeException | Error failure) {
+        nativeReload = CompletableFuture.failedFuture(failure);
       }
-    } catch (RuntimeException | Error failure) {
-      nativeReload = CompletableFuture.failedFuture(failure);
+      nativeReload.whenComplete((reload, failure) -> {
+        if (failure != null) {
+          DynamicPackLoads.closeAfterFailure(prepared, failure);
+        }
+      });
+      return DynamicPackLoads.gatedReload(nativeReload, tracker);
     }
-    nativeReload.whenComplete((reload, failure) -> {
-      if (failure != null) {
-        DynamicPackLoads.closeAfterFailure(prepared, failure);
-      }
-    });
-    return DynamicPackLoads.gatedReload(nativeReload, tracker);
+    started = true;
+    return original.call(backgroundExecutor, mainThreadExecutor, initialTask, resourcePacks);
   }
 }

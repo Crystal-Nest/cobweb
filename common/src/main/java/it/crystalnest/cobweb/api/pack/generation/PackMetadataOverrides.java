@@ -37,28 +37,28 @@ final class PackMetadataOverrides {
   @Nullable
   static PackMetadataSection read(PackType type, @Nullable PackMetadataResources resources, @Nullable Component description, @Nullable InclusiveRange<PackFormat> formats) throws IOException {
     var section = PackMetadataSection.forPackType(type);
-    if (description == null && formats == null) {
-      return resources == null ? null : resources.getMetadataSection(section);
-    }
-    if (description != null && formats != null) {
+    if (description != null || formats != null) {
+      if (description == null || formats == null) {
+        var root = PackHelper.readMetadataFile(resources);
+        JsonObject json = root.has(section.name()) ? root.getAsJsonObject(section.name()) : new JsonObject();
+        var codec = section.codec();
+        var format = formats == null ? new InclusiveRange<>(PackFormat.of(Integer.MAX_VALUE)) : formats;
+        var overlay = codec.encodeStart(JsonOps.INSTANCE, new PackMetadataSection(description == null ? Component.empty() : description, format)).getOrThrow().getAsJsonObject();
+        if (description != null) {
+          json.add(DESCRIPTION, overlay.get(DESCRIPTION));
+        } else {
+          for (String name : new String[]{"pack_format", "supported_formats", "min_format", "max_format"}) {
+            json.remove(name);
+          }
+          overlay.remove(DESCRIPTION);
+          for (var entry : overlay.entrySet()) {
+            json.add(entry.getKey(), entry.getValue());
+          }
+        }
+        return codec.parse(JsonOps.INSTANCE, json).getOrThrow();
+      }
       return new PackMetadataSection(description, formats);
     }
-    var root = PackHelper.readMetadataFile(resources);
-    JsonObject json = root.has(section.name()) ? root.getAsJsonObject(section.name()) : new JsonObject();
-    var codec = section.codec();
-    var format = formats == null ? new InclusiveRange<>(PackFormat.of(Integer.MAX_VALUE)) : formats;
-    var overlay = codec.encodeStart(JsonOps.INSTANCE, new PackMetadataSection(description == null ? Component.empty() : description, format)).getOrThrow().getAsJsonObject();
-    if (description != null) {
-      json.add(DESCRIPTION, overlay.get(DESCRIPTION));
-    } else {
-      for (String name : new String[]{"pack_format", "supported_formats", "min_format", "max_format"}) {
-        json.remove(name);
-      }
-      overlay.remove(DESCRIPTION);
-      for (var entry : overlay.entrySet()) {
-        json.add(entry.getKey(), entry.getValue());
-      }
-    }
-    return codec.parse(JsonOps.INSTANCE, json).getOrThrow();
+    return resources == null ? null : resources.getMetadataSection(section);
   }
 }

@@ -16,7 +16,7 @@ public final class ModLoader implements ModInitializer {
   public void onInitialize() {
     var loader = FabricLoader.getInstance();
     String version = version(loader);
-    CommonModLoader.logSetup("common setup started", version, Platform.FABRIC.toString(), loader.getEnvironmentType().name());
+    CommonModLoader.logSetup(CommonModLoader.COMMON_SETUP_STARTED, version, Platform.FABRIC.toString(), loader.getEnvironmentType().name());
     CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> PackExportCommand.registerServer(dispatcher));
     CommonModLoader.logSetup("registration services ready; common setup completed", version, Platform.FABRIC.toString(), loader.getEnvironmentType().name());
   }

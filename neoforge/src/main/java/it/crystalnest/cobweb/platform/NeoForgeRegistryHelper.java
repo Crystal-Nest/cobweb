@@ -59,7 +59,7 @@ public final class NeoForgeRegistryHelper extends RegistryHelper<NeoForgeRegistr
         BuiltInRegistries.REGISTRY.containsKey(key.identifier()) ||
         Stream.of(RegistryDataLoader.WORLD_REGISTRIES, RegistryDataLoader.DIMENSION_REGISTRIES, RegistryDataLoader.RELOADABLE_REGISTRIES).flatMap(Collection::stream).anyMatch(registry -> registry.key().equals(key))
       ) {
-        throw new IllegalStateException("Registry already exists: " + key.identifier());
+        throw new IllegalStateException(REGISTRY_EXISTS + key.identifier());
       }
       if (definition.lifetime() == CobwebDataPackRegistry.Lifetime.RELOADABLE) {
         event.reloadableRegistry(key, definition.codec());

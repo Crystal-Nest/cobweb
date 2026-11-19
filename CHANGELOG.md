@@ -2,14 +2,13 @@
 
 All notable changes to the "cobweb" Minecraft mod will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Crystal Nest Semantic Versioning](https://crystalnest.it/#/versioning).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Crystal Nest Semantic Versioning](https://crystalnest.it/#/versioning).
 
 ## [Unreleased]
 
 - Nothing new.
 
-## [v2.0.0] - 2026/11/18
+## [v2.0.0] - 2026/11/19
 
 - **Miscellaneous changes**
   - Ported to 26.3

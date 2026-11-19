@@ -93,7 +93,7 @@ final class TextureRules {
    * @throws IOException if writing the sprite or sidecar fails.
    */
   private static void submit(GenerationOutput output, Identifier destination, NativeImage result, JsonObject metadata) throws IOException {
-    output.putSprite(destination.withPath(path -> path.substring("textures/".length(), path.length() - ".png".length())), stream -> NativeImagePng.write(result, stream), metadata.isEmpty() ? null : metadata);
+    output.putSprite(PackPaths.textureId(destination), stream -> NativeImagePng.write(result, stream), metadata.isEmpty() ? null : metadata);
   }
 
   /**

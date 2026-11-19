@@ -3,6 +3,7 @@ package it.crystalnest.cobweb.api.pack.generation;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Phase;
 import it.crystalnest.cobweb.api.pack.generation.lifecycle.Stage;
 import net.minecraft.resources.Identifier;
@@ -31,6 +32,11 @@ import java.util.stream.Collectors;
  * @param after logical IDs of preferred generation predecessors.
  */
 record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier> after) {
+  /**
+   * Pack-root path of the generation rule manifest.
+   */
+  static final String PATH = Constants.MOD_ID + "/rules.json";
+
   /**
    * Schema key selecting the destination-condition mismatch policy.
    */
@@ -70,35 +76,35 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    * @throws IllegalArgumentException if the owned manifest cannot be read or is invalid.
    */
   static FilePackRules read(PackType type, PackResources pack) {
-    var resource = pack.getRootResource("cobweb", "rules.json");
-    if (resource == null) {
-      return EMPTY;
-    }
-    try (var input = resource.get()) {
-      var root = readJson(input, MAX_MANIFEST).getAsJsonObject();
-      var format = root.getAsJsonPrimitive("format");
-      if (format == null || !format.isNumber() || format.getAsBigDecimal().intValueExact() != 1) {
-        throw new IllegalArgumentException("Expected file rule format 1");
-      }
-      String side = type == PackType.CLIENT_RESOURCES ? "assets" : "data";
-      if (!root.has(side)) {
+    var resource = pack.getRootResource(Constants.MOD_ID, "rules.json");
+    if (resource != null) {
+      try (var input = resource.get()) {
+        var root = readJson(input, MAX_MANIFEST).getAsJsonObject();
+        var format = root.getAsJsonPrimitive("format");
+        if (format == null || !format.isNumber() || format.getAsBigDecimal().intValueExact() != 1) {
+          throw new IllegalArgumentException("Expected file rule format 1");
+        }
+        String side = type == PackType.CLIENT_RESOURCES ? "assets" : "data";
+        if (root.has(side)) {
+          var section = root.getAsJsonObject(side);
+          var entries = section.getAsJsonArray("rules");
+          var rules = new ArrayList<Rule>();
+          if (entries != null) {
+            if (entries.size() > MAX_RULES) {
+              throw new IllegalArgumentException("Too many file rules");
+            }
+            for (int index = 0; index < entries.size(); index++) {
+              rules.add(readRule(entries.get(index), type, index));
+            }
+          }
+          return new FilePackRules(List.copyOf(rules), ids(section, "before"), ids(section, "after"));
+        }
         return EMPTY;
+      } catch (IOException | RuntimeException failure) {
+        throw new IllegalArgumentException(pack.packId() + "/" + PATH + ": " + failure.getMessage(), failure);
       }
-      var section = root.getAsJsonObject(side);
-      var entries = section.getAsJsonArray("rules");
-      var rules = new ArrayList<Rule>();
-      if (entries != null) {
-        if (entries.size() > MAX_RULES) {
-          throw new IllegalArgumentException("Too many file rules");
-        }
-        for (int index = 0; index < entries.size(); index++) {
-          rules.add(readRule(entries.get(index), type, index));
-        }
-      }
-      return new FilePackRules(List.copyOf(rules), ids(section, "before"), ids(section, "after"));
-    } catch (IOException | RuntimeException failure) {
-      throw new IllegalArgumentException(pack.packId() + "/cobweb/rules.json: " + failure.getMessage(), failure);
     }
+    return EMPTY;
   }
 
   /**
@@ -135,14 +141,14 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
    * @return immutable list of pack IDs, or an empty list when the property is absent.
    */
   private static List<Identifier> ids(JsonObject object, String key) {
-    if (!object.has(key)) {
-      return List.of();
+    if (object.has(key)) {
+      var result = new ArrayList<Identifier>();
+      for (var id : object.getAsJsonArray(key)) {
+        result.add(Identifier.parse(string(id)));
+      }
+      return List.copyOf(result);
     }
-    var result = new ArrayList<Identifier>();
-    for (var id : object.getAsJsonArray(key)) {
-      result.add(Identifier.parse(string(id)));
-    }
-    return List.copyOf(result);
+    return List.of();
   }
 
   /**
@@ -301,17 +307,17 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
      * @throws IllegalArgumentException if the flag is invalid for this operation.
      */
     private static boolean metadataFlag(JsonObject object, Operation operation) {
-      if (!object.has("with_metadata")) {
-        return false;
+      if (object.has("with_metadata")) {
+        if (operation != Operation.COPY) {
+          throw new IllegalArgumentException("with_metadata requires a copy rule");
+        }
+        var value = object.get("with_metadata");
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
+          throw new IllegalArgumentException("Expected a boolean for with_metadata");
+        }
+        return value.getAsBoolean();
       }
-      if (operation != Operation.COPY) {
-        throw new IllegalArgumentException("with_metadata requires a copy rule");
-      }
-      var value = object.get("with_metadata");
-      if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
-        throw new IllegalArgumentException("Expected a boolean for with_metadata");
-      }
-      return value.getAsBoolean();
+      return false;
     }
 
     /**
@@ -361,7 +367,7 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
       Identifier secondary = resource(object, operation == Operation.RECOLOR_TEXTURE ? "palette_from" : "overlay");
       Identifier mask = operation == Operation.RECOLOR_TEXTURE && object.has("mask") ? resource(object, "mask") : null;
       for (Identifier id : new Identifier[]{from, to, secondary, mask}) {
-        if (id != null && (!id.getPath().startsWith("textures/") || !id.getPath().endsWith(".png") || id.getPath().length() <= 13)) {
+        if (id != null && !PackPaths.isTexture(id)) {
           throw new IllegalArgumentException("Expected a PNG under textures/: " + id);
         }
       }
@@ -388,30 +394,36 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
      */
     void generate(GenerationContext context, GenerationOutput output) throws IOException {
       Map<Identifier, GenerationResources.File> inputs = new HashMap<>();
-      for (Identifier id : payload.inputs()) {
+      var sources = payload.inputs().iterator();
+      boolean allInputsAvailable = true;
+      while (allInputsAvailable && sources.hasNext()) {
+        Identifier id = sources.next();
         var source = context.resources().get(id);
-        if (source.isEmpty()) {
-          if (skipMissing) {
-            return;
+        if (source.isPresent()) {
+          inputs.put(id, source.get());
+        } else {
+          allInputsAvailable = false;
+          if (!skipMissing) {
+            throw new IOException("Missing rule input " + id);
           }
-          throw new IOException("Missing rule input " + id);
         }
-        inputs.put(id, source.get());
       }
-      switch (payload) {
-        case Copy(var from, boolean withMetadata) -> output.copy(to, inputs.get(from), withMetadata, MAX_COPY);
-        case Patch(var from, var edits) -> {
-          try (var input = inputs.get(from).open(MAX_JSON)) {
-            byte[] result = PackIO.json(JsonEdits.apply(readJson(input, MAX_JSON), edits));
-            if (result.length > MAX_JSON) {
-              throw new IOException("Patched JSON exceeds " + MAX_JSON + " bytes");
+      if (allInputsAvailable) {
+        switch (payload) {
+          case Copy(var from, boolean withMetadata) -> output.copy(to, inputs.get(from), withMetadata, MAX_COPY);
+          case Patch(var from, var edits) -> {
+            try (var input = inputs.get(from).open(MAX_JSON)) {
+              byte[] result = PackIO.json(JsonEdits.apply(readJson(input, MAX_JSON), edits));
+              if (result.length > MAX_JSON) {
+                throw new IOException("Patched JSON exceeds " + MAX_JSON + " bytes");
+              }
+              output.write(to, stream -> stream.write(result));
             }
-            output.write(to, stream -> stream.write(result));
           }
+          case Recolor(var from, var palette, var mask) -> TextureRules.recolor(output, to, inputs.get(from), inputs.get(palette), inputs.get(mask));
+          case Overlay(var from, var overlay) -> TextureRules.overlay(output, to, inputs.get(from), inputs.get(overlay));
+          case InlineWrite inline -> inline.generate(context, output, to);
         }
-        case Recolor(var from, var palette, var mask) -> TextureRules.recolor(output, to, inputs.get(from), inputs.get(palette), inputs.get(mask));
-        case Overlay(var from, var overlay) -> TextureRules.overlay(output, to, inputs.get(from), inputs.get(overlay));
-        case InlineWrite inline -> inline.generate(context, output, to);
       }
     }
   }
@@ -550,13 +562,13 @@ record FilePackRules(List<Rule> rules, List<Identifier> before, List<Identifier>
      * @throws IOException if a mismatched destination is configured to fail.
      */
     private void generate(GenerationContext context, GenerationOutput output, Identifier to) throws IOException {
-      if (destination != null && context.resources().get(to).isPresent() != (destination == Destination.PRESENT)) {
+      if (destination == null || context.resources().get(to).isPresent() == (destination == Destination.PRESENT)) {
+        output.putText(to, contents);
+      } else {
         if (failOnMismatch) {
           throw new IOException("Destination condition failed for " + to + ", expected " + destination.name().toLowerCase(Locale.ROOT));
         }
-        return;
       }
-      output.putText(to, contents);
     }
   }
 }

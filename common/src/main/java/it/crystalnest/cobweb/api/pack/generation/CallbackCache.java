@@ -167,26 +167,41 @@ final class CallbackCache {
   @Nullable
   static String fingerprint(Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, @Nullable CallbackRegistration.Policy policy, boolean persistent) {
     String profile = persistent ? environment() : SESSION;
-    if (profile == null) {
-      return null;
+    if (profile != null) {
+      var digest = CacheObservations.digest();
+      CacheObservations.text(digest, profile);
+      CacheObservations.text(digest, context.phase().name());
+      if (!task.fileRule()) {
+        CacheObservations.text(digest, context.loadKind().name());
+      }
+      CacheObservations.text(digest, task.stage().name());
+      CacheObservations.text(digest, task.lifetime().name());
+      CacheObservations.text(digest, task.outputs().toString());
+      if (task.fileRuleFingerprint() != null) {
+        CacheObservations.text(digest, task.fileRuleFingerprint());
+        return CacheObservations.hex(digest);
+      }
+      return completeFingerprint(task, context, values, Objects.requireNonNull(policy), digest);
     }
-    var digest = CacheObservations.digest();
-    CacheObservations.text(digest, profile);
-    CacheObservations.text(digest, context.phase().name());
-    if (!task.fileRule()) {
-      CacheObservations.text(digest, context.loadKind().name());
-    }
-    CacheObservations.text(digest, task.stage().name());
-    CacheObservations.text(digest, task.lifetime().name());
-    CacheObservations.text(digest, task.outputs().toString());
-    if (task.fileRuleFingerprint() != null) {
-      CacheObservations.text(digest, task.fileRuleFingerprint());
-      return CacheObservations.hex(digest);
-    }
-    var callbackPolicy = Objects.requireNonNull(policy);
+    return null;
+  }
+
+  /**
+   * Completes a Java callback's fingerprint with its captured values and optional consumer-supplied proof.
+   * The digest already contains the shared task and environment contract.
+   *
+   * @param task Java generation task.
+   * @param context active callback context.
+   * @param values captured input values.
+   * @param policy Java callback cache policy.
+   * @param digest digest containing the shared fingerprint prefix.
+   * @return complete fingerprint, or {@code null} when an input cannot be verified.
+   */
+  @Nullable
+  private static String completeFingerprint(Task task, GenerationContext context, Map<CapturedInput<?>, Object> values, CallbackRegistration.Policy policy, MessageDigest digest) {
     for (Input input : task.inputs().values()) {
       if (input instanceof CapturedInput<?> capture) {
-        if (!value(digest, values.get(capture)) && callbackPolicy.fingerprint() == null) {
+        if (!value(digest, values.get(capture)) && policy.fingerprint() == null) {
           return null;
         }
       } else {
@@ -194,8 +209,8 @@ final class CallbackCache {
         return null;
       }
     }
-    if (callbackPolicy.fingerprint() != null) {
-      Object extra = callbackPolicy.fingerprint().apply(context);
+    if (policy.fingerprint() != null) {
+      Object extra = policy.fingerprint().apply(context);
       if (!value(digest, extra)) {
         Constants.LOGGER.warn("Unsupported pack cache fingerprint type {} for callback {} in {}; return a string, primitive wrapper or enum", extra == null ? "null" : extra.getClass().getName(), task.index(), context.pack());
         return null;
@@ -217,8 +232,7 @@ final class CallbackCache {
       CacheObservations.text(digest, constant.name());
       return true;
     }
-    if (value instanceof String || value instanceof Boolean || value instanceof Character || value instanceof Byte || value instanceof Short
-      || value instanceof Integer || value instanceof Long || value instanceof Float || value instanceof Double) {
+    if (value instanceof String || value instanceof Boolean || value instanceof Character || value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long || value instanceof Float || value instanceof Double) {
       CacheObservations.text(digest, value.getClass().getName());
       CacheObservations.text(digest, value.toString());
       return true;
@@ -337,23 +351,52 @@ final class CallbackCache {
       }
     }
     if (current != null) {
-      boolean valid = false;
-      try {
-        valid = verifier.matches(current.observations());
-        if (!valid) {
-          miss.accept("observed inputs changed or could not be verified");
-        }
-        return valid ? current : null;
-      } finally {
-        if (!valid) {
-          current.values().forEach(PackContribution::release);
-        }
+      return verifyBaseline(current, verifier, miss);
+    }
+    if (Files.isRegularFile(file)) {
+      return readRecord(file, fingerprint, verifier, miss);
+    }
+    miss.accept("no previous contribution");
+    return null;
+  }
+
+  /**
+   * Verifies an already-retained baseline and releases it if it cannot be reused.
+   * Retaining happens under the baseline monitor before this method is called.
+   *
+   * @param current retained baseline with a matching callback fingerprint.
+   * @param verifier verifies the recorded native inputs.
+   * @param miss reports why verification failed.
+   * @return retained baseline, or {@code null} when its inputs no longer match.
+   */
+  @Nullable
+  private static Batch verifyBaseline(Batch current, CacheObservations verifier, Consumer<String> miss) {
+    boolean valid = false;
+    try {
+      valid = verifier.matches(current.observations());
+      if (!valid) {
+        miss.accept("observed inputs changed or could not be verified");
+      }
+      return valid ? current : null;
+    } finally {
+      if (!valid) {
+        current.values().forEach(PackContribution::release);
       }
     }
-    if (!Files.isRegularFile(file)) {
-      miss.accept("no previous contribution");
-      return null;
-    }
+  }
+
+  /**
+   * Reads one persisted record while owning all partially decoded contributions.
+   * Reports failures after the streams close and releases unaccepted backing afterward.
+   *
+   * @param file existing cache record.
+   * @param fingerprint expected callback fingerprint.
+   * @param verifier verifies the recorded native inputs.
+   * @param miss reports why the record could not be reused.
+   * @return decoded batch, or {@code null} when the record is unusable.
+   */
+  @Nullable
+  private static Batch readRecord(Path file, String fingerprint, CacheObservations verifier, Consumer<String> miss) {
     List<PackContribution> values = new ArrayList<>();
     boolean accepted = false;
     try {
@@ -362,42 +405,35 @@ final class CallbackCache {
       }
       var digest = CacheObservations.digest();
       try (var source = new DigestInputStream(new BufferedInputStream(Files.newInputStream(file)), digest); var input = new DataInputStream(source)) {
-        if (input.readInt() != FORMAT) {
-          miss.accept("cache format changed");
+        if (input.readInt() == FORMAT) {
+          String revision = input.readUTF();
+          synchronized (LATEST) {
+            if (LATEST.containsKey(file) && !revision.equals(LATEST.get(file))) {
+              miss.accept("a newer contribution superseded the cache record");
+              return null;
+            }
+          }
+          boolean fingerprintChanged = !fingerprint.equals(input.readUTF());
+          var observations = new LinkedHashMap<CacheObservations.Request, String>();
+          if (!fingerprintChanged && readObservations(input, verifier, observations, miss)) {
+            for (int remaining = count(input); remaining > 0; remaining--) {
+              Identifier id = Identifier.parse(input.readUTF());
+              values.add(readContribution(input, id));
+            }
+            source.on(false);
+            if (MessageDigest.isEqual(digest.digest(), input.readNBytes(32)) && input.read() == -1) {
+              accepted = true;
+              return new Batch(revision, fingerprint, observations, List.copyOf(values));
+            }
+            throw new IOException("Cache record checksum mismatch");
+          }
+          if (fingerprintChanged) {
+            miss.accept("callback fingerprint changed");
+          }
           return null;
         }
-        String revision = input.readUTF();
-        synchronized (LATEST) {
-          if (LATEST.containsKey(file) && !revision.equals(LATEST.get(file))) {
-            miss.accept("a newer contribution superseded the cache record");
-            return null;
-          }
-        }
-        if (!fingerprint.equals(input.readUTF())) {
-          miss.accept("callback fingerprint changed");
-          return null;
-        }
-        var observations = new LinkedHashMap<CacheObservations.Request, String>();
-        var verification = verifier.verification();
-        for (int remaining = count(input); remaining > 0; remaining--) {
-          var request = readRequest(input);
-          String saved = input.readUTF();
-          if (!saved.equals(verification.fingerprint(request))) {
-            miss.accept("observed inputs changed or could not be verified");
-            return null;
-          }
-          observations.put(request, saved);
-        }
-        for (int remaining = count(input); remaining > 0; remaining--) {
-          Identifier id = Identifier.parse(input.readUTF());
-          values.add(readContribution(input, id));
-        }
-        source.on(false);
-        if (!MessageDigest.isEqual(digest.digest(), input.readNBytes(32)) || input.read() != -1) {
-          throw new IOException("Cache record checksum mismatch");
-        }
-        accepted = true;
-        return new Batch(revision, fingerprint, observations, List.copyOf(values));
+        miss.accept("cache format changed");
+        return null;
       }
     } catch (IOException | RuntimeException failure) {
       miss.accept("cache record could not be read");
@@ -408,6 +444,31 @@ final class CallbackCache {
         values.forEach(PackContribution::release);
       }
     }
+  }
+
+  /**
+   * Reads and verifies observations until the first mismatch.
+   * Keeps the approved mismatch guard and avoids opening verification for a changed callback fingerprint.
+   *
+   * @param input open record stream positioned at the observation count.
+   * @param verifier verifies each recorded input against the current snapshot.
+   * @param observations receives verified input fingerprints.
+   * @param miss reports a mismatched or unavailable input.
+   * @return whether all recorded observations match.
+   * @throws IOException if the observation data cannot be decoded.
+   */
+  private static boolean readObservations(DataInputStream input, CacheObservations verifier, Map<CacheObservations.Request, String> observations, Consumer<String> miss) throws IOException {
+    var verification = verifier.verification();
+    for (int remaining = count(input); remaining > 0; remaining--) {
+      var request = readRequest(input);
+      String saved = input.readUTF();
+      if (!saved.equals(verification.fingerprint(request))) {
+        miss.accept("observed inputs changed or could not be verified");
+        return false;
+      }
+      observations.put(request, saved);
+    }
+    return true;
   }
 
   /**
@@ -537,37 +598,48 @@ final class CallbackCache {
         }
       }
     }
-    if (!persistent) {
-      return;
-    }
-    if (batch != null && !hit) {
-      batch.values().forEach(PackContribution::retain);
-    }
-    try {
-      WRITER.execute(() -> {
-        try {
-          synchronized (LATEST) {
-            if (!revision.equals(LATEST.get(file))) {
-              return;
-            }
-          }
-          if (hit) {
-            touch(file, revision);
-          } else if (batch == null) {
-            Files.deleteIfExists(file);
-          } else {
-            write(file, batch);
-          }
-        } catch (IOException | RuntimeException failure) {
-          Constants.LOGGER.error("Unable to persist generated pack cache {}", file, failure);
-        } finally {
-          if (batch != null && !hit) {
-            batch.values().forEach(PackContribution::release);
-          }
+    if (persistent) {
+      if (batch != null && !hit) {
+        batch.values().forEach(PackContribution::retain);
+      }
+      try {
+        WRITER.execute(() -> persist(file, batch, hit, revision));
+      } catch (RejectedExecutionException busy) {
+        Constants.LOGGER.debug("Pack cache writer is busy, skipping persistence of {}", file);
+        if (batch != null && !hit) {
+          batch.values().forEach(PackContribution::release);
         }
-      });
-    } catch (RejectedExecutionException busy) {
-      Constants.LOGGER.debug("Pack cache writer is busy, skipping persistence of {}", file);
+      }
+    }
+  }
+
+  /**
+   * Persists the current revision and releases the writer's retained ownership of a newly generated batch.
+   * The caller retains the batch before scheduling, and file I/O runs outside the baseline monitor.
+   *
+   * @param file cache record path.
+   * @param batch validated batch, or {@code null} when the persisted result must be removed.
+   * @param hit whether the batch was reused and needs only its access time refreshed.
+   * @param revision applied revision that must still be current.
+   */
+  private static void persist(Path file, @Nullable Batch batch, boolean hit, String revision) {
+    try {
+      boolean currentRevision;
+      synchronized (LATEST) {
+        currentRevision = revision.equals(LATEST.get(file));
+      }
+      if (currentRevision) {
+        if (hit) {
+          touch(file, revision);
+        } else if (batch == null) {
+          Files.deleteIfExists(file);
+        } else {
+          write(file, batch);
+        }
+      }
+    } catch (IOException | RuntimeException failure) {
+      Constants.LOGGER.error("Unable to persist generated pack cache {}", file, failure);
+    } finally {
       if (batch != null && !hit) {
         batch.values().forEach(PackContribution::release);
       }
@@ -582,19 +654,18 @@ final class CallbackCache {
    * @throws IOException if the underlying I/O operation fails.
    */
   private static void touch(Path file, String revision) throws IOException {
-    if (!Files.isRegularFile(file)) {
-      return;
-    }
-    long now = System.currentTimeMillis();
-    if (now - Files.getLastModifiedTime(file).toMillis() < ACCESS_REFRESH_MILLIS) {
-      return;
-    }
-    try (var input = new DataInputStream(Files.newInputStream(file))) {
-      if (input.readInt() != FORMAT || !revision.equals(input.readUTF())) {
-        return;
+    if (Files.isRegularFile(file)) {
+      long now = System.currentTimeMillis();
+      if (now - Files.getLastModifiedTime(file).toMillis() >= ACCESS_REFRESH_MILLIS) {
+        boolean matches;
+        try (var input = new DataInputStream(Files.newInputStream(file))) {
+          matches = input.readInt() == FORMAT && revision.equals(input.readUTF());
+        }
+        if (matches) {
+          Files.setLastModifiedTime(file, FileTime.fromMillis(now));
+        }
       }
     }
-    Files.setLastModifiedTime(file, FileTime.fromMillis(now));
   }
 
   /**
@@ -618,76 +689,85 @@ final class CallbackCache {
    * @throws IOException if the underlying I/O operation fails.
    */
   private static void write(Path file, Batch batch) throws IOException {
-    if (batch.bytes() > RECORD_LIMIT) {
-      return;
-    }
-    if (batch.values().size() > ENTRY_LIMIT || batch.observations().size() > ENTRY_LIMIT) {
-      return;
-    }
-    Path directory = Files.createDirectories(file.getParent());
-    Path temporary = Files.createTempFile(directory, "record-" + ProcessHandle.current().pid() + "-", ".tmp");
-    try {
-      var digest = CacheObservations.digest();
-      try (var destination = new DigestOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)), digest); var output = new DataOutputStream(destination)) {
-        output.writeInt(FORMAT);
-        output.writeUTF(batch.revision());
-        output.writeUTF(batch.fingerprint());
-        output.writeInt(batch.observations().size());
-        for (var entry : batch.observations().entrySet()) {
-          writeRequest(output, entry.getKey());
-          output.writeUTF(entry.getValue());
-        }
-        output.writeInt(batch.values().size());
-        for (PackContribution entry : batch.values()) {
-          output.writeUTF(entry.id().toString());
-          switch (entry) {
-            case PackContribution.File fileEntry -> {
-              output.writeByte(0);
-              writeFile(output, fileEntry.contents());
+    if (batch.bytes() <= RECORD_LIMIT && batch.values().size() <= ENTRY_LIMIT && batch.observations().size() <= ENTRY_LIMIT) {
+      Path directory = Files.createDirectories(file.getParent());
+      Path temporary = Files.createTempFile(directory, "record-" + ProcessHandle.current().pid() + "-", ".tmp");
+      try {
+        writeRecord(temporary, batch);
+        if (Files.size(temporary) <= RECORD_LIMIT) {
+          boolean currentRevision;
+          synchronized (LATEST) {
+            currentRevision = batch.revision().equals(LATEST.get(file));
+          }
+          if (currentRevision) {
+            try {
+              Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException _) {
+              Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
             }
-            case PackContribution.Tag tagEntry -> {
-              var tag = tagEntry.addition();
-              output.writeByte(1);
-              int replace = 0;
-              if (tag.replace() != null) {
-                replace = tag.replace() ? 2 : 1;
-              }
-              output.writeByte(replace);
-              writeText(output, TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(tag.entries(), false)).getOrThrow().toString());
-            }
-            case PackContribution.WithMetadata grouped -> {
-              output.writeByte(2);
-              writeFile(output, grouped.contents());
-              output.writeBoolean(grouped.metadata() != null);
-              if (grouped.metadata() != null) {
-                writeFile(output, grouped.metadata());
-              }
-            }
-            case PackContribution.Member member -> {
-              output.writeByte(3);
-              writeText(output, member.name());
-              writeFile(output, member.contents());
-            }
+            evict(directory);
           }
         }
-        destination.on(false);
-        output.write(digest.digest());
+      } finally {
+        Files.deleteIfExists(temporary);
       }
-      if (Files.size(temporary) <= RECORD_LIMIT) {
-        synchronized (LATEST) {
-          if (!batch.revision().equals(LATEST.get(file))) {
-            return;
+    }
+  }
+
+  /**
+   * Serializes a complete cache record and closes its output before the caller validates or publishes it.
+   * The trailing checksum excludes its own bytes from the digest.
+   *
+   * @param temporary temporary record path.
+   * @param batch applied contribution batch to serialize.
+   * @throws IOException if opening, encoding or closing the record fails.
+   */
+  private static void writeRecord(Path temporary, Batch batch) throws IOException {
+    var digest = CacheObservations.digest();
+    try (var destination = new DigestOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)), digest); var output = new DataOutputStream(destination)) {
+      output.writeInt(FORMAT);
+      output.writeUTF(batch.revision());
+      output.writeUTF(batch.fingerprint());
+      output.writeInt(batch.observations().size());
+      for (var entry : batch.observations().entrySet()) {
+        writeRequest(output, entry.getKey());
+        output.writeUTF(entry.getValue());
+      }
+      output.writeInt(batch.values().size());
+      for (PackContribution entry : batch.values()) {
+        output.writeUTF(entry.id().toString());
+        switch (entry) {
+          case PackContribution.File fileEntry -> {
+            output.writeByte(0);
+            writeFile(output, fileEntry.contents());
+          }
+          case PackContribution.Tag tagEntry -> {
+            var tag = tagEntry.addition();
+            output.writeByte(1);
+            int replace = 0;
+            if (tag.replace() != null) {
+              replace = tag.replace() ? 2 : 1;
+            }
+            output.writeByte(replace);
+            writeText(output, TagFile.CODEC.encodeStart(JsonOps.INSTANCE, new TagFile(tag.entries(), false)).getOrThrow().toString());
+          }
+          case PackContribution.WithMetadata grouped -> {
+            output.writeByte(2);
+            writeFile(output, grouped.contents());
+            output.writeBoolean(grouped.metadata() != null);
+            if (grouped.metadata() != null) {
+              writeFile(output, grouped.metadata());
+            }
+          }
+          case PackContribution.Member member -> {
+            output.writeByte(3);
+            writeText(output, member.name());
+            writeFile(output, member.contents());
           }
         }
-        try {
-          Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException _) {
-          Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
-        }
-        evict(directory);
       }
-    } finally {
-      Files.deleteIfExists(temporary);
+      destination.on(false);
+      output.write(digest.digest());
     }
   }
 
@@ -723,14 +803,14 @@ final class CallbackCache {
    */
   private static CacheObservations.Request readRequest(DataInputStream input) throws IOException {
     var kind = CacheObservations.Kind.valueOf(input.readUTF());
-    if (kind != CacheObservations.Kind.CONTENT && kind != CacheObservations.Kind.METADATA) {
-      return new CacheObservations.Request(kind, readText(input));
+    if (kind == CacheObservations.Kind.CONTENT || kind == CacheObservations.Kind.METADATA) {
+      var id = Identifier.parse(input.readUTF());
+      int index = input.readInt();
+      long maxBytes = input.readLong();
+      String directory = input.readBoolean() ? readText(input) : null;
+      return new CacheObservations.Request(kind, new CacheObservations.FileAddress(id, directory, index, maxBytes));
     }
-    var id = Identifier.parse(input.readUTF());
-    int index = input.readInt();
-    long maxBytes = input.readLong();
-    String directory = input.readBoolean() ? readText(input) : null;
-    return new CacheObservations.Request(kind, new CacheObservations.FileAddress(id, directory, index, maxBytes));
+    return new CacheObservations.Request(kind, readText(input));
   }
 
   /**

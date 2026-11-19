@@ -51,7 +51,7 @@ final class PackIO {
     if (input instanceof StageResourceSnapshots.SnapshotStream snapshot) {
       snapshot.initialize(maxBytes);
     } else if (input instanceof PackFile.CapturedStream captured && captured.size() > maxBytes) {
-      throw new IOException("Resource exceeds " + maxBytes + " bytes");
+      throw new IOException(resourceLimitMessage(maxBytes));
     }
   }
 
@@ -76,16 +76,22 @@ final class PackIO {
   static void copy(InputStream input, OutputStream output, long limit) throws IOException {
     byte[] buffer = new byte[8192];
     long remaining = limit;
-    while (true) {
-      int count = input.read(buffer, 0, (int) Math.min(buffer.length, remaining == Long.MAX_VALUE ? remaining : remaining + 1));
-      if (count < 0) {
-        return;
-      }
+    int count;
+    while ((count = input.read(buffer, 0, (int) Math.min(buffer.length, remaining == Long.MAX_VALUE ? remaining : remaining + 1))) >= 0) {
       if (count > remaining) {
-        throw new IOException("Resource exceeds " + limit + " bytes");
+        throw new IOException(resourceLimitMessage(limit));
       }
       output.write(buffer, 0, count);
       remaining -= count;
     }
+  }
+  /**
+   * Formats the shared bounded-resource failure message.
+   *
+   * @param maximum maximum permitted byte count.
+   * @return diagnostic containing the byte limit.
+   */
+  static String resourceLimitMessage(long maximum) {
+    return "Resource exceeds " + maximum + " bytes";
   }
 }

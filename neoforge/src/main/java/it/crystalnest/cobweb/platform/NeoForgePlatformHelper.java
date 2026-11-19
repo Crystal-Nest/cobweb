@@ -1,6 +1,7 @@
 package it.crystalnest.cobweb.platform;
 
 import it.crystalnest.cobweb.api.pack.dependency.VersionRange;
+import it.crystalnest.cobweb.api.pack.dependency.VersionRange.Bound.Inclusion;
 import it.crystalnest.cobweb.platform.model.Platform;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import net.minecraft.server.packs.repository.Pack;
@@ -79,22 +80,36 @@ public final class NeoForgePlatformHelper implements PlatformHelper {
    * @throws IllegalArgumentException if the interval is empty.
    */
   private static boolean matchesVersion(ArtifactVersion actual, VersionRange range) {
-    if (range.exact() != null) {
-      return new DefaultArtifactVersion(range.exact()).compareTo(actual) == 0;
-    }
-    var minimum = range.minimum();
-    var maximum = range.maximum();
+    return switch (range) {
+      case VersionRange.Exact(var version) -> new DefaultArtifactVersion(version).compareTo(actual) == 0;
+      case VersionRange.Interval interval -> matchesInterval(actual, interval);
+    };
+  }
+
+  /**
+   * Evaluates interval endpoints using Maven's native version ordering.
+   *
+   * @param actual version to check.
+   * @param interval interval with one or two endpoints.
+   * @return whether the version is inside the interval.
+   * @throws IllegalArgumentException if the interval is empty.
+   */
+  private static boolean matchesInterval(ArtifactVersion actual, VersionRange.Interval interval) {
+    var minimum = interval.minimum();
+    var maximum = interval.maximum();
     var lower = minimum == null ? null : new DefaultArtifactVersion(minimum.version());
     var upper = maximum == null ? null : new DefaultArtifactVersion(maximum.version());
-    boolean includeLower = minimum != null && minimum.inclusive();
-    boolean includeUpper = maximum != null && maximum.inclusive();
+    boolean includeLower = minimum != null && minimum.inclusion() == Inclusion.INCLUSIVE;
+    boolean includeUpper = maximum != null && maximum.inclusion() == Inclusion.INCLUSIVE;
+    boolean validInterval = true;
     if (lower != null && upper != null) {
       int order = lower.compareTo(upper);
-      if (order > 0 || order == 0 && (!includeLower || !includeUpper)) {
-        throw new IllegalArgumentException("Empty NeoForge version interval: " + range);
-      }
+      validInterval = order < 0 || order == 0 && includeLower && includeUpper;
     }
-    return new Restriction(lower, includeLower, upper, includeUpper).containsVersion(actual);
+    if (validInterval) {
+      return new Restriction(lower, includeLower, upper, includeUpper).containsVersion(actual);
+    }
+    throw new IllegalArgumentException("Empty NeoForge version interval: " + interval);
   }
 
   @Override

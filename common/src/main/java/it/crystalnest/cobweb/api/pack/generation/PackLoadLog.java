@@ -213,7 +213,7 @@ public final class PackLoadLog {
    */
   void cacheMiss(GeneratedPackResources pack, PackGeneration.Task task, String reason) {
     if (Constants.LOGGER.isDebugEnabled()) {
-      Constants.LOGGER.debug("{} cache miss for {} {} in {}: {}", label, task.fileRule() ? "rule" : "callback", task.index(), pack.packId(), reason);
+      Constants.LOGGER.debug("{} cache miss for {} {} in {}: {}", label, task.origin().label(), task.index(), pack.packId(), reason);
     }
   }
 
@@ -223,31 +223,30 @@ public final class PackLoadLog {
    * @param failure native failure, or {@code null} on success.
    */
   void finish(@Nullable Throwable failure) {
-    if (!traced.get() || !finished.compareAndSet(false, true)) {
-      return;
-    }
-    while (failure instanceof CompletionException && failure.getCause() != null) {
-      failure = failure.getCause();
-    }
-    boolean cancelled = failure instanceof CancellationException;
-    String result;
-    if (cancelled) {
-      result = "cancelled";
-    } else if (failure == null) {
-      result = "applied";
-    } else {
-      result = (validationFailed ? "failed validation" : "failed") + " (" + failure.getClass().getSimpleName() + ")";
-    }
-    long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
-    long callbackCount = callbacks.sum();
-    long ruleCount = rules.sum();
-    String counts = "packs=" + packCount + ", callbacks=" + callbackCount + ", rules=" + ruleCount + ", cache hits=" + cacheHits.sum();
-    if (cancelled || failure == null && callbackCount + ruleCount == 0 && !validationFailed) {
-      Constants.LOGGER.debug("{} {} in {} ms ({})", label, result, elapsed, counts);
-    } else if (failure == null) {
-      Constants.LOGGER.info("{} {} in {} ms ({})", label, result, elapsed, counts);
-    } else {
-      Constants.LOGGER.error("{} {} in {} ms ({})", label, result, elapsed, counts);
+    if (traced.get() && finished.compareAndSet(false, true)) {
+      while (failure instanceof CompletionException && failure.getCause() != null) {
+        failure = failure.getCause();
+      }
+      boolean cancelled = failure instanceof CancellationException;
+      String result;
+      if (cancelled) {
+        result = "cancelled";
+      } else if (failure == null) {
+        result = "applied";
+      } else {
+        result = (validationFailed ? "failed validation" : "failed") + " (" + failure.getClass().getSimpleName() + ")";
+      }
+      long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+      long callbackCount = callbacks.sum();
+      long ruleCount = rules.sum();
+      String counts = "packs=" + packCount + ", callbacks=" + callbackCount + ", rules=" + ruleCount + ", cache hits=" + cacheHits.sum();
+      if (cancelled || failure == null && callbackCount + ruleCount == 0 && !validationFailed) {
+        Constants.LOGGER.debug("{} {} in {} ms ({})", label, result, elapsed, counts);
+      } else if (failure == null) {
+        Constants.LOGGER.info("{} {} in {} ms ({})", label, result, elapsed, counts);
+      } else {
+        Constants.LOGGER.error("{} {} in {} ms ({})", label, result, elapsed, counts);
+      }
     }
   }
 }

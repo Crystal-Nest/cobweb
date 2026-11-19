@@ -2,6 +2,7 @@ package it.crystalnest.cobweb.mixin;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import it.crystalnest.cobweb.Constants;
 import it.crystalnest.cobweb.api.pack.selection.DataPackSelection;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -22,7 +23,7 @@ public abstract class DataPackCommandMixin {
    * Localized error for attempts to disable an always-active Cobweb data pack.
    */
   @Unique
-  private static final DynamicCommandExceptionType ERROR_REQUIRED_PACK = new DynamicCommandExceptionType(id -> Component.translatable("commands.cobweb.datapack.disable.required", id));
+  private static final DynamicCommandExceptionType ERROR_REQUIRED_PACK = new DynamicCommandExceptionType(id -> Component.translatable("commands." + Constants.MOD_ID + ".datapack.disable.required", id));
 
   /**
    * Injects at the start of the method {@link DataPackCommand#disablePack(CommandSourceStack, Pack)}.<br>

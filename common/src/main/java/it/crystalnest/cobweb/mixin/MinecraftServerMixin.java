@@ -145,7 +145,7 @@ public abstract class MinecraftServerMixin {
       }
       DynamicPackLoads.Attempt attempt;
       try {
-        attempt = DynamicPackLoads.open(PackType.SERVER_DATA, prepared, LoadKind.RELOAD, server.getWorldPath(LevelResource.ROOT).resolve("cobweb/cache/data"), server.getPackRepository(), log);
+        attempt = DynamicPackLoads.open(PackType.SERVER_DATA, prepared, LoadKind.RELOAD, DynamicPackLoads.worldCache(server.getWorldPath(LevelResource.ROOT)), server.getPackRepository(), log);
       } catch (RuntimeException | Error failure) {
         DynamicPackLoads.closeAfterFailure(prepared, failure);
         return CompletableFuture.failedFuture(failure);

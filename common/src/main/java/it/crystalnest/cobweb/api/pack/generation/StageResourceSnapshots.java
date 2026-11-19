@@ -204,7 +204,7 @@ final class StageResourceSnapshots implements AutoCloseable {
       try {
         var captured = result.join();
         if (captured.content.size() > limit) {
-          throw new IOException("Resource exceeds " + limit + " bytes");
+          throw new IOException(PackIO.resourceLimitMessage(limit));
         }
         return captured;
       } catch (CompletionException failure) {
@@ -276,7 +276,7 @@ final class StageResourceSnapshots implements AutoCloseable {
         captured = capture.open(source, limit);
         input = captured.content.open();
       } else if (captured.content.size() > limit) {
-        throw new IOException("Resource exceeds " + limit + " bytes");
+        throw new IOException(PackIO.resourceLimitMessage(limit));
       }
     }
 

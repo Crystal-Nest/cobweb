@@ -1,7 +1,9 @@
 package it.crystalnest.cobweb.api.pack.delivery;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import it.crystalnest.cobweb.Constants;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Dedicated server asset publication and hosting settings.
@@ -27,7 +30,7 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
   /**
    * Configuration path relative to the dedicated server's working directory.
    */
-  static final Path FILE = Path.of("config", "cobweb-asset-delivery.json");
+  static final Path FILE = Path.of("config", Constants.MOD_ID + "-asset-delivery.json");
 
   /**
    * Reads and validates operator settings, preserving pack order.
@@ -37,48 +40,87 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
    * @throws IOException if the file cannot be read or contains invalid settings.
    */
   static AssetDeliveryConfig read() throws IOException {
-    if (Files.notExists(FILE)) {
-      return new AssetDeliveryConfig(List.of(), Hosting.GAME_PORT, 0, null, null, null);
+    if (!Files.notExists(FILE)) {
+      try (var reader = Files.newBufferedReader(FILE)) {
+        return parse(JsonParser.parseReader(reader).getAsJsonObject());
+      } catch (RuntimeException failure) {
+        throw new IOException("Invalid asset delivery settings in " + FILE, failure);
+      }
     }
-    try (var reader = Files.newBufferedReader(FILE)) {
-      var json = JsonParser.parseReader(reader).getAsJsonObject();
-      var ids = new LinkedHashSet<Identifier>();
-      if (json.has("packs")) {
-        for (var value : json.getAsJsonArray("packs")) {
-          if (!value.getAsJsonPrimitive().isString()) {
-            throw new IllegalArgumentException("Pack IDs must be strings");
-          }
-          String id = value.getAsString();
-          if (id.indexOf(':') < 1 || !ids.add(Identifier.parse(id))) {
-            throw new IllegalArgumentException("Expected a unique namespaced asset pack ID: " + id);
-          }
-        }
-      }
-      String mode = string(json, "hosting");
-      Hosting hosting = switch (mode == null ? "game-port" : mode) {
-        case "game-port" -> Hosting.GAME_PORT;
-        case "separate-port" -> Hosting.SEPARATE_PORT;
-        case "external" -> Hosting.EXTERNAL;
-        default -> throw new IllegalArgumentException("Unknown asset hosting mode " + mode);
-      };
-      int port = json.has("port") ? json.getAsJsonPrimitive("port").getAsBigDecimal().intValueExact() : 0;
-      String bind = string(json, "bind_address");
-      if (hosting == Hosting.SEPARATE_PORT ? port < 1 || port > 65_535 : json.has("port") || bind != null) {
-        throw new IllegalArgumentException("Use port 1 through 65535 and optional bind_address with separate-port hosting");
-      }
+    return new AssetDeliveryConfig(List.of(), Hosting.GAME_PORT, 0, null, null, null);
+  }
+
+  /**
+   * Decodes and validates operator settings without opening the configuration file.
+   *
+   * @param json detached configuration object.
+   * @return validated settings with pack order preserved.
+   * @throws RuntimeException if a configured value is invalid.
+   */
+  private static AssetDeliveryConfig parse(JsonObject json) {
+    var ids = readPackIds(json);
+    String mode = string(json, "hosting");
+    Hosting hosting = switch (mode == null ? "game-port" : mode) {
+      case "game-port" -> Hosting.GAME_PORT;
+      case "separate-port" -> Hosting.SEPARATE_PORT;
+      case "external" -> Hosting.EXTERNAL;
+      default -> throw new IllegalArgumentException("Unknown asset hosting mode " + mode);
+    };
+    int port = json.has("port") ? json.getAsJsonPrimitive("port").getAsBigDecimal().intValueExact() : 0;
+    String bind = string(json, "bind_address");
+    boolean validHosting = hosting == Hosting.SEPARATE_PORT ? port >= 1 && port <= 65_535 : !(json.has("port") || bind != null);
+    if (validHosting) {
       String host = string(json, "public_host");
       if (host != null) {
         httpBase(host, 80);
       }
       String base = string(json, "public_base_url");
       URI url = base == null ? null : publicUrl(base);
-      if (hosting == Hosting.EXTERNAL && url == null) {
-        throw new IllegalArgumentException("External asset hosting requires public_base_url");
+      if (hosting != Hosting.EXTERNAL || url != null) {
+        return new AssetDeliveryConfig(List.copyOf(ids), hosting, port, bind, host, url);
       }
-      return new AssetDeliveryConfig(List.copyOf(ids), hosting, port, bind, host, url);
-    } catch (RuntimeException failure) {
-      throw new IOException("Invalid asset delivery settings in " + FILE, failure);
+      throw new IllegalArgumentException("External asset hosting requires public_base_url");
     }
+    throw new IllegalArgumentException("Use port 1 through 65535 and optional bind_address with separate-port hosting");
+  }
+
+  /**
+   * Collects unique pack identities in their configured order.
+   *
+   * @param json detached configuration object.
+   * @return identities collected from the optional pack list.
+   * @throws RuntimeException if the list or an identity is invalid.
+   */
+  private static LinkedHashSet<Identifier> readPackIds(JsonObject json) {
+    var ids = new LinkedHashSet<Identifier>();
+    if (json.has("packs")) {
+      for (var value : json.getAsJsonArray("packs")) {
+        ids.add(readPackId(value, ids));
+      }
+    }
+    return ids;
+  }
+
+  /**
+   * Reads one namespaced pack identity and checks that it is not already selected.
+   *
+   * @param value configured identity value.
+   * @param previous identities collected from preceding list entries.
+   * @return unique namespaced identity.
+   * @throws RuntimeException if the value is not a unique namespaced string.
+   */
+  private static Identifier readPackId(JsonElement value, Set<Identifier> previous) {
+    if (value.getAsJsonPrimitive().isString()) {
+      String name = value.getAsString();
+      if (name.indexOf(':') >= 1) {
+        Identifier id = Identifier.parse(name);
+        if (!previous.contains(id)) {
+          return id;
+        }
+      }
+      throw new IllegalArgumentException("Expected a unique namespaced asset pack ID: " + name);
+    }
+    throw new IllegalArgumentException("Pack IDs must be strings");
   }
 
   /**
@@ -92,16 +134,16 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
    * @throws IllegalArgumentException if the derived host or port cannot be used.
    */
   URI baseUrl(String host, int gamePort, int advertisedGamePort) {
-    if (publicBaseUrl != null) {
-      return publicBaseUrl;
+    if (publicBaseUrl == null) {
+      int advertisedPort;
+      if (hosting == Hosting.SEPARATE_PORT) {
+        advertisedPort = port;
+      } else {
+        advertisedPort = publicHost == null ? advertisedGamePort : gamePort;
+      }
+      return httpBase(publicHost == null ? host : publicHost, advertisedPort);
     }
-    int advertisedPort;
-    if (hosting == Hosting.SEPARATE_PORT) {
-      advertisedPort = port;
-    } else {
-      advertisedPort = publicHost == null ? advertisedGamePort : gamePort;
-    }
-    return httpBase(publicHost == null ? host : publicHost, advertisedPort);
+    return publicBaseUrl;
   }
 
   /**
@@ -133,8 +175,15 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
    */
   private static URI publicUrl(String text) {
     URI uri = URI.create(text);
-    if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) || uri.getHost() == null || uri.getRawUserInfo() != null
-        || uri.getRawQuery() != null || uri.getRawFragment() != null || uri.getPort() == 0 || uri.getPort() > 65_535) {
+    if (
+      !("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+      || uri.getHost() == null
+      || uri.getRawUserInfo() != null
+      || uri.getRawQuery() != null
+      || uri.getRawFragment() != null
+      || uri.getPort() == 0
+      || uri.getPort() > 65_535
+    ) {
       throw new IllegalArgumentException("public_base_url must be an HTTP(S) base URL without credentials, a query or a fragment");
     }
     return uri.getRawPath().endsWith("/") ? uri : URI.create(uri + "/");
@@ -150,14 +199,14 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
    */
   @Nullable
   private static String string(JsonObject json, String key) {
-    if (!json.has(key)) {
-      return null;
+    if (json.has(key)) {
+      var value = json.getAsJsonPrimitive(key);
+      if (!value.isString() || value.getAsString().isBlank()) {
+        throw new IllegalArgumentException("Expected a nonempty string for " + key);
+      }
+      return value.getAsString();
     }
-    var value = json.getAsJsonPrimitive(key);
-    if (!value.isString() || value.getAsString().isBlank()) {
-      throw new IllegalArgumentException("Expected a nonempty string for " + key);
-    }
-    return value.getAsString();
+    return null;
   }
 
   /**

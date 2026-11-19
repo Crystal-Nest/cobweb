@@ -26,7 +26,7 @@ public final class ModLoader {
   public ModLoader(IEventBus bus, ModContainer mod) {
     String version = mod.getModInfo().getVersion().toString();
     String side = FMLEnvironment.getDist().name();
-    CommonModLoader.logSetup("common setup started", version, Platform.NEOFORGE.toString(), side);
+    CommonModLoader.logSetup(CommonModLoader.COMMON_SETUP_STARTED, version, Platform.NEOFORGE.toString(), side);
     ((NeoForgeRegistryHelper) Services.REGISTRY).register(bus);
     ((NeoForgePackHelper) Services.PACK).register(bus);
     CommonModLoader.logSetup("registration services ready", version, Platform.NEOFORGE.toString(), side);

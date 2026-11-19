@@ -110,18 +110,34 @@ final class NativePackDependencies {
     result.addProperty(kind, id);
     if (range != null) {
       var version = new JsonObject();
-      if (range.exact() != null) {
-        version.addProperty("exact", range.exact());
-      }
-      if (range.minimum() != null) {
-        version.addProperty(range.minimum().inclusive() ? "min" : "min_exclusive", range.minimum().version());
-      }
-      if (range.maximum() != null) {
-        version.addProperty(range.maximum().inclusive() ? "max" : "max_exclusive", range.maximum().version());
+      switch (range) {
+        case VersionRange.Exact(var value) -> version.addProperty("exact", value);
+        case VersionRange.Interval(var minimum, var maximum) -> {
+          writeBound(version, "min", "min_exclusive", minimum);
+          writeBound(version, "max", "max_exclusive", maximum);
+        }
       }
       result.add(VERSION, version);
     }
     return result;
+  }
+
+  /**
+   * Writes one present endpoint using its inclusive or exclusive metadata field.
+   *
+   * @param version destination version object.
+   * @param inclusive field name for an included endpoint.
+   * @param exclusive field name for an excluded endpoint.
+   * @param bound endpoint, or {@code null} for an unbounded side.
+   */
+  private static void writeBound(JsonObject version, String inclusive, String exclusive, @Nullable VersionRange.Bound bound) {
+    if (bound != null) {
+      String key = switch (bound.inclusion()) {
+        case INCLUSIVE -> inclusive;
+        case EXCLUSIVE -> exclusive;
+      };
+      version.addProperty(key, bound.version());
+    }
   }
 
   /**
@@ -135,21 +151,21 @@ final class NativePackDependencies {
    */
   PackInfo info(PackType type, String nativeId, PackMetadataResources resources) {
     var declaration = registrations.packDeclaration(type, nativeId);
-    if (declaration != null) {
-      return new PackInfo(nativeId, declaration.id());
-    }
-    var source = resources.getRootResource("pack.mcmeta");
-    if (source != null) {
-      try (var reader = new InputStreamReader(source.get(), StandardCharsets.UTF_8)) {
-        String id = string(section(reader), "id");
-        if (id != null) {
-          return new PackInfo(nativeId, logicalId(id));
+    if (declaration == null) {
+      var source = resources.getRootResource(PackResources.PACK_META);
+      if (source != null) {
+        try (var reader = new InputStreamReader(source.get(), StandardCharsets.UTF_8)) {
+          String id = string(section(reader), "id");
+          if (id != null) {
+            return new PackInfo(nativeId, logicalId(id));
+          }
+        } catch (IOException | RuntimeException failure) {
+          Constants.LOGGER.debug("Unable to observe logical identity of pack {}", nativeId, failure);
         }
-      } catch (IOException | RuntimeException failure) {
-        Constants.LOGGER.debug("Unable to observe logical identity of pack {}", nativeId, failure);
       }
+      return new PackInfo(nativeId, null);
     }
-    return new PackInfo(nativeId, null);
+    return new PackInfo(nativeId, declaration.id());
   }
 
   /**
@@ -233,7 +249,7 @@ final class NativePackDependencies {
         try (var reader = new InputStreamReader(source.stream().get(), StandardCharsets.UTF_8)) {
           JsonObject section = section(reader);
           if (section.has("id") || section.has(VERSION)) {
-            throw new IllegalArgumentException("Mod root cobweb metadata cannot declare id or version: " + mod);
+            throw new IllegalArgumentException("Mod root " + Constants.MOD_ID + " metadata cannot declare id or version: " + mod);
           }
           if (section.has(REQUIRES)) {
             String previous = owners.putIfAbsent(source.location(), mod);
@@ -266,45 +282,98 @@ final class NativePackDependencies {
    * @throws UncheckedIOException if the metadata cannot be read.
    */
   private Selected discover(PackType type, PackResources resources, Map<String, JsonObject> modSections) {
-    JsonObject metadata = new JsonObject();
-    var root = resources.getRootResource("pack.mcmeta");
-    if (root != null) {
-      try (var reader = new InputStreamReader(root.get(), StandardCharsets.UTF_8)) {
-        metadata = section(reader);
-      } catch (IOException failure) {
-        throw new UncheckedIOException("Unable to read pack metadata of " + resources.packId(), failure);
+    JsonObject metadata;
+    try {
+      metadata = object(PackHelper.readMetadataFile(resources), Constants.MOD_ID);
+    } catch (IOException failure) {
+      throw new UncheckedIOException("Unable to read pack metadata of " + resources.packId(), failure);
+    }
+    String nativeId = resources.packId();
+    var declaration = registrations.packDeclaration(type, nativeId);
+    if (!(declaration == null && !nativeId.startsWith(PackHelper.FILE_PACK_PREFIX) && modSections.containsValue(metadata))) {
+      return readDeclaration(nativeId, metadata, declaration);
+    }
+    return new Selected(null, null, List.of(), List.of());
+  }
+
+  /**
+   * Resolves a pack declaration in validation order and applies Java overrides before decoding inherited requirement lists.
+   *
+   * @param nativeId native pack identity used in diagnostics.
+   * @param metadata pack dependency metadata.
+   * @param declaration registered Java declaration, or {@code null} for an unmanaged pack.
+   * @return effective identity, version and requirements.
+   * @throws IllegalArgumentException if metadata is invalid or conflicts with the registered identity.
+   */
+  private static Selected readDeclaration(String nativeId, JsonObject metadata, @Nullable PackDeclaration declaration) {
+    String version = readPackVersion(nativeId, metadata);
+    JsonObject requires = readPackRequirements(nativeId, metadata);
+    Identifier id = resolvePackId(nativeId, metadata, declaration);
+    if (!(declaration == null || declaration.dependencyVersion() == null)) {
+      if (!(version == null || version.equals(declaration.dependencyVersion()))) {
+        Constants.LOGGER.warn("Using the Java dependency version of {} instead of {}", nativeId, version);
       }
+      version = declaration.dependencyVersion();
     }
-    var java = registrations.packDeclaration(type, resources.packId());
-    if (java == null && !resources.packId().startsWith("file/") && modSections.containsValue(metadata)) {
-      return new Selected(null, null, List.of(), List.of());
-    }
-    String version = string(metadata, VERSION);
-    if (version != null && version.isBlank()) {
-      throw new IllegalArgumentException("Blank pack version for " + resources.packId());
-    }
-    JsonObject requires = object(metadata, REQUIRES);
-    if (requires.has("data_packs") || requires.has("asset_packs")) {
-      throw new IllegalArgumentException("Pack dependencies use packs or mods: " + resources.packId());
-    }
-    String id = string(metadata, "id");
-    Identifier logicalId = id == null ? null : logicalId(id);
-    if (java != null) {
-      if (logicalId != null && !java.id().equals(logicalId)) {
-        throw new IllegalArgumentException("Metadata cannot change the logical ID of " + resources.packId() + " to " + logicalId);
-      }
-      logicalId = java.id();
-      if (java.dependencyVersion() != null) {
-        if (version != null && !version.equals(java.dependencyVersion())) {
-          Constants.LOGGER.warn("Using the Java dependency version of {} instead of {}", resources.packId(), version);
-        }
-        version = java.dependencyVersion();
-      }
-    }
-    List<PackRequirement> packs = java == null ? null : java.requiredPacks();
-    List<ModRequirement> mods = java == null ? null : java.requiredMods();
-    return new Selected(logicalId, version, packs == null ? list(requires, PACKS, NativePackDependencies::requirePack) : packs,
+    List<PackRequirement> packs = declaration == null ? null : declaration.requiredPacks();
+    List<ModRequirement> mods = declaration == null ? null : declaration.requiredMods();
+    return new Selected(id, version, packs == null ? list(requires, PACKS, NativePackDependencies::requirePack) : packs,
       mods == null ? list(requires, "mods", NativePackDependencies::requireMod) : mods);
+  }
+
+  /**
+   * Reads the optional file version before Java overrides are applied.
+   *
+   * @param nativeId native pack identity used in diagnostics.
+   * @param metadata pack dependency metadata.
+   * @return file version, or {@code null} when absent.
+   * @throws IllegalArgumentException if the version is not a string or is blank.
+   */
+  @Nullable
+  private static String readPackVersion(String nativeId, JsonObject metadata) {
+    String version = string(metadata, VERSION);
+    if (version == null || !version.isBlank()) {
+      return version;
+    }
+    throw new IllegalArgumentException("Blank pack version for " + nativeId);
+  }
+
+  /**
+   * Reads the pack requirement container without decoding lists that Java may replace.
+   *
+   * @param nativeId native pack identity used in diagnostics.
+   * @param metadata pack dependency metadata.
+   * @return requirement container, or an empty object when absent.
+   * @throws IllegalArgumentException if the container uses mod-root-only requirement fields.
+   */
+  private static JsonObject readPackRequirements(String nativeId, JsonObject metadata) {
+    JsonObject requires = object(metadata, REQUIRES);
+    if (!(requires.has("data_packs") || requires.has("asset_packs"))) {
+      return requires;
+    }
+    throw new IllegalArgumentException("Pack dependencies use packs or mods: " + nativeId);
+  }
+
+  /**
+   * Resolves the file identity against a registered Java identity.
+   *
+   * @param nativeId native pack identity used in diagnostics.
+   * @param metadata pack dependency metadata.
+   * @param declaration registered Java declaration, or {@code null} for an unmanaged pack.
+   * @return registered identity or file identity, or {@code null} when neither exists.
+   * @throws IllegalArgumentException if the file identity is invalid or changes the registered identity.
+   */
+  @Nullable
+  private static Identifier resolvePackId(String nativeId, JsonObject metadata, @Nullable PackDeclaration declaration) {
+    String value = string(metadata, "id");
+    Identifier id = value == null ? null : logicalId(value);
+    if (declaration != null) {
+      if (id == null || declaration.id().equals(id)) {
+        return declaration.id();
+      }
+      throw new IllegalArgumentException("Metadata cannot change the logical ID of " + nativeId + " to " + id);
+    }
+    return id;
   }
 
   /**
@@ -367,14 +436,14 @@ final class NativePackDependencies {
    */
   @Nullable
   private static String string(JsonObject source, String name) {
-    if (!source.has(name)) {
-      return null;
-    }
-    JsonElement value = source.get(name);
-    if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+    if (source.has(name)) {
+      JsonElement value = source.get(name);
+      if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+        return value.getAsString();
+      }
       throw new IllegalArgumentException("Expected a string for " + name);
     }
-    return value.getAsString();
+    return null;
   }
 
   /**
@@ -446,13 +515,17 @@ final class NativePackDependencies {
    */
   @Nullable
   private static VersionRange range(JsonObject entry) {
-    if (!entry.has(VERSION)) {
-      return null;
+    if (entry.has(VERSION)) {
+      var version = entry.getAsJsonObject(VERSION);
+      VersionRange.Bound minimum = bound(version, "min", "min_exclusive");
+      VersionRange.Bound maximum = bound(version, "max", "max_exclusive");
+      String exact = string(version, "exact");
+      if (exact == null || minimum == null && maximum == null) {
+        return exact == null ? VersionRange.interval(minimum, maximum) : VersionRange.exact(exact);
+      }
+      throw new IllegalArgumentException("An exact version cannot also declare interval bounds");
     }
-    var version = entry.getAsJsonObject(VERSION);
-    VersionRange.Bound lower = bound(version, "min", "min_exclusive");
-    VersionRange.Bound upper = bound(version, "max", "max_exclusive");
-    return new VersionRange(string(version, "exact"), lower, upper);
+    return null;
   }
 
   /**
@@ -466,15 +539,15 @@ final class NativePackDependencies {
    */
   @Nullable
   private static VersionRange.Bound bound(JsonObject version, String inclusive, String exclusive) {
-    if (version.has(inclusive) && version.has(exclusive)) {
-      throw new IllegalArgumentException("Conflicting version bounds: " + inclusive + " and " + exclusive);
+    if (!(version.has(inclusive) && version.has(exclusive))) {
+      String included = string(version, inclusive);
+      String excluded = string(version, exclusive);
+      if (included == null) {
+        return excluded == null ? null : VersionRange.Bound.exclusive(excluded);
+      }
+      return VersionRange.Bound.inclusive(included);
     }
-    String lower = string(version, inclusive);
-    String upper = string(version, exclusive);
-    if (lower != null) {
-      return new VersionRange.Bound(lower, true);
-    }
-    return upper == null ? null : new VersionRange.Bound(upper, false);
+    throw new IllegalArgumentException("Conflicting version bounds: " + inclusive + " and " + exclusive);
   }
 
   /**

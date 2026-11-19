@@ -32,7 +32,7 @@ public final class PackExportCommand {
    * @param dispatcher native command dispatcher.
    */
   public static void registerServer(CommandDispatcher<CommandSourceStack> dispatcher) {
-    dispatcher.register(Commands.literal("cobweb").then(Commands.literal("export").requires(PackExportCommand::canExport).then(Commands.argument("pack", IdentifierArgument.id()).executes(context -> {
+    dispatcher.register(Commands.literal(Constants.MOD_ID).then(Commands.literal("export").requires(PackExportCommand::canExport).then(Commands.argument("pack", IdentifierArgument.id()).executes(context -> {
       var source = context.getSource();
       var server = source.getServer();
       var pack = PackReference.logical(IdentifierArgument.getId(context, "pack"));
@@ -50,7 +50,7 @@ public final class PackExportCommand {
    * @param <S> loader's command source type.
    */
   public static <S> void registerClient(CommandDispatcher<S> dispatcher, Executor clientThread, BiConsumer<S, Component> success, BiConsumer<S, Component> failure) {
-    dispatcher.register(LiteralArgumentBuilder.<S>literal("cobweb-export-assets").then(RequiredArgumentBuilder.<S, Identifier>argument("pack", IdentifierArgument.id()).executes(context -> {
+    dispatcher.register(LiteralArgumentBuilder.<S>literal(Constants.MOD_ID + "-export-assets").then(RequiredArgumentBuilder.<S, Identifier>argument("pack", IdentifierArgument.id()).executes(context -> {
       var source = context.getSource();
       var pack = PackReference.logical(context.getArgument("pack", Identifier.class));
       return export(PackQueries.client(), pack, clientThread, message -> success.accept(source, message), message -> failure.accept(source, message));
@@ -70,10 +70,10 @@ public final class PackExportCommand {
   private static int export(PackQueries target, PackReference.Logical pack, Executor feedbackThread, Consumer<Component> success, Consumer<Component> failure) {
     PackExports.export(target, pack).whenComplete((directory, error) -> feedbackThread.execute(() -> {
       if (error == null) {
-        success.accept(Component.translatable("commands.cobweb.export.success", directory.getFileName().toString()));
+        success.accept(Component.translatable("commands." + Constants.MOD_ID + ".export.success", directory.getFileName().toString()));
       } else {
         Constants.LOGGER.error("Unable to export {}", pack.id(), error);
-        failure.accept(Component.translatable("commands.cobweb.export.failed", pack.id().toString()));
+        failure.accept(Component.translatable("commands." + Constants.MOD_ID + ".export.failed", pack.id().toString()));
       }
     }));
     return 1;

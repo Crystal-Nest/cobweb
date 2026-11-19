@@ -72,10 +72,10 @@ public final class PackQueries {
       case APPLIED -> snapshot.applied();
       case EDITED_SELECTED -> snapshot.edited();
     };
-    if (packs == null) {
-      return PackStatus.UNAVAILABLE;
+    if (packs != null) {
+      return packs.stream().anyMatch(pack -> pack.matches(reference)) ? PackStatus.YES : PackStatus.NO;
     }
-    return packs.stream().anyMatch(pack -> pack.matches(reference)) ? PackStatus.YES : PackStatus.NO;
+    return PackStatus.UNAVAILABLE;
   }
 
   /**
@@ -103,20 +103,21 @@ public final class PackQueries {
    */
   public OptionalInt position(PackReference reference, PackOrder order) {
     var observed = order(order);
-    if (observed.isEmpty()) {
-      return OptionalInt.empty();
-    }
-    var packs = observed.get();
-    int found = -1;
-    for (int index = 0; index < packs.size(); index++) {
-      if (packs.get(index).matches(reference)) {
-        if (found >= 0) {
-          return OptionalInt.empty();
+    if (!observed.isEmpty()) {
+      var packs = observed.get();
+      int found = -1;
+      boolean unique = true;
+      for (int index = 0; unique && index < packs.size(); index++) {
+        if (packs.get(index).matches(reference)) {
+          unique = found < 0;
+          if (unique) {
+            found = index;
+          }
         }
-        found = index;
       }
+      return unique && found >= 0 ? OptionalInt.of(found) : OptionalInt.empty();
     }
-    return found < 0 ? OptionalInt.empty() : OptionalInt.of(found);
+    return OptionalInt.empty();
   }
 
   /**

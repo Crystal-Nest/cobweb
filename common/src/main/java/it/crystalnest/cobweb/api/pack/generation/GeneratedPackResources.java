@@ -347,18 +347,17 @@ final class GeneratedPackResources implements PackResources {
    * @param additions changed files by ID, with {@code null} values indicating removals.
    */
   synchronized void publish(Map<Identifier, File> additions) {
-    if (closed) {
-      return;
+    if (!closed) {
+      Map<Identifier, File> combined = new HashMap<>(files);
+      additions.forEach((id, file) -> {
+        if (file == null) {
+          combined.remove(id);
+        } else {
+          combined.put(id, file);
+        }
+      });
+      files = Map.copyOf(combined);
     }
-    Map<Identifier, File> combined = new HashMap<>(files);
-    additions.forEach((id, file) -> {
-      if (file == null) {
-        combined.remove(id);
-      } else {
-        combined.put(id, file);
-      }
-    });
-    files = Map.copyOf(combined);
   }
 
   @Override
@@ -432,17 +431,16 @@ final class GeneratedPackResources implements PackResources {
 
   @Override
   public synchronized void close() {
-    if (closed) {
-      return;
-    }
-    closed = true;
-    files = Map.of();
-    owned.close();
-    if (ownsBundles && bundles != null) {
-      bundles.release();
-    }
-    if (attempt != null) {
-      attempt.markClosed();
+    if (!closed) {
+      closed = true;
+      files = Map.of();
+      owned.close();
+      if (ownsBundles && bundles != null) {
+        bundles.release();
+      }
+      if (attempt != null) {
+        attempt.markClosed();
+      }
     }
   }
 
@@ -455,11 +453,11 @@ final class GeneratedPackResources implements PackResources {
    */
   @Nullable
   IoSupplier<InputStream> bundledFile(Identifier id, StageResourceSnapshots snapshots) {
-    if (bundles == null || bundles.base == null) {
-      return null;
+    if (!(bundles == null || bundles.base == null)) {
+      var base = bundles.base.pack();
+      return snapshots.wrap(base, type, id, base.getResource(type, id));
     }
-    var base = bundles.base.pack();
-    return snapshots.wrap(base, type, id, base.getResource(type, id));
+    return null;
   }
 
   /**
@@ -495,15 +493,15 @@ final class GeneratedPackResources implements PackResources {
 
     @Override
     public @NonNull Set<String> getNamespaces(@NonNull PackType type) {
-      if (type != GeneratedPackResources.this.type) {
-        return Set.of();
+      if (type == GeneratedPackResources.this.type) {
+        var namespaces = new HashSet<>(rules.namespaces());
+        if (definition != null && definition.generation().generates()) {
+          namespaces.addAll(definition.generation().namespaces);
+        }
+        files.keySet().forEach(id -> namespaces.add(id.getNamespace()));
+        return namespaces;
       }
-      var namespaces = new HashSet<>(rules.namespaces());
-      if (definition != null && definition.generation().generates()) {
-        namespaces.addAll(definition.generation().namespaces);
-      }
-      files.keySet().forEach(id -> namespaces.add(id.getNamespace()));
-      return namespaces;
+      return Set.of();
     }
 
     @Override

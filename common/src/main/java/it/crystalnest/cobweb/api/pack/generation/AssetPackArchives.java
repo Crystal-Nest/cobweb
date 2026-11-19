@@ -194,7 +194,7 @@ public final class AssetPackArchives {
           Files.move(staging, destination, StandardCopyOption.REPLACE_EXISTING);
         }
       }
-      var uuid = UUID.nameUUIDFromBytes(("cobweb:published-assets/" + id).getBytes(StandardCharsets.UTF_8));
+      var uuid = UUID.nameUUIDFromBytes((Constants.MOD_ID + ":published-assets/" + id).getBytes(StandardCharsets.UTF_8));
       return new CachedArchive(CacheObservations.hex(contentHash), new Archive(id, uuid, address, HexFormat.of().formatHex(sha1.digest()), destination, size));
     } finally {
       Files.deleteIfExists(staging);
@@ -234,14 +234,14 @@ public final class AssetPackArchives {
    * @throws IOException if the underlying I/O operation fails.
    */
   private static boolean intact(Archive archive, BooleanSupplier current) throws IOException {
-    if (!Files.isRegularFile(archive.path(), LinkOption.NOFOLLOW_LINKS) || Files.size(archive.path()) != archive.size()) {
-      return false;
+    if (Files.isRegularFile(archive.path(), LinkOption.NOFOLLOW_LINKS) && Files.size(archive.path()) == archive.size()) {
+      var digest = CacheObservations.digest();
+      try (var input = Files.newInputStream(archive.path(), LinkOption.NOFOLLOW_LINKS)) {
+        copy(input, new DigestOutputStream(OutputStream.nullOutputStream(), digest), current);
+      }
+      return archive.address().equals(CacheObservations.hex(digest));
     }
-    var digest = CacheObservations.digest();
-    try (var input = Files.newInputStream(archive.path(), LinkOption.NOFOLLOW_LINKS)) {
-      copy(input, new DigestOutputStream(OutputStream.nullOutputStream(), digest), current);
-    }
-    return archive.address().equals(CacheObservations.hex(digest));
+    return false;
   }
 
   /**
@@ -254,13 +254,14 @@ public final class AssetPackArchives {
    */
   private static void copy(InputStream input, OutputStream output, BooleanSupplier current) throws IOException {
     byte[] buffer = new byte[8192];
-    while (true) {
+    boolean reading = true;
+    while (reading) {
       checkCurrent(current);
       int count = input.read(buffer);
-      if (count < 0) {
-        return;
+      reading = count >= 0;
+      if (reading) {
+        output.write(buffer, 0, count);
       }
-      output.write(buffer, 0, count);
     }
   }
 

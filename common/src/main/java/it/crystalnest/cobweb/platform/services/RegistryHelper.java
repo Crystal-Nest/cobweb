@@ -34,6 +34,11 @@ import java.util.function.Supplier;
  */
 public abstract class RegistryHelper<T extends CobwebRegister<?>> {
   /**
+   * Prefix for native duplicate-registry diagnostics on both loaders.
+   */
+  protected static final String REGISTRY_EXISTS = "Registry already exists: ";
+
+  /**
    * Map linking all mods that use the API to all the registries they use.<br>
    * Used to avoid creating and registering multiple instances of the same register.
    */
@@ -232,10 +237,10 @@ public abstract class RegistryHelper<T extends CobwebRegister<?>> {
    */
   public CobwebRegister.DataComponents ofDataComponents(ResourceKey<Registry<DataComponentType<?>>> registryKey, String namespace) {
     CobwebRegister<DataComponentType<?>> register = of(registryKey, namespace);
-    if (register instanceof CobwebRegister.DataComponents components) {
-      return components;
+    if (!(register instanceof CobwebRegister.DataComponents components)) {
+      return componentRegisters.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> new ComponentRegister(register));
     }
-    return componentRegisters.computeIfAbsent(namespace, key -> new ConcurrentHashMap<>()).computeIfAbsent(registryKey.identifier(), key -> new ComponentRegister(register));
+    return components;
   }
 
   /**

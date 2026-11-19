@@ -122,12 +122,12 @@ public final class DataGenerationResources {
    * @throws IOException if the structure cannot be read.
    */
   public Optional<CompoundTag> structure(Identifier id, NbtAccounter budget) throws IOException {
-    var file = context.resources().get(id.withPath(path -> "structure/" + path + ".nbt"));
-    if (file.isEmpty()) {
-      return Optional.empty();
+    var file = context.resources().get(PackPaths.structure(id));
+    if (!file.isEmpty()) {
+      try (var input = file.get().open()) {
+        return Optional.of(NbtIo.readCompressed(input, budget));
+      }
     }
-    try (var input = file.get().open()) {
-      return Optional.of(NbtIo.readCompressed(input, budget));
-    }
+    return Optional.empty();
   }
 }

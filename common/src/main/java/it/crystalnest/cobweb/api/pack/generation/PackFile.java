@@ -148,7 +148,7 @@ final class PackFile {
       throw new IOException("Pack file has already been released");
     }
     if (size > PackIO.captureLimit()) {
-      throw new IOException("Resource exceeds " + PackIO.captureLimit() + " bytes");
+      throw new IOException(PackIO.resourceLimitMessage(PackIO.captureLimit()));
     }
     InputStream input = path == null ? new ByteArrayInputStream(bytes) : Files.newInputStream(path);
     leases++;
@@ -267,7 +267,7 @@ final class PackFile {
    */
   private static synchronized Path scratchDirectory() throws IOException {
     if (scratchDirectory == null) {
-      var root = Files.createDirectories(Path.of("cobweb", "scratch").toAbsolutePath().normalize());
+      var root = Files.createDirectories(Path.of(Constants.MOD_ID, "scratch").toAbsolutePath().normalize());
       scratchDirectory = Files.createTempDirectory(root, "session-" + ProcessHandle.current().pid() + "-");
       Thread.ofVirtual().name("Cobweb scratch cleanup").start(() -> cleanAbandoned(root));
     }
@@ -283,21 +283,31 @@ final class PackFile {
     try (var paths = Files.list(root)) {
       for (var path : paths.toList()) {
         var name = SESSION_DIRECTORY.matcher(path.getFileName().toString());
-        if (path.normalize().startsWith(root) && name.matches() && Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
-          && ProcessHandle.of(Long.parseLong(name.group(1))).filter(ProcessHandle::isAlive).isEmpty()) {
-          try (var files = Files.newDirectoryStream(path, "resource-*.bin")) {
-            for (var file : files) {
-              if (file.normalize().startsWith(path) && Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
-                delete(file);
-              }
-            }
-          }
-          delete(path);
+        if (path.normalize().startsWith(root) && name.matches() && Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) && ProcessHandle.of(Long.parseLong(name.group(1))).filter(ProcessHandle::isAlive).isEmpty()) {
+          cleanSession(path);
         }
       }
     } catch (IOException | RuntimeException failure) {
       Constants.LOGGER.error("Unable to clean abandoned pack scratch storage under {}", root, failure);
     }
+  }
+
+  /**
+   * Removes ordinary resource files from a confirmed abandoned session and attempts to remove its directory.
+   * Nested directories, symbolic links and unrelated files remain untouched.
+   *
+   * @param path abandoned session directory already checked against the scratch root and its process ID.
+   * @throws IOException if the session directory cannot be enumerated.
+   */
+  private static void cleanSession(Path path) throws IOException {
+    try (var files = Files.newDirectoryStream(path, "resource-*.bin")) {
+      for (var file : files) {
+        if (file.normalize().startsWith(path) && Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+          delete(file);
+        }
+      }
+    }
+    delete(path);
   }
 
   /**

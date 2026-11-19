@@ -51,11 +51,11 @@ final class PackFileOwner implements AutoCloseable {
    */
   void keep(Set<PackFile> visible) {
     files.removeIf(file -> {
-      if (visible.contains(file)) {
-        return false;
+      if (!visible.contains(file)) {
+        file.release();
+        return true;
       }
-      file.release();
-      return true;
+      return false;
     });
   }
 

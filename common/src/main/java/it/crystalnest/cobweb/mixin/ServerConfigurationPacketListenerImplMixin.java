@@ -66,15 +66,15 @@ public abstract class ServerConfigurationPacketListenerImplMixin extends ServerC
   private Optional<MinecraftServer.ServerResourcePackInfo> wrapGetServerResourcePack(MinecraftServer instance, Operation<Optional<MinecraftServer.ServerResourcePackInfo>> original) {
     var configured = original.call(instance);
     var delivery = AssetDelivery.get(instance);
-    if (delivery == null || !(instance instanceof DedicatedServer dedicated)) {
-      return configured;
+    if (delivery != null && instance instanceof DedicatedServer dedicated) {
+      var properties = ((SettingsAccessor) (Object) dedicated.getProperties()).getProperties();
+      boolean required = configured.map(MinecraftServer.ServerResourcePackInfo::isRequired).orElseGet(() -> Boolean.parseBoolean(properties.getProperty("require-resource-pack")));
+      var prompt = configured.isPresent() ? configured.get().prompt() : DedicatedServerPropertiesAccessor.invokeParseResourcePackPrompt(properties.getProperty("resource-pack-prompt", ""));
+      assetDeliveryTask = new AssetDeliveryTask(delivery, ((ConnectionAccessor) connection).getDeliveryChannel(), required, prompt, configured, this::disconnect);
+      configurationTasks.add(assetDeliveryTask);
+      return Optional.empty();
     }
-    var properties = ((SettingsAccessor) (Object) dedicated.getProperties()).getProperties();
-    boolean required = configured.map(MinecraftServer.ServerResourcePackInfo::isRequired).orElseGet(() -> Boolean.parseBoolean(properties.getProperty("require-resource-pack")));
-    var prompt = configured.isPresent() ? configured.get().prompt() : DedicatedServerPropertiesAccessor.invokeParseResourcePackPrompt(properties.getProperty("resource-pack-prompt", ""));
-    assetDeliveryTask = new AssetDeliveryTask(delivery, ((ConnectionAccessor) connection).getDeliveryChannel(), required, prompt, configured, this::disconnect);
-    configurationTasks.add(assetDeliveryTask);
-    return Optional.empty();
+    return configured;
   }
 
   /**

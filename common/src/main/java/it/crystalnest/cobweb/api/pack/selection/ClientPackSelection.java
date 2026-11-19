@@ -50,7 +50,7 @@ public final class ClientPackSelection {
    * @param gameDirectory current game directory.
    */
   public static void initialize(Options options, PackRepository repository, Path gameDirectory) {
-    List<String> selection = AssetPackDiscoveryTracker.process(gameDirectory.resolve("data/cobweb_resource_packs.json"), repository);
+    List<String> selection = AssetPackDiscoveryTracker.process(gameDirectory.resolve("data/" + Constants.MOD_ID + "_resource_packs.json"), repository);
     if (selection != null) {
       repository.setSelected(selection);
     }
@@ -139,7 +139,7 @@ public final class ClientPackSelection {
      */
     private static void write(Path tracker, Set<String> seen) throws IOException {
       Files.createDirectories(tracker.getParent());
-      Path temporary = Files.createTempFile(tracker.getParent(), "cobweb_resource_packs-", ".tmp");
+      Path temporary = Files.createTempFile(tracker.getParent(), Constants.MOD_ID + "_resource_packs-", ".tmp");
       try {
         Files.writeString(temporary, CODEC.encodeStart(JsonOps.INSTANCE, seen).getOrThrow().toString(), StandardCharsets.UTF_8);
         try {

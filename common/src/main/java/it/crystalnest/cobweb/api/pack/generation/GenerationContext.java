@@ -37,6 +37,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class GenerationContext implements CallbackRegistration.CapturedValues {
   /**
+   * Shared prefix for client-asset access failures.
+   */
+  static final String ASSETS_UNAVAILABLE = "Client assets are unavailable in ";
+
+  /**
    * The callback's stable view of resolved resource files.
    */
   private final GenerationResources resources;
@@ -363,7 +368,7 @@ public final class GenerationContext implements CallbackRegistration.CapturedVal
   void checkAssets() {
     checkOpen();
     if (phase.type() != PackType.CLIENT_RESOURCES) {
-      throw new IllegalStateException("Client assets are unavailable in " + phase);
+      throw new IllegalStateException(ASSETS_UNAVAILABLE + phase);
     }
   }
 

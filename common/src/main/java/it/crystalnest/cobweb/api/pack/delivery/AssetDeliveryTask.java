@@ -33,7 +33,7 @@ public final class AssetDeliveryTask implements ConfigurationTask {
   /**
    * Native configuration task type for Cobweb delivery.
    */
-  private static final Type TYPE = new Type("cobweb:asset_packs");
+  private static final Type TYPE = new Type(Constants.MOD_ID + ":asset_packs");
 
   /**
    * Maximum wait for the first complete publication.
@@ -173,9 +173,19 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    */
   @Override
   public boolean tick() {
-    if (phase == Phase.REJECTED || phase == Phase.COMPLETE) {
-      return phase == Phase.COMPLETE;
+    if (!(phase == Phase.REJECTED || phase == Phase.COMPLETE)) {
+      return tickActive();
     }
+    return phase == Phase.COMPLETE;
+  }
+
+  /**
+   * Advances a nonterminal offer through preparation, retry and application deadlines.
+   * Keeps the approved preparation-wait return and the original state-transition order.
+   *
+   * @return whether configuration may continue after this tick.
+   */
+  private boolean tickActive() {
     if (phase == Phase.PREPARING) {
       var publication = delivery.publication();
       if (publication == null && !delivery.unavailable() && Util.getMillis() < deadline) {
@@ -191,15 +201,15 @@ public final class AssetDeliveryTask implements ConfigurationTask {
         publicationUnavailable(failure.getMessage());
       }
     }
-    if (!pending.isEmpty() && Util.getMillis() >= deadline) {
+    if (!(pending.isEmpty() || Util.getMillis() < deadline)) {
       if (required) {
         Constants.LOGGER.error("{} timed out applying required server resource packs {}; disconnecting", label(), pending.values());
         reject(Component.literal("Timed out applying required server resource packs: " + String.join(", ", pending.values())));
-        return false;
+      } else {
+        Constants.LOGGER.error("{}: Timed out applying optional server resource packs {}; allowing join to continue", label(), pending.values());
+        pending.keySet().forEach(id -> send.accept(new ClientboundResourcePackPopPacket(Optional.of(id))));
+        pending.clear();
       }
-      Constants.LOGGER.error("{}: Timed out applying optional server resource packs {}; allowing join to continue", label(), pending.values());
-      pending.keySet().forEach(id -> send.accept(new ClientboundResourcePackPopPacket(Optional.of(id))));
-      pending.clear();
     } else if (pending.isEmpty() && retryableFailure != null) {
       if (Util.getMillis() < deadline) {
         retry();
@@ -227,21 +237,21 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    * @return whether the UUID belongs to this task.
    */
   public boolean receive(ServerboundResourcePackPacket packet) {
-    if (!sent.contains(packet.id())) {
-      return false;
-    }
-    if (packet.action().isTerminal()) {
-      String label = pending.remove(packet.id());
-      if (label != null) {
-        if (Constants.LOGGER.isDebugEnabled()) {
-          Constants.LOGGER.debug("{} received {} for {}", label(), packet.action(), label);
-        }
-        if (packet.action() != Action.SUCCESSFULLY_LOADED) {
-          handleFailure(label, packet.action());
+    if (sent.contains(packet.id())) {
+      if (packet.action().isTerminal()) {
+        String label = pending.remove(packet.id());
+        if (label != null) {
+          if (Constants.LOGGER.isDebugEnabled()) {
+            Constants.LOGGER.debug("{} received {} for {}", label(), packet.action(), label);
+          }
+          if (packet.action() != Action.SUCCESSFULLY_LOADED) {
+            handleFailure(label, packet.action());
+          }
         }
       }
+      return true;
     }
-    return true;
+    return false;
   }
 
   /**
@@ -252,23 +262,23 @@ public final class AssetDeliveryTask implements ConfigurationTask {
    */
   private void handleFailure(String label, Action action) {
     String detail = label + " (" + action + ")";
-    if (retryAllowed && (action == Action.FAILED_DOWNLOAD || action == Action.DISCARDED)) {
+    if (!retryAllowed || action != Action.FAILED_DOWNLOAD && action != Action.DISCARDED) {
+      retryAllowed = false;
+      retryableFailure = null;
+      if (required) {
+        if (action == Action.DECLINED) {
+          Constants.LOGGER.info("{}: required server resource pack {} declined; disconnecting", label(), label);
+        } else {
+          Constants.LOGGER.error("{}: Required server resource pack {} failed with {}; disconnecting", label(), label, action);
+        }
+        reject(action == Action.DECLINED ? Component.translatable("multiplayer.requiredTexturePrompt.disconnect") : packFailure(detail));
+      } else if (action != Action.DECLINED) {
+        Constants.LOGGER.error("{}: Optional server resource pack {} failed with {}; allowing join to continue", label(), label, action);
+      }
+    } else {
       if (retryableFailure == null || action == Action.FAILED_DOWNLOAD) {
         retryableFailure = detail;
       }
-      return;
-    }
-    retryAllowed = false;
-    retryableFailure = null;
-    if (required) {
-      if (action == Action.DECLINED) {
-        Constants.LOGGER.info("{}: required server resource pack {} declined; disconnecting", label(), label);
-      } else {
-        Constants.LOGGER.error("{}: Required server resource pack {} failed with {}; disconnecting", label(), label, action);
-      }
-      reject(action == Action.DECLINED ? Component.translatable("multiplayer.requiredTexturePrompt.disconnect") : packFailure(detail));
-    } else if (action != Action.DECLINED) {
-      Constants.LOGGER.error("{}: Optional server resource pack {} failed with {}; allowing join to continue", label(), label, action);
     }
   }
 

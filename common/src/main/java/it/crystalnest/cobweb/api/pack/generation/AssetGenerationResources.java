@@ -30,7 +30,7 @@ public final class AssetGenerationResources {
    */
   AssetGenerationResources(GenerationContext context) {
     if (context.phase().type() != PackType.CLIENT_RESOURCES) {
-      throw new IllegalStateException("Client assets are unavailable in " + context.phase());
+      throw new IllegalStateException(GenerationContext.ASSETS_UNAVAILABLE + context.phase());
     }
     resources = context.resources();
   }
@@ -46,7 +46,7 @@ public final class AssetGenerationResources {
    */
   public Map<String, String> translations(String namespace, String language) throws IOException {
     Map<String, String> translations = new LinkedHashMap<>();
-    for (var file : resources.stack(Identifier.fromNamespaceAndPath(namespace, "lang/" + language + ".json"))) {
+    for (var file : resources.stack(PackPaths.language(namespace, language))) {
       try (var input = file.open()) {
         Language.loadFromJson(input, translations::put);
       }
@@ -82,14 +82,14 @@ public final class AssetGenerationResources {
    * @throws IOException if the texture or its metadata cannot be read.
    */
   public Optional<Sprite> sprite(Identifier id) throws IOException {
-    var file = resources.get(id.withPath(path -> "textures/" + path + ".png"));
-    if (file.isEmpty()) {
-      return Optional.empty();
+    var file = resources.get(PackPaths.texture(id));
+    if (!file.isEmpty()) {
+      var animation = file.get().metadata(AnimationMetadataSection.TYPE);
+      try (var input = file.get().open()) {
+        return Optional.of(new Sprite(NativeImage.read(input), animation));
+      }
     }
-    var animation = file.get().metadata(AnimationMetadataSection.TYPE);
-    try (var input = file.get().open()) {
-      return Optional.of(new Sprite(NativeImage.read(input), animation));
-    }
+    return Optional.empty();
   }
 
   /**

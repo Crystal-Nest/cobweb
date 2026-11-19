@@ -43,11 +43,6 @@ public final class AssetDelivery implements AutoCloseable {
   private static final long GRACE_MILLIS = Duration.ofMinutes(15).toMillis();
 
   /**
-   * File names eligible for pruning in the publication directory.
-   */
-  private static final Pattern ARCHIVE_FILE = Pattern.compile("[a-f0-9]{64}[.]zip");
-
-  /**
    * Temporary ZIP names eligible for pruning in the staging directory.
    */
   private static final Pattern STAGING_FILE = Pattern.compile("[.]pending-\\d+[.]zip");
@@ -55,12 +50,12 @@ public final class AssetDelivery implements AutoCloseable {
   /**
    * Address advertised by the client during the Minecraft handshake.
    */
-  private static final AttributeKey<InetSocketAddress> INTENTION = AttributeKey.valueOf("cobweb:asset_intention");
+  private static final AttributeKey<InetSocketAddress> INTENTION = AttributeKey.valueOf(Constants.MOD_ID + ":asset_intention");
 
   /**
    * Publication service passed to child channels of the shared Minecraft listener.
    */
-  private static final AttributeKey<AssetDelivery> DELIVERY = AttributeKey.valueOf("cobweb:asset_delivery");
+  private static final AttributeKey<AssetDelivery> DELIVERY = AttributeKey.valueOf(Constants.MOD_ID + ":asset_delivery");
 
   /**
    * Dedicated server whose applied data feeds publication callbacks.
@@ -149,7 +144,7 @@ public final class AssetDelivery implements AutoCloseable {
     this.server = server;
     this.config = config;
     this.packs = packs;
-    directory = server.getWorldPath(LevelResource.ROOT).resolve("cobweb/published-assets").toAbsolutePath().normalize();
+    directory = server.getWorldPath(LevelResource.ROOT).resolve(Constants.MOD_ID + "/published-assets").toAbsolutePath().normalize();
     staging = directory.resolveSibling("published-assets-staging");
     worker = new ScheduledThreadPoolExecutor(1, task -> {
       var thread = new Thread(task, "Cobweb asset publication");
@@ -311,27 +306,32 @@ public final class AssetDelivery implements AutoCloseable {
    */
   private void refresh() {
     long requested;
+    boolean canRefresh;
     synchronized (this) {
-      if (closed) {
-        return;
-      }
-      requested = ++revision;
-      if (pending != null) {
-        pending.cancel(false);
-      }
-      failure = null;
-    }
-    Constants.LOGGER.debug("Asset publication revision #{} requested", requested);
-    try {
-      var build = AssetPackArchives.capture(server, packs, !warned, archiveReuse, () -> current(requested));
-      warned = true;
-      synchronized (this) {
-        if (!closed && revision == requested) {
-          pending = worker.submit(() -> build(requested, build));
+      canRefresh = !closed;
+      if (canRefresh) {
+        requested = ++revision;
+        if (pending != null) {
+          pending.cancel(false);
         }
+        failure = null;
+      } else {
+        requested = revision;
       }
-    } catch (RuntimeException problem) {
-      report(requested, problem);
+    }
+    if (canRefresh) {
+      Constants.LOGGER.debug("Asset publication revision #{} requested", requested);
+      try {
+        var build = AssetPackArchives.capture(server, packs, !warned, archiveReuse, () -> current(requested));
+        warned = true;
+        synchronized (this) {
+          if (!closed && revision == requested) {
+            pending = worker.submit(() -> build(requested, build));
+          }
+        }
+      } catch (RuntimeException problem) {
+        report(requested, problem);
+      }
     }
   }
 
@@ -369,20 +369,19 @@ public final class AssetDelivery implements AutoCloseable {
    * @param archives complete archives in increasing priority.
    */
   private synchronized void publish(long requested, List<AssetPackArchives.Archive> archives) {
-    if (closed || revision != requested) {
-      return;
-    }
-    long retireAt = System.currentTimeMillis() + GRACE_MILLIS;
-    served.values().forEach(entry -> {
-      if (entry.expiresAt == Long.MAX_VALUE) {
-        entry.expiresAt = retireAt;
+    if (!closed && revision == requested) {
+      long retireAt = System.currentTimeMillis() + GRACE_MILLIS;
+      served.values().forEach(entry -> {
+        if (entry.expiresAt == Long.MAX_VALUE) {
+          entry.expiresAt = retireAt;
+        }
+      });
+      for (var archive : archives) {
+        served.computeIfAbsent(archive.address(), address -> new Served(archive)).expiresAt = Long.MAX_VALUE;
       }
-    });
-    for (var archive : archives) {
-      served.computeIfAbsent(archive.address(), address -> new Served(archive)).expiresAt = Long.MAX_VALUE;
+      publication = new Publication(requested, archives);
+      Constants.LOGGER.info("Published {} server asset pack(s) in revision #{}", archives.size(), requested);
     }
-    publication = new Publication(requested, archives);
-    Constants.LOGGER.info("Published {} server asset pack(s) in revision #{}", archives.size(), requested);
   }
 
   /**
@@ -408,11 +407,11 @@ public final class AssetDelivery implements AutoCloseable {
   @Nullable
   synchronized Lease acquire(String address) {
     var entry = served.get(address);
-    if (closed || entry == null || entry.expiresAt <= System.currentTimeMillis()) {
-      return null;
+    if (!(closed || entry == null || entry.expiresAt <= System.currentTimeMillis())) {
+      entry.readers++;
+      return new Lease(entry.archive, () -> release(entry));
     }
-    entry.readers++;
-    return new Lease(entry.archive, () -> release(entry));
+    return null;
   }
 
   /**
@@ -432,7 +431,7 @@ public final class AssetDelivery implements AutoCloseable {
     synchronized (this) {
       served.values().removeIf(entry -> entry.expiresAt <= now && entry.readers == 0);
     }
-    prune(directory, ARCHIVE_FILE, now);
+    prune(directory, AssetPackHttp.ARCHIVE_FILE_NAME, now);
     prune(staging, STAGING_FILE, now);
   }
 
@@ -444,23 +443,22 @@ public final class AssetDelivery implements AutoCloseable {
    * @param now current wall-clock time in milliseconds.
    */
   private void prune(Path folder, Pattern filenames, long now) {
-    if (!Files.isDirectory(folder)) {
-      return;
-    }
-    try (var files = Files.list(folder)) {
-      for (var path : files.filter(candidate -> filenames.matcher(candidate.getFileName().toString()).matches()).toList()) {
-        String name = path.getFileName().toString();
-        String address = name.substring(0, name.length() - 4);
-        boolean eligible;
-        synchronized (this) {
-          eligible = !closed && !served.containsKey(address);
+    if (Files.isDirectory(folder)) {
+      try (var files = Files.list(folder)) {
+        for (var path : files.filter(candidate -> filenames.matcher(candidate.getFileName().toString()).matches()).toList()) {
+          String name = path.getFileName().toString();
+          String address = name.substring(0, name.length() - 4);
+          boolean eligible;
+          synchronized (this) {
+            eligible = !closed && !served.containsKey(address);
+          }
+          if (eligible && Files.getLastModifiedTime(path, LinkOption.NOFOLLOW_LINKS).toMillis() <= now - GRACE_MILLIS) {
+            Files.deleteIfExists(path);
+          }
         }
-        if (eligible && Files.getLastModifiedTime(path, LinkOption.NOFOLLOW_LINKS).toMillis() <= now - GRACE_MILLIS) {
-          Files.deleteIfExists(path);
-        }
+      } catch (IOException | RuntimeException problem) {
+        Constants.LOGGER.error("Unable to prune archived Cobweb assets under {}", folder, problem);
       }
-    } catch (IOException | RuntimeException problem) {
-      Constants.LOGGER.error("Unable to prune archived Cobweb assets under {}", folder, problem);
     }
   }
 

@@ -58,12 +58,12 @@ public final class AssetPublicationOutput {
   public <T> T readBundled(Identifier id, Reader<T> reader) throws IOException {
     checkOpen();
     var resource = resources.getResource(PackType.CLIENT_RESOURCES, id);
-    if (resource == null) {
-      return null;
+    if (resource != null) {
+      try (var input = resource.get()) {
+        return reader.read(input);
+      }
     }
-    try (var input = resource.get()) {
-      return reader.read(input);
-    }
+    return null;
   }
 
   /**
@@ -107,7 +107,7 @@ public final class AssetPublicationOutput {
   public void putTranslations(String namespace, String language, Map<String, String> translations) throws IOException {
     var json = new JsonObject();
     translations.forEach(json::addProperty);
-    putJson(Identifier.fromNamespaceAndPath(namespace, "lang/" + language + ".json"), json);
+    putJson(PackPaths.language(namespace, language), json);
   }
 
   /**

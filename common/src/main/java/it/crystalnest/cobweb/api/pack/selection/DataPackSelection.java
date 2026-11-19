@@ -91,19 +91,19 @@ public final class DataPackSelection {
     List<String> selected = new ArrayList<>(discovered);
     selected.removeIf(id -> {
       PackActivation activation = Services.PACK.activation(PackType.SERVER_DATA, id);
-      if (activation == null || previous.contains(id) || activation == PackActivation.ALWAYS_ACTIVE) {
-        return false;
+      if (!(activation == null || previous.contains(id) || activation == PackActivation.ALWAYS_ACTIVE)) {
+        if (activation == PackActivation.DEFAULT_DISABLED) {
+          Constants.LOGGER.debug("Data pack discovery left {} disabled by default", id);
+          return true;
+        }
+        Pack pack = repository.getPack(id);
+        boolean missingFeatures = !(pack == null || pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures()));
+        if (missingFeatures) {
+          Constants.LOGGER.debug("Data pack discovery left {} disabled because the world lacks its requested features", id);
+        }
+        return missingFeatures;
       }
-      if (activation == PackActivation.DEFAULT_DISABLED) {
-        Constants.LOGGER.debug("Data pack discovery left {} disabled by default", id);
-        return true;
-      }
-      Pack pack = repository.getPack(id);
-      boolean missingFeatures = pack != null && !pack.getRequestedFeatures().isSubsetOf(world.getDataConfiguration().enabledFeatures());
-      if (missingFeatures) {
-        Constants.LOGGER.debug("Data pack discovery left {} disabled because the world lacks its requested features", id);
-      }
-      return missingFeatures;
+      return false;
     });
     return requirePacks(repository, orderNewPacks(repository, selected, previous));
   }

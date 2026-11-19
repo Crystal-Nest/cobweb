@@ -39,7 +39,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
   @Override
   protected <T> void addDataPackRegistry(CobwebDataPackRegistry<T> definition, @Nullable Codec<T> networkCodec) {
     if (BuiltInRegistries.REGISTRY.containsKey(definition.key().identifier())) {
-      throw new IllegalStateException("Registry already exists: " + definition.key().identifier());
+      throw new IllegalStateException(REGISTRY_EXISTS + definition.key().identifier());
     }
     if (definition.lifetime() == CobwebDataPackRegistry.Lifetime.RELOADABLE) {
       DynamicRegistries.registerReloadable(definition.key(), definition.codec());
@@ -65,7 +65,7 @@ public final class FabricRegistryHelper extends RegistryHelper<FabricRegistryHel
     // Validate the entry namespace before mutating the root registry.
     Identifier.fromNamespaceAndPath(namespace, "validation");
     if (BuiltInRegistries.REGISTRY.containsKey(registryKey.identifier())) {
-      throw new IllegalStateException("Registry already exists: " + registryKey.identifier());
+      throw new IllegalStateException(REGISTRY_EXISTS + registryKey.identifier());
     }
     FabricRegistryBuilder<R, ?> builder = settings.defaultKey() == null
       ? FabricRegistryBuilder.create(registryKey)

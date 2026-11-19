@@ -63,11 +63,10 @@ public sealed interface Input permits CapturedInput, Input.Native {
    */
   static Input registry(ResourceKey<? extends Registry<?>> key, CobwebDataPackRegistry.Lifetime lifetime) {
     Objects.requireNonNull(key);
-    if (Objects.requireNonNull(lifetime) == CobwebDataPackRegistry.Lifetime.RELOADABLE) {
-      return RELOADABLE_REGISTRIES;
+    if (Objects.requireNonNull(lifetime) != CobwebDataPackRegistry.Lifetime.RELOADABLE) {
+      return new Native(RegistryDataLoader.DIMENSION_REGISTRIES.stream().anyMatch(data -> data.key().equals(key)) ? Phase.WORLD_CONTEXT_READY : Phase.WORLD_REGISTRIES_READY, Phase.DATA_RESOURCES, false);
     }
-    boolean dimension = RegistryDataLoader.DIMENSION_REGISTRIES.stream().anyMatch(data -> data.key().equals(key));
-    return new Native(dimension ? Phase.WORLD_CONTEXT_READY : Phase.WORLD_REGISTRIES_READY, Phase.DATA_RESOURCES, false);
+    return RELOADABLE_REGISTRIES;
   }
 
   /**

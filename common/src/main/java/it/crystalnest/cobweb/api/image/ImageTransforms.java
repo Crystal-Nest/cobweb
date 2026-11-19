@@ -47,26 +47,26 @@ public final class ImageTransforms {
       requireSameSize(template, mask);
     }
     var source = palette(template, mask);
-    if (source.length == 0) {
-      return transform(template, (x, y, pixel) -> pixel);
-    }
-    var target = palette(reference, null);
-    if (target.length == 0) {
-      throw new IllegalArgumentException("Texture palette has no visible colors");
-    }
-    Map<Integer, Integer> remap = new HashMap<>();
-    for (int index = 0; index < source.length; index++) {
-      // Map both palette endpoints exactly and round intermediate ranks to the nearest target shade.
-      // A single source shade has no range, so choose the lower of the target's middle shades.
-      int rank = source.length == 1 ? (target.length - 1) / 2 : Math.round(index * (target.length - 1F) / (source.length - 1));
-      remap.put(source[index], target[rank]);
-    }
-    return transform(template, (x, y, pixel) -> {
-      if (!eligible(pixel, mask, x, y)) {
-        return pixel;
+    if (source.length > 0) {
+      var target = palette(reference, null);
+      if (target.length == 0) {
+        throw new IllegalArgumentException("Texture palette has no visible colors");
       }
-      return ARGB.color(ARGB.alpha(pixel), remap.get(ARGB.transparent(pixel)));
-    });
+      Map<Integer, Integer> remap = new HashMap<>();
+      for (int index = 0; index < source.length; index++) {
+        // Map both palette endpoints exactly and round intermediate ranks to the nearest target shade.
+        // A single source shade has no range, so choose the lower of the target's middle shades.
+        int rank = source.length == 1 ? (target.length - 1) / 2 : Math.round(index * (target.length - 1F) / (source.length - 1));
+        remap.put(source[index], target[rank]);
+      }
+      return transform(template, (x, y, pixel) -> {
+        if (eligible(pixel, mask, x, y)) {
+          return ARGB.color(ARGB.alpha(pixel), remap.get(ARGB.transparent(pixel)));
+        }
+        return pixel;
+      });
+    }
+    return transform(template, (x, y, pixel) -> pixel);
   }
 
   /**
