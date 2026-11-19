@@ -131,7 +131,6 @@ public sealed interface VersionRange permits VersionRange.Exact, VersionRange.In
        * Accepts the endpoint itself.
        */
       INCLUSIVE,
-
       /**
        * Excludes the endpoint itself.
        */

@@ -58,7 +58,6 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
    * @throws RuntimeException if a configured value is invalid.
    */
   private static AssetDeliveryConfig parse(JsonObject json) {
-    var ids = readPackIds(json);
     String mode = string(json, "hosting");
     Hosting hosting = switch (mode == null ? "game-port" : mode) {
       case "game-port" -> Hosting.GAME_PORT;
@@ -77,7 +76,7 @@ record AssetDeliveryConfig(List<Identifier> packs, Hosting hosting, int port, @N
       String base = string(json, "public_base_url");
       URI url = base == null ? null : publicUrl(base);
       if (hosting != Hosting.EXTERNAL || url != null) {
-        return new AssetDeliveryConfig(List.copyOf(ids), hosting, port, bind, host, url);
+        return new AssetDeliveryConfig(List.copyOf(readPackIds(json)), hosting, port, bind, host, url);
       }
       throw new IllegalArgumentException("External asset hosting requires public_base_url");
     }

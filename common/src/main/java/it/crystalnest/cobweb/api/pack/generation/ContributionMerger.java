@@ -139,7 +139,7 @@ final class ContributionMerger {
    * @return whether the overlapping writes require a warning.
    */
   private static boolean competes(@Nullable Task previous, Task current) {
-    return previous != null && previous != current && (!previous.fileRule() || !current.fileRule());
+    return previous != null && !previous.equals(current) && (!previous.fileRule() || !current.fileRule());
   }
 
   /**

@@ -482,23 +482,29 @@ final class CallbackCache {
   private static PackContribution readContribution(DataInputStream input, Identifier id) throws IOException {
     return switch (input.readUnsignedByte()) {
       case 0 -> PackContribution.file(id, readFile(input));
-      case 1 -> {
-        Boolean replace = switch (input.readByte()) {
-          case 0 -> null;
-          case 1 -> false;
-          case 2 -> true;
-          default -> throw new IOException("Invalid cached tag operation");
-        };
-        var tag = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(readText(input))).getOrThrow();
-        yield PackContribution.tag(id, new GenerationOutput.TagAddition(tag.entries(), replace));
-      }
+      case 1 -> PackContribution.tag(id, readTagAddition(input));
       case 2 -> readWithMetadata(input, id);
-      case 3 -> {
-        String member = readText(input);
-        yield PackContribution.member(id, member, readFile(input));
-      }
+      case 3 -> PackContribution.member(id, readText(input), readFile(input));
       default -> throw new IOException("Invalid cached pack operation");
     };
+  }
+
+  /**
+   * Reads cached tag entries and their optional replacement directive.
+   *
+   * @param input cache record stream positioned at the replacement directive.
+   * @return decoded entries with a replacement directive of {@code null} when unspecified.
+   * @throws IOException if the directive or text length is invalid, the record is truncated, or reading fails.
+   * @throws RuntimeException if the tag JSON cannot be parsed or decoded.
+   */
+  private static GenerationOutput.TagAddition readTagAddition(DataInputStream input) throws IOException {
+    Boolean replace = switch (input.readByte()) {
+      case 0 -> null;
+      case 1 -> false;
+      case 2 -> true;
+      default -> throw new IOException("Invalid cached tag operation");
+    };
+    return new GenerationOutput.TagAddition(TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(readText(input))).getOrThrow().entries(), replace);
   }
 
   /**
@@ -529,10 +535,10 @@ final class CallbackCache {
    */
   private static int count(DataInputStream input) throws IOException {
     int count = input.readInt();
-    if (count < 0 || count > ENTRY_LIMIT) {
-      throw new IOException("Invalid cache entry count");
+    if (count >= 0 && count <= ENTRY_LIMIT) {
+      return count;
     }
-    return count;
+    throw new IOException("Invalid cache entry count");
   }
 
   /**
@@ -544,10 +550,10 @@ final class CallbackCache {
    */
   private static PackFile readFile(DataInputStream input) throws IOException {
     long size = input.readLong();
-    if (size < 0 || size > RECORD_LIMIT) {
-      throw new IOException("Invalid cached file size");
+    if (size >= 0 && size <= RECORD_LIMIT) {
+      return PackFile.write(stream -> copy(input, stream, size));
     }
-    return PackFile.write(stream -> copy(input, stream, size));
+    throw new IOException("Invalid cached file size");
   }
 
   /**
@@ -604,7 +610,7 @@ final class CallbackCache {
       }
       try {
         WRITER.execute(() -> persist(file, batch, hit, revision));
-      } catch (RejectedExecutionException busy) {
+      } catch (RejectedExecutionException _) {
         Constants.LOGGER.debug("Pack cache writer is busy, skipping persistence of {}", file);
         if (batch != null && !hit) {
           batch.values().forEach(PackContribution::release);
@@ -838,14 +844,14 @@ final class CallbackCache {
    */
   private static String readText(DataInputStream input) throws IOException {
     int length = input.readInt();
-    if (length < 0 || length > RECORD_LIMIT) {
-      throw new IOException("Invalid cached text size");
-    }
-    byte[] bytes = input.readNBytes(length);
-    if (bytes.length != length) {
+    if (length >= 0 && length <= RECORD_LIMIT) {
+      byte[] bytes = input.readNBytes(length);
+      if (bytes.length == length) {
+        return new String(bytes, StandardCharsets.UTF_8);
+      }
       throw new EOFException("Truncated cached text");
     }
-    return new String(bytes, StandardCharsets.UTF_8);
+    throw new IOException("Invalid cached text size");
   }
 
   /**
