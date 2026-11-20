@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "必須のデータパック「%s」は無効にできません",
+  "commands.cobweb.export.success": "パックを cobweb/exports/%s にエクスポートしました",
+  "commands.cobweb.export.failed": "パック「%s」をエクスポートできませんでした。詳細はログを確認してください。"
+}

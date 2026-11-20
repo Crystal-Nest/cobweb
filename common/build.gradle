@@ -12,10 +12,9 @@ neoForge {
 }
 
 dependencies {
-  compileOnly group: "org.spongepowered", name: "mixin", version: "0.8.7"
-  compileOnly group: "io.github.llamalad7", name: "mixinextras-common", version: "0.5.3"
-  annotationProcessor group: "io.github.llamalad7", name: "mixinextras-common", version: "0.5.3"
-  compileOnly "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:$fcap_version"
+  compileOnly "org.spongepowered:mixin:0.8.7"
+  compileOnly "io.github.llamalad7:mixinextras-common:0.5.3"
+  annotationProcessor "io.github.llamalad7:mixinextras-common:0.5.3"
 }
 
 configurations {
@@ -43,7 +42,7 @@ def loaderAttribute = Attribute.of("io.github.mcgradleconventions.loader", Strin
   }
 }
 sourceSets.configureEach {
-  [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName].each { variant->
+  [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName].each { variant ->
     configurations.named("$variant") {
       attributes {
         attribute(loaderAttribute, "common")

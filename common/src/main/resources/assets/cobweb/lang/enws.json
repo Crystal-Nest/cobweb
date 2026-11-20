@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Thou canst not disable the requisite data pack '%s'",
+  "commands.cobweb.export.success": "The pack hath been sent unto cobweb/exports/%s",
+  "commands.cobweb.export.failed": "The pack '%s' could not be sent forth. Consult the chronicle for particulars."
+}

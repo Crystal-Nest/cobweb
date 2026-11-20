@@ -4,14 +4,19 @@
   "package": "${group}.${mod_id}.mixin",
   "compatibilityLevel": "JAVA_${java_version}",
   "mixins": [
+    "HolderReferenceMixin",
     "PackRepositoryMixin",
+    "RegistryDataLoaderMixin",
     "ServerPacksSourceMixin"
   ],
   "client": [
     "client.CreateWorldScreenMixin",
-    "client.MinecraftMixin"
+    "client.MinecraftMixin",
+    "client.SplashManagerMixin"
   ],
-  "server": [],
+  "server": [
+    "MainMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

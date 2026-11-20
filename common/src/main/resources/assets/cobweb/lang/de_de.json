@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Das erforderliche Datenpaket '%s' kann nicht deaktiviert werden",
+  "commands.cobweb.export.success": "Paket nach cobweb/exports/%s exportiert",
+  "commands.cobweb.export.failed": "Das Paket '%s' konnte nicht exportiert werden. Weitere Informationen stehen im Protokoll."
+}

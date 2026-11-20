@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Ye can't abandon the required data booty '%s'!",
+  "commands.cobweb.export.success": "Stashed yer booty at cobweb/exports/%s",
+  "commands.cobweb.export.failed": "Couldn't stow the booty '%s'! Check the ship's log fer details."
+}

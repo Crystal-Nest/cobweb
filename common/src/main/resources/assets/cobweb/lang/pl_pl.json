@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Nie można wyłączyć wymaganego pakietu danych „%s”",
+  "commands.cobweb.export.success": "Wyeksportowano pakiet do cobweb/exports/%s",
+  "commands.cobweb.export.failed": "Nie udało się wyeksportować pakietu „%s”. Szczegóły znajdują się w dzienniku."
+}

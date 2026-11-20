@@ -4,6 +4,7 @@ plugins {
   id "com.hypherionmc.modutils.modpublisher"
 }
 
+def minecraft_target = minecraft_version + minecraft_patch_version
 def buildCommit = providers.exec {
   commandLine 'git', 'rev-parse', 'HEAD'
 }.standardOutput.asText.get().trim()
@@ -11,7 +12,14 @@ def buildTimestamp = new Date(providers.exec {
   commandLine 'git', 'log', '-1', '--format=%ct'
 }.standardOutput.asText.get().trim().toLong() * 1000L)
 
-def minecraft_target = minecraft_version + minecraft_patch_version
+def game_versions = [minecraft_version]
+if (minecraft_patch_version) {
+  int targetPatch = minecraft_patch_version.substring(1).toInteger()
+  for (int patch = 1; patch < targetPatch; patch++) {
+    game_versions << "${minecraft_version}.${patch}".toString()
+  }
+  game_versions << minecraft_target
+}
 
 base {
   archivesName = "$mod_id_kebab-$name"
@@ -44,10 +52,6 @@ repositories {
     name = "Crystal Nest"
     url = "https://maven.crystalnest.it"
   }
-  maven {
-    name = "Fuzs Mod Resources"
-    url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/"
-  }
 }
 
 sourcesJar {
@@ -79,24 +83,24 @@ jar {
 
 processResources {
   def expandProps = [
-    "java_version"                 : java_version,
-    "mod_version"                  : mod_version,
-    "group"                        : project.group,
-    "mod_authors"                  : mod_authors,
-    "mod_title"                    : mod_title,
-    "mod_id"                       : mod_id,
-    "mod_id_kebab"                 : mod_id_kebab,
-    "license"                      : license,
-    "description"                  : project.description,
-    "credits"                      : credits,
-    "github_user"                  : github_user,
-    "curseforge_id"                : curseforge_id,
-    "minecraft_version"            : minecraft_version,
-    "pack_format"                  : pack_format,
-    "fabric_version"               : fabric_version,
-    "fabric_loader_version"        : fabric_loader_version,
-    "neoforge_version"             : neoforge_version,
-    "fcap_version"                 : fcap_version,
+    "java_version"         : java_version,
+    "mod_version"          : mod_version,
+    "group"                : project.group,
+    "mod_authors"          : mod_authors,
+    "mod_title"            : mod_title,
+    "mod_id"               : mod_id,
+    "mod_id_kebab"         : mod_id_kebab,
+    "license"              : license,
+    "description"          : project.description,
+    "credits"              : credits,
+    "github_user"          : github_user,
+    "curseforge_id"        : curseforge_id,
+    "minecraft_version"    : minecraft_version,
+    "pack_format"          : pack_format,
+    "fabric_version"       : fabric_version,
+    "fabric_loader_version": fabric_loader_version,
+    "neoforge_version"     : neoforge_version,
+    "neoforge_min_version" : neoforge_min_version,
   ]
   filesMatching(["**/pack.mcmeta", "fabric.mod.json", "META-INF/neoforge.mods.toml", "*.mixins.json"]) {
     expand expandProps
@@ -179,10 +183,10 @@ publisher {
   if (!noPublish) {
     setLoaders(loader)
   }
-  setGameVersions(minecraft_version, minecraft_target)
+  setGameVersions(game_versions.toArray(new String[0]))
   setDisplayName("[$loader - $minecraft_version] $mod_title v$mod_version")
   setJavaVersions([JavaVersion.toVersion(java_version)])
-  setCurseEnvironment("both") // "server", "client" or "both".
+  setCurseEnvironment("both") // Cobweb supports installation on both physical sides.
   github {
     repo = "$github_user/$mod_id_kebab"
     tag = "v${project.version}"
@@ -197,7 +201,6 @@ publisher {
     switch (loader) {
       case "Fabric":
         required "fabric-api"
-        optional "forge-config-api-port"
         break
       case "NeoForge":
         break
@@ -207,7 +210,6 @@ publisher {
     switch (loader) {
       case "Fabric":
         required "fabric-api"
-        optional "forge-config-api-port"
         break
       case "NeoForge":
         break
