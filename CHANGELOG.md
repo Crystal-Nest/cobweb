@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Nothing new.
 
+## [v2.0.0] - 2026/11/20
+
+- Backported to 26.1.x and 26.2.
+
 ## [v2.0.0] - 2026/11/19
 
 - **Miscellaneous changes**
