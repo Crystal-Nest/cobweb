@@ -461,7 +461,7 @@ final class GeneratedPackResources implements PackResources {
   /**
    * Exposes generated entries and their namespaces as one native resource layer.
    */
-  private final class GeneratedContent extends AbstractPackResources implements PackResources {
+  private final class GeneratedContent extends AbstractPackResources {
     private GeneratedContent() {
       super(GeneratedPackResources.this.location);
     }
