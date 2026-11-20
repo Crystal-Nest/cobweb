@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Cannot disable required data pack '%s'",
+  "commands.cobweb.export.success": "Exported pack to cobweb/exports/%s",
+  "commands.cobweb.export.failed": "Could not export pack '%s'. See the log for details."
+}

@@ -1,6 +1,6 @@
 package it.crystalnest.cobweb.mixin.client;
 
-import it.crystalnest.cobweb.platform.FabricRegistryHelper;
+import it.crystalnest.cobweb.platform.FabricPackHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldCallback;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
@@ -14,19 +14,20 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import java.util.function.Function;
 
 /**
- * Injects into {@link CreateWorldScreen} to add dynamic and static data packs.
+ * Injects into {@link CreateWorldScreen} to add dynamic and static data packs during world creation.
  */
 @Mixin(CreateWorldScreen.class)
 public abstract class CreateWorldScreenMixin {
   /**
-   * Modifies the {@link PackRepository} variable in the method {@link CreateWorldScreen#openCreateWorldScreen(Minecraft, Runnable, Function, WorldCreationContextMapper, ResourceKey, CreateWorldCallback)}.<br>
-   * Registers all dynamic and static data packs to the original repository.
+   * Modifies the {@link PackRepository} variable before the call to {@link CreateWorldScreen#createDefaultLoadConfig} in the method
+   * {@link CreateWorldScreen#openCreateWorldScreen(Minecraft, Runnable, Function, WorldCreationContextMapper, ResourceKey, CreateWorldCallback)}.<br>
+   * Registers dynamic and static data packs before the default world configuration is created.
    *
    * @param vanillaOnlyPackRepository original {@link PackRepository}.
    * @return updated repository.
    */
-  @ModifyVariable(method = "openCreateWorldScreen", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"))
-  private static PackRepository onOpenCreateWorldScreen(PackRepository vanillaOnlyPackRepository) {
-    return FabricRegistryHelper.registerDataPacks(vanillaOnlyPackRepository);
+  @ModifyVariable(method = "openCreateWorldScreen", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"), name = "vanillaOnlyPackRepository")
+  private static PackRepository modifyPackRepository(PackRepository vanillaOnlyPackRepository) {
+    return FabricPackHelper.registerDataPacks(vanillaOnlyPackRepository);
   }
 }

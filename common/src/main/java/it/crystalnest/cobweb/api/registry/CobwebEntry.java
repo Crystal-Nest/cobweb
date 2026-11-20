@@ -7,21 +7,95 @@ import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * Wrapper around {@link Holder} to implement {@link Supplier}.
+ * Loader agnostic handle for a registered game object, backed by a native reference holder.
+ * Obtain entries through {@link CobwebRegister}; use vanilla holders for objects outside registration.
+ * Compare holders with {@link #equals(Object)}, not {@code ==}.
  *
- * @param holder wrapped instance of {@link Holder}.
  * @param <T> game object type.
  */
-public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T> {
+public abstract class CobwebEntry<T> extends Holder.Reference<T> implements Supplier<T> {
+  /**
+   * Wrapped holder. Its value may still be awaiting registration.
+   */
+  private final Holder<T> holder;
+
+  /**
+   * Binds native components after the loader resolves the reference.
+   */
+  private final Consumer<DataComponentMap> componentBinder;
+
+  /**
+   * @param holder native reference holder with a bound registration key; its value may still be awaiting registration.
+   */
+  @ApiStatus.Internal
+  protected CobwebEntry(Holder.Reference<T> holder) {
+    this(holder, holder::bindComponents);
+  }
+
+  /**
+   * @param holder native keyed holder, including an older loader's deferred holder.
+   * @param componentBinder native component binding operation after the entry resolves.
+   */
+  @ApiStatus.Internal
+  protected CobwebEntry(Holder<T> holder, Consumer<DataComponentMap> componentBinder) {
+    // Keep the registration key without resolving the value or replacing the native holder's owner.
+    super(Type.STAND_ALONE, null, Objects.requireNonNull(holder).unwrapKey().orElseThrow(), null);
+    this.holder = holder;
+    this.componentBinder = Objects.requireNonNull(componentBinder);
+  }
+
+  /**
+   * Returns the wrapped holder.
+   *
+   * @return wrapped holder.
+   */
+  public Holder<T> holder() {
+    return holder;
+  }
+
+  /**
+   * Exposes the underlying holder to NeoForge's delegating-holder lookup without a common loader dependency.
+   *
+   * @return wrapped holder.
+   */
+  public Holder<T> getDelegate() {
+    return holder;
+  }
+
+  @NotNull
+  @Override
+  public ResourceKey<T> key() {
+    return holder.unwrapKey().orElseThrow();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return this == other || holder.equals(other instanceof CobwebEntry<?> entry ? entry.holder : other);
+  }
+
+  @Override
+  public int hashCode() {
+    return holder.hashCode();
+  }
+
+  @NonNull
+  @Override
+  public String toString() {
+    return "CobwebEntry[holder=" + holder + "]";
+  }
+
   @NotNull
   @Override
   public T get() {
@@ -65,7 +139,6 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
   }
 
   @Override
-  @SuppressWarnings("deprecation")
   public boolean is(@NotNull Holder<T> holder) {
     return this.holder.is(holder);
   }
@@ -79,6 +152,11 @@ public record CobwebEntry<T>(Holder<T> holder) implements Holder<T>, Supplier<T>
   @Override
   public @NonNull DataComponentMap components() {
     return holder.components();
+  }
+
+  @Override
+  public void bindComponents(@NonNull DataComponentMap components) {
+    componentBinder.accept(components);
   }
 
   @NotNull

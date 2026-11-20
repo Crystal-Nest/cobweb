@@ -3,11 +3,38 @@
   "minVersion": "0.8",
   "package": "${group}.${mod_id}.mixin",
   "compatibilityLevel": "JAVA_${java_version}",
-  "mixins": [],
-  "client": [],
+  "mixins": [
+    "ConnectionAccessor",
+    "DataPackCommandMixin",
+    "DedicatedServerMixin",
+    "DedicatedServerPropertiesAccessor",
+    "MinecraftServerMixin",
+    "PackRepositoryDiscoveryMixin",
+    "CompositePackResourcesAccessor",
+    "ReloadableServerRegistriesMixin",
+    "ReloadableServerResourcesMixin",
+    "ReloadCommandMixin",
+    "ResourceMetadataMixin",
+    "ServerConfigurationPacketListenerImplMixin",
+    "ServerConnectionListenerChannelInitializerMixin",
+    "ServerConnectionListenerMixin",
+    "ServerHandshakePacketListenerImplMixin",
+    "ServerPacksSourceWorldMixin",
+    "SettingsAccessor",
+    "TagLoaderMixin",
+    "WorldLoaderMixin",
+    "WorldLoaderPackConfigMixin"
+  ],
+  "client": [
+    "client.NativeImageMixin",
+    "client.OptionsMixin",
+    "client.PackSelectionModelEntryBaseMixin",
+    "client.PackSelectionModelMixin",
+    "client.PackSelectionScreenMixin",
+    "client.ReloadableResourceManagerMixin"
+  ],
   "server": [],
   "injectors": {
     "defaultRequire": 1
   }
 }
-

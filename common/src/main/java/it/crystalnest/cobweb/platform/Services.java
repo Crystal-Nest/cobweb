@@ -1,11 +1,9 @@
 package it.crystalnest.cobweb.platform;
 
 import it.crystalnest.cobweb.Constants;
-import it.crystalnest.cobweb.platform.model.Platform;
-import it.crystalnest.cobweb.platform.services.ConfigHelper;
+import it.crystalnest.cobweb.platform.services.PackHelper;
 import it.crystalnest.cobweb.platform.services.PlatformHelper;
 import it.crystalnest.cobweb.platform.services.RegistryHelper;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ServiceLoader;
 
@@ -25,10 +23,9 @@ public final class Services {
   public static final RegistryHelper<?> REGISTRY = load(RegistryHelper.class);
 
   /**
-   * Provides registration for configuration specs.
+   * Provides pack registration and access to bundled pack resources.
    */
-  @Nullable
-  public static final ConfigHelper CONFIG = PLATFORM.getPlatformName() == Platform.NEOFORGE || PLATFORM.isModLoaded("forgeconfigapiport") ? load(ConfigHelper.class) : null;
+  public static final PackHelper PACK = load(PackHelper.class);
 
   private Services() {}
 
@@ -38,8 +35,8 @@ public final class Services {
    * Inside the file you should write the fully qualified class name of the implementation to load for the platform.
    *
    * @param clazz Class to load.
-   * @return The loaded service.
    * @param <T> class type.
+   * @return The loaded service.
    */
   private static <T> T load(Class<T> clazz) {
     final T loadedService = ServiceLoader.load(clazz).findFirst().orElseThrow(() -> new NullPointerException("Failed to load service for " + clazz.getName()));

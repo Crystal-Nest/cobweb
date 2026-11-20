@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Невозможно отключить обязательный набор данных «%s»",
+  "commands.cobweb.export.success": "Набор экспортирован в cobweb/exports/%s",
+  "commands.cobweb.export.failed": "Не удалось экспортировать набор «%s». Подробности в журнале."
+}

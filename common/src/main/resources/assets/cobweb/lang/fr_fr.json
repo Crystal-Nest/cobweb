@@ -1,0 +1,5 @@
+{
+  "commands.cobweb.datapack.disable.required": "Impossible de désactiver le pack de données obligatoire « %s »",
+  "commands.cobweb.export.success": "Pack exporté vers cobweb/exports/%s",
+  "commands.cobweb.export.failed": "Impossible d'exporter le pack « %s ». Consultez le journal pour plus de détails."
+}
